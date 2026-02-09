@@ -126,7 +126,7 @@ Any investment skill supports `--challenge` to add a Devil's Advocate section th
 
 ## Scheduling Briefings (Optional)
 
-All skills are **on-demand** — you run them when you want them. This is intentional: each briefing spawns multiple research agents with web searches, so running them only when you'll actually read the output avoids unnecessary API usage and ensures the data is fresh.
+All skills are **on-demand** — you run them when you want them. This is intentional: each briefing spawns multiple research agents with web searches, so running them only when you'll actually read the output keeps token costs down and ensures the data is fresh.
 
 If you want automated daily or weekly briefings, set up a local cron job that invokes the Claude CLI:
 
@@ -175,6 +175,16 @@ memory/               # Persistent agent context between sessions
 ## Privacy
 
 All personal financial data stays local. The `profile/`, `imports/`, `reports/`, `briefings/`, `journal/`, and `memory/` directories are gitignored. Only the plugin framework (skills, config, README) is tracked in git.
+
+## Roadmap
+
+Currently all market data comes from web search at runtime. Planned improvements:
+
+- **MCP integrations for live market data** — connect to financial data APIs (Alpha Vantage, FRED, Yahoo Finance) via MCP servers for structured, real-time data instead of web scraping
+- **Brokerage API connections** — sync holdings and transactions automatically instead of manual CSV imports
+- **Automated portfolio tracking** — live P&L, cost basis tracking, and drift alerts
+
+Contributions welcome — especially MCP server integrations for financial data sources.
 
 ## License
 
