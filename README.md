@@ -6,8 +6,7 @@ An AI-powered family office that runs inside [Claude Code](https://docs.anthropi
 
 ## Prerequisites
 
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed and configured
-- A Claude API key with access to web search
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed and configured with a Claude plan that includes web search
 
 ## Quick Start
 
