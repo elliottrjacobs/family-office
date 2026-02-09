@@ -124,6 +124,27 @@ Any investment skill supports `--challenge` to add a Devil's Advocate section th
 /equity-research NVDA --challenge
 ```
 
+## Scheduling Briefings (Optional)
+
+All skills are **on-demand** — you run them when you want them. This is intentional: each briefing spawns multiple research agents with web searches, so running them only when you'll actually read the output avoids unnecessary API usage and ensures the data is fresh.
+
+If you want automated daily or weekly briefings, set up a local cron job that invokes the Claude CLI:
+
+```bash
+# Edit your crontab
+crontab -e
+
+# Run /briefing at 7:00 AM on weekdays
+0 7 * * 1-5 cd /path/to/family-office && claude -p '/briefing' > /dev/null 2>&1
+
+# Run /weekly-review at 4:00 PM on Fridays
+0 16 * * 5 cd /path/to/family-office && claude -p '/weekly-review' > /dev/null 2>&1
+```
+
+Replace `/path/to/family-office` with your actual directory. The `claude -p` flag runs the skill non-interactively and prints output. Reports are saved to `briefings/daily/` and `briefings/weekly/` automatically.
+
+> **Note:** Scheduling is user-specific (local paths, timezone, machine uptime) and is not included in the repo. Your machine must be on, the Claude CLI must be authenticated, and `/onboard` must have been run first.
+
 ## Directory Structure
 
 ```
