@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>AI Family Office — System Visual Explainer</title>
+<title>AI Family Office — How It Works</title>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <style>
   :root {
@@ -150,10 +150,14 @@
 <div class="layout">
   <aside class="sidebar">
     <div class="brand">AI Family Office</div>
-    <div class="brand-sub">System Visual Explainer</div>
+    <div class="brand-sub">How It Works</div>
     <nav class="nav">
-      <div class="nav-section">Overview</div>
-      <a href="#hero"><span class="dot" style="background:var(--accent)"></span>Introduction</a>
+      <div class="nav-section">Start Here</div>
+      <a href="#hero"><span class="dot" style="background:var(--accent)"></span>What is this?</a>
+      <a href="#plain"><span class="dot" style="background:var(--accent-2)"></span>In plain English</a>
+      <a href="#flywheel"><span class="dot" style="background:var(--green)"></span>How it compounds</a>
+
+      <div class="nav-section">Under the Hood</div>
       <a href="#architecture"><span class="dot" style="background:var(--green)"></span>Architecture</a>
       <a href="#dataflow"><span class="dot" style="background:var(--blue)"></span>Data Flow</a>
       <a href="#profile-model"><span class="dot" style="background:var(--purple)"></span>Profile Model</a>
@@ -185,23 +189,89 @@
   <main>
     <!-- HERO -->
     <section id="hero" class="hero">
-      <h1>AI-Powered Family Office</h1>
-      <div class="sub">A team of 25 specialized financial agents, each invoked via a slash command, coordinated through a shared file-based data model. Skills read structured profile data, dispatch parallel research sub-agents to external data sources, then synthesize findings into versioned reports.</div>
+      <h1>Your own family office — run by AI</h1>
+      <div class="sub">The ultra-wealthy hire a <em>family office</em>: a private team of investment, tax, and planning experts who know their whole financial picture and work together on it. This gives you the same thing — a team of <strong>27 AI specialists</strong> you summon by name (<code>/cio</code>, <code>/tax</code>, <code>/briefing</code>…). They all read from one shared picture of your finances, and they remember — so every session builds on the last.</div>
       <div class="pills">
-        <span class="pill">25 Skills</span>
-        <span class="pill">File-based State</span>
-        <span class="pill">Parallel Sub-Agents</span>
-        <span class="pill">Tool-Priority Cascade</span>
-        <span class="pill">API-Agnostic Pattern</span>
+        <span class="pill">Summon a specialist by name</span>
+        <span class="pill">They share one memory</span>
+        <span class="pill">They connect across your whole picture</span>
+        <span class="pill">It gets smarter over time</span>
       </div>
       <div class="info-grid" style="margin-top:22px;">
-        <div class="stat"><div class="n">25</div><div class="l">Skills total</div></div>
-        <div class="stat"><div class="n">11</div><div class="l">Parallel orchestrators</div></div>
-        <div class="stat"><div class="n">39+</div><div class="l">Profile data files</div></div>
-        <div class="stat"><div class="n">18</div><div class="l">Report categories</div></div>
-        <div class="stat"><div class="n">6</div><div class="l">External data sources</div></div>
+        <div class="stat"><div class="n">27</div><div class="l">Specialists you can call on</div></div>
+        <div class="stat"><div class="n">1</div><div class="l">Shared memory they all read</div></div>
+        <div class="stat"><div class="n">16</div><div class="l">Kinds of reports they write</div></div>
+        <div class="stat"><div class="n">Grows</div><div class="l">Smarter every session</div></div>
       </div>
     </section>
+
+    <!-- PLAIN ENGLISH -->
+    <h2 id="plain">In plain English: what actually happens</h2>
+    <p>You don't need to be technical to use this. Think of it as texting a group chat of experts who already have your files in front of them.</p>
+    <div class="info-grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));">
+      <div class="stat">
+        <div class="n" style="font-size:18px;color:var(--accent-2)">1 · You ask</div>
+        <div class="l" style="font-size:13px;line-height:1.5;margin-top:8px">Type a command like <code>/cio</code> ("run my investment committee") or <code>/tax</code> ("find me tax savings"). Or just drop a bank statement into a folder and say <code>/sync</code>.</div>
+      </div>
+      <div class="stat">
+        <div class="n" style="font-size:18px;color:var(--purple)">2 · The team works</div>
+        <div class="l" style="font-size:13px;line-height:1.5;margin-top:8px">The right specialist quietly spins up a <strong>team of researchers</strong> who look things up at the same time — markets, filings, the economy — each grounded in <em>your</em> goals and holdings.</div>
+      </div>
+      <div class="stat">
+        <div class="n" style="font-size:18px;color:var(--green)">3 · You get an answer</div>
+        <div class="l" style="font-size:13px;line-height:1.5;margin-top:8px">A clear written report with a plain recommendation — and the <em>why</em> behind it. Stuck on jargon? <code>/eli5</code> re-explains the last answer like you're five.</div>
+      </div>
+      <div class="stat">
+        <div class="n" style="font-size:18px;color:var(--yellow)">4 · It remembers</div>
+        <div class="l" style="font-size:13px;line-height:1.5;margin-top:8px">The decision, the reasoning, and any lessons get saved. Next time, every specialist already knows what happened — so you never start from scratch.</div>
+      </div>
+    </div>
+    <div class="callout"><strong>The point:</strong> a regular chatbot forgets you the moment the window closes, and answers each question in isolation. This is a <em>standing team</em> with a shared, growing memory of your money — which is exactly what makes a real family office valuable.</div>
+
+    <!-- COMPOUNDS & CONNECTS -->
+    <h2 id="flywheel">How it compounds &amp; connects</h2>
+    <p>Two ideas make this more than a pile of separate tools. <strong>Connect:</strong> every specialist reads the <em>same</em> picture of your finances, so your tax agent already knows what your investment chief is doing. <strong>Compound:</strong> every answer is saved back into that picture, so the system gets sharper and more personalized each time you use it.</p>
+    <div class="diagram-card">
+      <div class="header"><div class="title">The flywheel — each loop leaves the office smarter</div><span class="badge">The Big Idea</span></div>
+      <div class="diagram-body">
+        <div class="zoom-wrap">
+          <div class="zoom-controls"><button class="zoom-btn" data-zoom="in">+</button><button class="zoom-btn" data-zoom="out">−</button><button class="zoom-btn" data-zoom="reset">⟲</button></div>
+          <div class="pan-wrap">
+<div class="mermaid">
+flowchart LR
+  You([You<br/>ask a question or<br/>add a document])
+  Profile[("Your shared picture<br/>goals · accounts · holdings ·<br/>income · debts · health")]
+  Team["A team of specialists<br/>research in parallel,<br/>all grounded in your picture"]
+  Report["Clear report<br/>+ a plain recommendation<br/>and the reasoning"]
+  Memory[("Memory &amp; journal<br/>decisions, lessons,<br/>what changed")]
+
+  You -->|"1 · ask"| Profile
+  Profile -->|"2 · everyone reads<br/>the same facts"| Team
+  Team -->|"3 · synthesize"| Report
+  Report -->|"4 · you decide"| You
+  Report ==>|"5 · save what happened"| Memory
+  Memory ==>|"next time, everyone<br/>starts smarter"| Profile
+
+  style You fill:#dcfce7,stroke:#22c55e,color:#000
+  style Profile fill:#fef3c7,stroke:#f59e0b,color:#000
+  style Team fill:#ede9fe,stroke:#8b5cf6,color:#000
+  style Report fill:#dbeafe,stroke:#3b82f6,color:#000
+  style Memory fill:#fef3c7,stroke:#f59e0b,color:#000
+</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="info-grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));">
+      <div class="stat">
+        <div class="n" style="font-size:16px;color:var(--accent-2)">🔗 Connected, not scattered</div>
+        <div class="l" style="font-size:13px;line-height:1.55;margin-top:8px">Your <code>/tax</code> specialist sees the same holdings your <code>/cio</code> does. Your <code>/cfo</code> knows your real debts and income. One source of truth means advice that actually fits together — no contradictions, no re-explaining yourself.</div>
+      </div>
+      <div class="stat">
+        <div class="n" style="font-size:16px;color:var(--green)">📈 Compounds over time</div>
+        <div class="l" style="font-size:13px;line-height:1.55;margin-top:8px">Every recommendation, trade, and "here's what we learned" is written down. The longer you use it, the more it understands your situation and your past decisions — like a real advisor who's known you for years.</div>
+      </div>
+    </div>
 
     <!-- ARCHITECTURE -->
     <h2 id="architecture">System Architecture</h2>
@@ -216,7 +286,7 @@
 flowchart TB
   User([User])
   subgraph CLI["Slash-Command Interface"]
-    Skills["25 Skills<br/>(/cio, /tax, /briefing ...)"]
+    Skills["27 Skills<br/>(/cio, /tax, /briefing ...)"]
   end
   subgraph State["File-Based State (the source of truth)"]
     Profile[(profile/<br/>structured JSON)]
@@ -458,6 +528,8 @@ flowchart TB
           <tr><td class="mono">/options</td><td>Covered calls, puts, spreads, hedging, income generation</td><td><span class="tag tag-parallel">parallel</span></td><td>4 (IV/context, income, hedging, greeks)</td><td><span class="mono">reports/options/</span></td></tr>
           <tr><td class="mono">/technicals</td><td>Chart analysis, entry/exit timing, momentum signals</td><td><span class="tag tag-direct">direct</span></td><td>—</td><td><span class="mono">reports/equity-research/*-technicals.md</span></td></tr>
           <tr><td class="mono">/alts-scout</td><td>Crypto, commodities, real assets, alternative opportunities</td><td><span class="tag tag-direct">direct</span></td><td>—</td><td><span class="mono">reports/equity-research/*-alts.md</span></td></tr>
+          <tr><td class="mono">/mgmt-diligence</td><td>Scores a company's leadership — capital allocation, alignment, candor, delivery, governance ("bet on the jockey")</td><td><span class="tag tag-parallel">parallel</span></td><td>multiple (per diligence dimension)</td><td><span class="mono">reports/equity-research/*-management.md</span></td></tr>
+          <tr><td class="mono">/lead-edge-eight</td><td>Scores a company against an 8-criterion growth-investing rubric</td><td><span class="tag tag-parallel">parallel</span></td><td>batches of 3 researchers</td><td><span class="mono">reports/equity-research/</span></td></tr>
 
           <tr class="cat-row"><td colspan="5">Sector Specialists</td></tr>
           <tr><td class="mono">/sector-tech</td><td>Software, semis, cloud, AI/ML, cybersecurity</td><td><span class="tag tag-parallel">parallel</span></td><td>4 (semis/AI, cloud/SaaS, consumer, cyber)</td><td><span class="mono">reports/sectors/tech/</span></td></tr>
@@ -847,7 +919,7 @@ flowchart TB
 
     <!-- ORCHESTRATION PATTERN -->
     <h2 id="orchestration">Orchestration Pattern — Parallel Sub-Agents</h2>
-    <p>11 of the 25 skills use the same fan-out pattern: read profile state → spawn N specialist sub-agents in parallel → synthesize their outputs → write a single report. This is the system's core compute primitive.</p>
+    <p>Most of the heavyweight skills use the same fan-out pattern: read profile state → spawn N specialist sub-agents in parallel → synthesize their outputs → write a single report. This is the system's core compute primitive — it's what lets one command (<code>/cio</code>) put six researchers on your portfolio at once.</p>
     <div class="diagram-card">
       <div class="header"><div class="title">How a Multi-Agent Skill Executes</div><span class="badge">Sequence</span></div>
       <div class="diagram-body">
@@ -918,8 +990,10 @@ flowchart TD
   Q --> Q5{Library /<br/>framework / SDK<br/>docs?}
   Q --> Q6{Same-day<br/>breaking news?}
 
-  Q1 -->|Yes| T1[Tier 1: Market-data API<br/><i>e.g. AlphaVantage, Polygon, IEX</i>]
-  T1 -->|rate limited| T1B[Tier 2: Filings API<br/><i>e.g. SEC EDGAR scraper</i>]
+  Q1 -->|"quote / option / price history"| T1[Brokerage market-data API<br/><i>Schwab — primary, held &amp; unheld</i>]
+  Q1 -->|"fundamentals / ratios / earnings"| T1F[Fundamentals API<br/><i>AlphaVantage</i>]
+  T1 -->|unavailable| T1F
+  T1F -->|rate limited| T1B[SEC EDGAR XBRL<br/><i>via direct HTTP</i>]
   T1B -->|no result| T1C[LAST: Web search]
 
   Q2 -->|Yes| T2[Filings API<br/><i>SEC EDGAR, fundamentals scraper</i>]
@@ -939,6 +1013,7 @@ flowchart TD
   Q6 -->|Yes| T6[Web search<br/><i>only place it's first stop</i>]
 
   style T1 fill:#dcfce7,stroke:#22c55e,color:#000
+  style T1F fill:#dcfce7,stroke:#22c55e,color:#000
   style T2 fill:#dcfce7,stroke:#22c55e,color:#000
   style T3 fill:#dcfce7,stroke:#22c55e,color:#000
   style T4 fill:#dcfce7,stroke:#22c55e,color:#000
@@ -1178,8 +1253,10 @@ that argues the opposite position with full conviction.
       <table>
         <thead><tr><th>Role</th><th>What it provides</th><th>This system uses</th><th>You could substitute</th></tr></thead>
         <tbody>
-          <tr><td>Tier 1 Market Data</td><td>Quotes, fundamentals, options, technicals, commodities, FX, crypto, news sentiment</td><td>AlphaVantage MCP</td><td>Polygon, IEX Cloud, Tiingo, Finnhub, Yahoo Finance unofficial</td></tr>
-          <tr><td>Filings / SEC</td><td>10-K/Q, 8-K, Form 4, 13F, XBRL financials</td><td>Direct SEC EDGAR HTTP (curl, User-Agent required)</td><td>Direct SEC EDGAR HTTP, Sharadar, EDGAR-Online, financialmodelingprep</td></tr>
+          <tr><td>Accounts &amp; positions</td><td>Your real balances, holdings, transactions, orders</td><td>Schwab Trader API — read-only wrapper (<code>scripts/schwab/</code>)</td><td>Plaid, Teller, broker CSV exports + the <code>/sync</code> skill</td></tr>
+          <tr><td>Quotes / options / price history</td><td>Live &amp; EOD quotes, option chains, OHLC — held <em>and</em> unheld tickers</td><td>Schwab Market Data API (primary) → AlphaVantage (fallback)</td><td>Polygon, IEX Cloud, Tiingo, Finnhub, Yahoo Finance unofficial</td></tr>
+          <tr><td>Fundamentals</td><td>P/E &amp; ratios, income statement, balance sheet, earnings dates</td><td>AlphaVantage MCP (primary) → SEC EDGAR XBRL (fallback)</td><td>financialmodelingprep, Sharadar, Koyfin</td></tr>
+          <tr><td>Filings / SEC</td><td>10-K/Q, 8-K, Form 4, 13F, XBRL financials</td><td>Direct SEC EDGAR HTTP (curl, User-Agent required)</td><td>Sharadar, EDGAR-Online, financialmodelingprep</td></tr>
           <tr><td>Macro / Economic</td><td>Treasury yields, CPI, Fed funds, unemployment, GDP, mortgage rates</td><td>FRED via HTTP</td><td>BLS API, World Bank, OECD, Trading Economics</td></tr>
           <tr><td>Qualitative Research</td><td>"Why is X happening?", sentiment, multi-source synthesis</td><td>Gemini (fast + deep research, <code>scripts/gemini/</code>)</td><td>OpenAI deep-research, Tavily, Exa, Brave search + LLM synthesis</td></tr>
           <tr><td>Library / Framework Docs</td><td>Up-to-date docs for SDKs, frameworks, CLIs</td><td>Context7 MCP</td><td>Direct fetch of docs sites, llms.txt files</td></tr>
