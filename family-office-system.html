@@ -6,172 +6,171 @@
 <title>AI Family Office — How It Works</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400&display=swap" rel="stylesheet">
 <style>
   :root {
-    --eggshell: #fdfcfc;
-    --powder:   #f5f3f1;
-    --chalk:    #e5e5e5;
-    --fog:      #b1b0b0;
-    --gravel:   #777169;
-    --slate:    #a59f97;
-    --obsidian: #000000;
-    --signal:   #0447ff;
-    --ember:    #ff4704;
+    --canvas: #ffffff;
+    --ghost:  #f2f2f2;
+    --ash:    #e5e5e5;
+    --ash-2:  #a1a1a1;
+    --mid:    #737373;
+    --rich:   #0a0a0a;
+    --deep:   #000000;
+    --red:    #c22b10;
+    --green:  #10c22b;
 
-    --font-display: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
-    --font-body: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --font: 'Geist', Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --mono: 'Geist Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-    --shadow-card: rgba(0,0,0,0.4) 0px 0px 1px 0px, rgba(0,0,0,0.04) 0px 2px 4px 0px;
-    --logo: conic-gradient(from 180deg, rgb(61,117,216) 11deg, rgb(42,104,210) 26deg, rgb(117,190,229) 32deg, rgb(82,208,233) 39deg, rgb(33,89,186) 75deg, rgb(58,116,218) 85deg, rgb(108,215,236) 95deg, rgb(90,185,241) 122deg, rgb(51,161,229) 130deg, rgb(31,95,207) 137deg, rgb(44,84,202) 144deg, rgb(58,158,207) 176deg, rgb(49,103,197) 184deg, rgb(173,232,243) 202deg, rgb(216,241,245) 225deg, rgb(165,219,230) 240deg, rgb(43,157,214) 268deg, rgb(174,224,233) 286deg, rgb(32,186,208) 330deg, rgb(30,83,176) 344deg, rgb(47,64,210) 359deg);
+    --ring: oklab(0.145 0 0 / 0.1) 0px 0px 0px 1px;
   }
 
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
-    background: var(--eggshell);
-    color: var(--obsidian);
-    font-family: var(--font-body);
-    font-size: 16px;
-    line-height: 1.5;
-    letter-spacing: 0.1px;
+    background: var(--canvas);
+    color: var(--rich);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.43;
     -webkit-font-smoothing: antialiased;
   }
-  a { color: var(--obsidian); text-decoration: none; }
+  a { color: var(--rich); text-decoration: none; }
 
   /* ── Layout ── */
-  .layout { display: grid; grid-template-columns: 256px 1fr; min-height: 100vh; }
+  .layout { display: grid; grid-template-columns: 248px 1fr; min-height: 100vh; }
   aside.sidebar {
     position: sticky; top: 0; height: 100vh; overflow-y: auto;
-    background: var(--eggshell); border-right: 1px solid var(--chalk);
-    padding: 28px 22px;
+    background: var(--canvas); border-right: 1px solid var(--ash);
+    padding: 24px 18px;
   }
-  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
-  .logomark { width: 22px; height: 22px; border-radius: 50%; background: var(--logo); flex-shrink: 0; }
-  .brand-name { font-family: var(--font-body); font-weight: 700; font-size: 15px; letter-spacing: 0.3px; }
-  .brand-sub { color: var(--gravel); font-size: 12px; margin: 0 0 26px 32px; }
-  .nav-label { color: var(--slate); text-transform: uppercase; font-size: 10px; letter-spacing: 1.4px; font-weight: 500; margin: 22px 0 8px; }
+  .brand { display: flex; align-items: center; gap: 9px; margin-bottom: 2px; padding: 0 8px; }
+  .logomark { width: 20px; height: 20px; border-radius: 6px; background: var(--deep); flex-shrink: 0; position: relative; }
+  .logomark::after { content: ""; position: absolute; inset: 6px; border-radius: 2px; border: 1.5px solid var(--canvas); }
+  .brand-name { font-weight: 600; font-size: 14px; letter-spacing: -0.2px; }
+  .brand-sub { color: var(--mid); font-size: 12px; margin: 0 0 22px 37px; }
+  .nav-label { color: var(--mid); text-transform: uppercase; font-size: 11px; letter-spacing: 0.6px; font-weight: 500; margin: 20px 0 6px; padding: 0 8px; }
   nav a {
-    display: block; color: var(--gravel); font-size: 14px;
-    padding: 7px 10px; border-radius: 9999px; margin: 1px 0;
-    transition: background 0.15s, color 0.15s;
+    display: block; color: var(--mid); font-size: 13.5px;
+    padding: 6px 8px; border-radius: 10px; margin: 1px 0;
+    transition: background 0.12s, color 0.12s;
   }
-  nav a:hover { color: var(--obsidian); background: var(--powder); }
-  nav a.active { color: var(--obsidian); background: var(--powder); font-weight: 500; }
+  nav a:hover { color: var(--rich); background: var(--ghost); }
+  nav a.active { color: var(--rich); background: var(--ghost); font-weight: 500; }
 
-  main { padding: 0; max-width: 1160px; }
-  .wrap { padding: 0 56px 120px; }
+  main { padding: 0; max-width: 1080px; }
+  .wrap { padding: 0 48px 96px; }
 
   /* ── Typography ── */
-  h1 { font-family: var(--font-display); font-weight: 300; font-size: 56px; line-height: 1.04; letter-spacing: -1.1px; margin: 0 0 18px; }
-  h2 { font-family: var(--font-display); font-weight: 300; font-size: 38px; line-height: 1.12; letter-spacing: -0.76px; margin: 0 0 14px; }
-  h3 { font-family: var(--font-body); font-weight: 500; font-size: 18px; letter-spacing: 0; margin: 0 0 8px; }
-  p { color: var(--gravel); margin: 0 0 14px; max-width: 760px; }
-  p strong, li strong { color: var(--obsidian); font-weight: 500; }
-  em { font-style: italic; }
-  .eyebrow { color: var(--gravel); font-size: 13px; letter-spacing: 0.4px; text-transform: uppercase; margin: 0 0 12px; font-weight: 500; }
-  code { font-family: var(--font-mono); font-size: 0.86em; background: var(--powder); border: 1px solid var(--chalk); padding: 1px 6px; border-radius: 4px; color: var(--obsidian); }
-  section.block { padding-top: 96px; }
+  h1 { font-weight: 600; font-size: 48px; line-height: 1.0; letter-spacing: -2.4px; color: var(--deep); margin: 0 0 18px; }
+  h2 { font-weight: 600; font-size: 30px; line-height: 1.08; letter-spacing: -1.2px; color: var(--deep); margin: 0 0 12px; }
+  h3 { font-weight: 500; font-size: 16px; letter-spacing: -0.2px; color: var(--rich); margin: 0 0 6px; }
+  p { color: var(--mid); margin: 0 0 12px; max-width: 720px; font-size: 14px; }
+  p strong, li strong { color: var(--rich); font-weight: 500; }
+  em { font-style: normal; color: var(--rich); }
+  .eyebrow { color: var(--mid); font-size: 12px; letter-spacing: 0.6px; text-transform: uppercase; margin: 0 0 10px; font-weight: 500; }
+  code { font-family: var(--mono); font-size: 0.86em; background: var(--ghost); border: 1px solid var(--ash); padding: 1px 5px; border-radius: 6px; color: var(--rich); }
+  section.block { padding-top: 80px; }
   section.block:first-of-type { padding-top: 0; }
 
   /* ── Buttons ── */
-  .btn { display: inline-flex; align-items: center; gap: 7px; font-family: var(--font-body); font-size: 14px; font-weight: 500; border-radius: 9999px; padding: 9px 18px; border: 1px solid var(--chalk); cursor: pointer; transition: opacity 0.15s, background 0.15s; }
-  .btn-fill { background: var(--obsidian); color: var(--eggshell); box-shadow: var(--shadow-card); }
-  .btn-fill:hover { opacity: 0.85; }
-  .btn-ghost { background: #fff; color: var(--obsidian); box-shadow: var(--shadow-card); }
-  .btn-ghost:hover { background: var(--powder); }
-  .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+  .btn { display: inline-flex; align-items: center; gap: 7px; font-family: var(--font); font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity 0.12s, background 0.12s; }
+  .btn-fill { background: var(--deep); color: var(--canvas); border: 1px solid var(--deep); border-radius: 10px; padding: 9px 22px; }
+  .btn-fill:hover { opacity: 0.86; }
+  .btn-ghost { background: transparent; color: var(--rich); border: 1px solid var(--ash); border-radius: 9999px; padding: 9px 18px; }
+  .btn-ghost:hover { background: var(--ghost); }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
 
   /* ── Hero ── */
-  .hero { padding-top: 88px; }
-  .hero .lede { font-size: 19px; line-height: 1.55; color: var(--gravel); max-width: 680px; }
-  .hero .lede strong { color: var(--obsidian); }
+  .hero { padding-top: 80px; }
+  .hero .lede { font-size: 17px; line-height: 1.5; color: var(--mid); max-width: 660px; letter-spacing: -0.2px; }
+  .hero .lede strong { color: var(--rich); }
 
   /* ── Stat strip ── */
-  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-top: 56px; border-top: 1px solid var(--chalk); border-bottom: 1px solid var(--chalk); }
-  .stat { padding: 22px 22px 22px 0; border-right: 1px solid var(--chalk); }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-top: 48px; border: 1px solid var(--ash); border-radius: 14px; overflow: hidden; }
+  .stat { padding: 18px 20px; border-right: 1px solid var(--ash); }
   .stat:last-child { border-right: 0; }
-  .stat .n { font-family: var(--font-display); font-weight: 300; font-size: 40px; line-height: 1; letter-spacing: -0.8px; }
-  .stat .l { color: var(--gravel); font-size: 13px; margin-top: 8px; }
+  .stat .n { font-weight: 600; font-size: 32px; line-height: 1; letter-spacing: -1.6px; color: var(--deep); }
+  .stat .l { color: var(--mid); font-size: 12.5px; margin-top: 7px; }
 
   /* ── Cards / grid ── */
-  .grid { display: grid; gap: 16px; margin: 8px 0 0; }
+  .grid { display: grid; gap: 12px; margin: 8px 0 0; }
   .grid-2 { grid-template-columns: 1fr 1fr; }
   .grid-3 { grid-template-columns: repeat(3, 1fr); }
   .grid-4 { grid-template-columns: repeat(4, 1fr); }
-  .card { background: #fff; border-radius: 16px; padding: 22px; box-shadow: var(--shadow-card); }
-  .card .step-n { font-family: var(--font-mono); font-size: 12px; color: var(--gravel); margin-bottom: 10px; }
-  .card h3 { margin-bottom: 6px; }
-  .card p { font-size: 14px; margin: 0; color: var(--gravel); }
-  .card.flat { background: transparent; box-shadow: none; padding: 0; }
+  .card { background: var(--canvas); border: 1px solid var(--ash); border-radius: 14px; padding: 16px; }
+  .card .step-n { font-family: var(--mono); font-size: 12px; color: var(--mid); margin-bottom: 10px; }
+  .card h3 { margin-bottom: 5px; }
+  .card p { font-size: 13.5px; margin: 0; color: var(--mid); }
+  .card.flat { background: transparent; border: 0; padding: 0; }
 
   /* ── Callout ── */
-  .callout { background: var(--powder); border-radius: 16px; padding: 20px 24px; margin: 22px 0 0; font-size: 15px; color: var(--gravel); max-width: 820px; }
-  .callout strong { color: var(--obsidian); font-weight: 500; }
+  .callout { background: var(--ghost); border-radius: 14px; padding: 16px 18px; margin: 16px 0 0; font-size: 14px; color: var(--mid); max-width: 820px; }
+  .callout strong { color: var(--rich); font-weight: 500; }
 
   /* ── Diagram primitives ── */
-  .diagram { background: #fff; border-radius: 20px; padding: 32px; box-shadow: var(--shadow-card); margin-top: 8px; overflow-x: auto; }
-  .node { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: #fff; border: 1px solid var(--chalk); border-radius: 12px; padding: 14px 18px; font-size: 13.5px; line-height: 1.35; min-width: 120px; }
-  .node small { color: var(--gravel); font-size: 12px; font-weight: 400; }
-  .node.dark { background: var(--obsidian); color: var(--eggshell); border-color: var(--obsidian); }
-  .node.dark small { color: #cfcbc4; }
-  .node.soft { background: var(--powder); }
-  .arrow { color: var(--slate); font-size: 20px; line-height: 1; flex-shrink: 0; padding: 0 4px; }
+  .diagram { background: var(--canvas); border: 1px solid var(--ash); border-radius: 14px; padding: 28px; margin-top: 8px; overflow-x: auto; }
+  .node { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: var(--canvas); border: 1px solid var(--ash); border-radius: 10px; padding: 12px 16px; font-size: 13px; line-height: 1.35; min-width: 120px; }
+  .node small { color: var(--mid); font-size: 12px; font-weight: 400; }
+  .node.dark { background: var(--deep); color: var(--canvas); border-color: var(--deep); }
+  .node.dark small { color: #b5b5b5; }
+  .node.dark code { background: #1a1a1a; border-color: #333; color: #fff; }
+  .node.soft { background: var(--ghost); }
+  .arrow { color: var(--ash-2); font-size: 18px; line-height: 1; flex-shrink: 0; padding: 0 2px; }
   .row-flow { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; }
   .col-flow { display: flex; flex-direction: column; align-items: center; gap: 10px; }
-  .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--powder); border: 1px solid var(--chalk); border-radius: 9999px; padding: 6px 13px; font-size: 13px; color: var(--obsidian); white-space: nowrap; }
-  .chip.mono { font-family: var(--font-mono); font-size: 12px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--ghost); border: 1px solid transparent; border-radius: 9999px; padding: 5px 13px; font-size: 12.5px; color: var(--rich); white-space: nowrap; }
+  .chip.mono { font-family: var(--mono); font-size: 12px; }
   .chip-wrap { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
-  .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 
   /* flywheel return bar */
-  .return-bar { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 18px; padding-top: 18px; border-top: 1px dashed var(--chalk); color: var(--gravel); font-size: 14px; }
-  .return-bar .loop { font-size: 18px; }
+  .return-bar { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--ash); color: var(--mid); font-size: 13.5px; }
+  .return-bar .loop { font-size: 17px; color: var(--rich); }
 
   /* data pipeline */
   .pipeline { display: flex; align-items: stretch; gap: 8px; }
-  .stage { flex: 1; min-width: 150px; background: var(--powder); border: 1px solid var(--chalk); border-radius: 14px; padding: 16px; }
-  .stage .stage-h { font-size: 13px; font-weight: 500; margin-bottom: 10px; display: flex; gap: 8px; align-items: baseline; }
-  .stage .stage-h span { font-family: var(--font-mono); color: var(--slate); font-size: 12px; }
+  .stage { flex: 1; min-width: 148px; background: var(--ghost); border: 1px solid var(--ash); border-radius: 12px; padding: 14px; }
+  .stage .stage-h { font-size: 13px; font-weight: 500; margin-bottom: 9px; display: flex; gap: 8px; align-items: baseline; color: var(--rich); }
+  .stage .stage-h span { font-family: var(--mono); color: var(--ash-2); font-size: 12px; }
   .stage ul { margin: 0; padding-left: 0; list-style: none; }
-  .stage li { font-size: 12.5px; color: var(--gravel); padding: 3px 0; border-bottom: 1px solid var(--chalk); }
+  .stage li { font-size: 12.5px; color: var(--mid); padding: 3px 0; border-bottom: 1px solid var(--ash); }
   .stage li:last-child { border-bottom: 0; }
-  .pipe-arrow { display: flex; align-items: center; color: var(--slate); font-size: 18px; }
+  .pipe-arrow { display: flex; align-items: center; color: var(--ash-2); font-size: 16px; }
 
   /* cascade rows */
-  .cascade-row { display: grid; grid-template-columns: 220px 1fr; gap: 16px; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--chalk); }
+  .cascade-row { display: grid; grid-template-columns: 220px 1fr; gap: 16px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--ash); }
   .cascade-row:last-child { border-bottom: 0; }
-  .cascade-q { font-size: 14px; font-weight: 500; }
-  .cascade-q small { display: block; color: var(--gravel); font-weight: 400; font-size: 12.5px; margin-top: 2px; }
+  .cascade-q { font-size: 14px; font-weight: 500; color: var(--rich); }
+  .cascade-q small { display: block; color: var(--mid); font-weight: 400; font-size: 12.5px; margin-top: 2px; }
   .cascade-path { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .chip.primary { background: var(--obsidian); color: var(--eggshell); border-color: var(--obsidian); }
-  .chip.last { border-style: dashed; color: var(--gravel); background: transparent; }
+  .chip.primary { background: var(--deep); color: var(--canvas); border-color: var(--deep); }
+  .chip.last { border: 1px solid var(--ash); color: var(--mid); background: transparent; }
 
   /* ── Table ── */
-  .table-card { background: #fff; border-radius: 16px; box-shadow: var(--shadow-card); overflow: hidden; margin-top: 8px; }
+  .table-card { background: var(--canvas); border: 1px solid var(--ash); border-radius: 14px; overflow: hidden; margin-top: 8px; }
   table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--chalk); vertical-align: top; }
-  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--gravel); font-weight: 500; }
+  th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--ash); vertical-align: top; color: var(--rich); }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--mid); font-weight: 500; }
   tr:last-child td { border-bottom: 0; }
-  td.mono, .mono { font-family: var(--font-mono); font-size: 12.5px; }
-  .cat td { background: var(--powder); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--gravel); }
-  .lbl { font-family: var(--font-mono); font-size: 11px; padding: 2px 8px; border-radius: 9999px; border: 1px solid var(--chalk); color: var(--gravel); white-space: nowrap; }
-  .lbl.team { border-color: var(--obsidian); color: var(--obsidian); }
+  td.mono, .mono { font-family: var(--mono); font-size: 12.5px; }
+  td p, p.mono { color: var(--mid); }
+  .cat td { background: var(--ghost); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--mid); }
+  .lbl { display: inline-block; font-family: var(--font); font-size: 11px; padding: 2px 9px; border-radius: 26px; background: var(--ghost); color: var(--rich); white-space: nowrap; }
+  .lbl.team { background: var(--deep); color: var(--canvas); }
 
   /* ── Code ── */
-  pre { background: var(--powder); border: 1px solid var(--chalk); border-radius: 14px; padding: 18px 20px; overflow-x: auto; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.7; color: var(--obsidian); margin: 8px 0 0; }
+  pre { background: var(--ghost); border: 1px solid var(--ash); border-radius: 10px; padding: 16px 18px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; color: var(--rich); margin: 8px 0 0; }
 
-  .footer { color: var(--slate); font-size: 12px; margin-top: 96px; padding-top: 28px; border-top: 1px solid var(--chalk); }
+  .footer { color: var(--ash-2); font-size: 12px; margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--ash); }
 
   @media (max-width: 920px) {
     .layout { grid-template-columns: 1fr; }
-    aside.sidebar { position: relative; height: auto; border-right: 0; border-bottom: 1px solid var(--chalk); }
-    .wrap { padding: 0 22px 80px; }
-    h1 { font-size: 40px; }
-    h2 { font-size: 30px; }
+    aside.sidebar { position: relative; height: auto; border-right: 0; border-bottom: 1px solid var(--ash); }
+    .wrap { padding: 0 20px 72px; }
+    h1 { font-size: 36px; letter-spacing: -1.6px; }
+    h2 { font-size: 26px; }
     .stats { grid-template-columns: 1fr 1fr; }
-    .stat { border-right: 0; }
+    .stat:nth-child(2) { border-right: 0; }
     .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
     .pipeline { flex-direction: column; }
     .pipe-arrow { transform: rotate(90deg); justify-content: center; padding: 4px 0; }
@@ -228,22 +227,22 @@
       <section id="plain" class="block">
         <div class="eyebrow">In plain English</div>
         <h2>What actually happens</h2>
-        <p>You don't need to be technical. Think of it as texting a group chat of experts who already have your files in front of them.</p>
+        <p>Every interaction follows the same four steps — and each one leaves the system knowing more about your finances than it did before.</p>
         <div class="grid grid-4">
           <div class="card">
             <div class="step-n">01</div>
             <h3>You ask</h3>
-            <p>Type a command like <code>/cio</code> ("run my investment committee") or <code>/tax</code> ("find me savings") — or drop a statement in a folder and say <code>/sync</code>.</p>
+            <p>Run a command like <code>/cio</code> ("run my investment committee") or <code>/tax</code> ("find me savings") — or drop a statement in a folder and run <code>/sync</code>.</p>
           </div>
           <div class="card">
             <div class="step-n">02</div>
             <h3>The team works</h3>
-            <p>The right specialist quietly spins up a team of researchers who look things up at the same time — all grounded in <em>your</em> goals and holdings.</p>
+            <p>The right specialist spins up a team of researchers who gather data in parallel — all grounded in <em>your</em> goals and holdings.</p>
           </div>
           <div class="card">
             <div class="step-n">03</div>
             <h3>You get an answer</h3>
-            <p>A clear written report with a plain recommendation — and the <em>why</em>. Stuck on jargon? <code>/eli5</code> re-explains it like you're five.</p>
+            <p>A clear written report with a direct recommendation — and the reasoning behind it. Run <code>/eli5</code> to re-explain any answer in plainer terms.</p>
           </div>
           <div class="card">
             <div class="step-n">04</div>
@@ -273,14 +272,14 @@
           </div>
           <div class="return-bar"><span class="loop">↺</span> Every loop feeds back into your shared picture — so next time, the whole office starts smarter.</div>
         </div>
-        <div class="grid grid-2" style="margin-top:16px;">
+        <div class="grid grid-2" style="margin-top:12px;">
           <div class="card">
-            <h3>🔗 &nbsp;Connected, not scattered</h3>
+            <h3>Connected, not scattered</h3>
             <p>Your <code>/tax</code> specialist sees the same holdings your <code>/cio</code> does; your <code>/cfo</code> knows your real debts and income. One source of truth means advice that fits together — no contradictions, no re-explaining yourself.</p>
           </div>
           <div class="card">
-            <h3>📈 &nbsp;Compounds over time</h3>
-            <p>Every recommendation, trade, and "here's what we learned" is written down. The longer you use it, the more it understands your situation and your past decisions — like an advisor who's known you for years.</p>
+            <h3>Compounds over time</h3>
+            <p>Every recommendation, trade, and lesson is written down. The longer you use it, the more it understands your situation and your past decisions — like an advisor who's known you for years.</p>
           </div>
         </div>
       </section>
@@ -292,7 +291,7 @@
         <p>You talk to <em>skills</em>. Each skill reads your <em>shared picture</em>, sends a <em>research team</em> to gather facts from outside <em>data sources</em>, then writes the result back as a report — and into memory.</p>
         <div class="diagram">
           <div class="col-flow" style="min-width:680px;">
-            <div class="node dark">You<br/><small>type a slash command</small></div>
+            <div class="node dark">You<br/><small>run a slash command</small></div>
             <span class="arrow">↓</span>
             <div class="node" style="min-width:420px;">27 specialist skills<br/><small><code>/cio</code> · <code>/tax</code> · <code>/cfo</code> · <code>/risk</code> · <code>/briefing</code> …</small></div>
             <span class="arrow">↓</span>
@@ -303,7 +302,7 @@
             </div>
             <span class="arrow">↓</span>
             <div style="text-align:center;">
-              <div style="font-size:12px;color:var(--gravel);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.8px;">Outside data sources</div>
+              <div style="font-size:11px;color:var(--mid);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.6px;">Outside data sources</div>
               <div class="chip-wrap">
                 <span class="chip">Schwab</span>
                 <span class="chip">AlphaVantage</span>
@@ -368,27 +367,27 @@
         <div class="grid grid-3">
           <div class="card">
             <h3>Core identity</h3>
-            <p class="mono" style="color:var(--gravel);">family · goals<br/>risk-tolerance</p>
+            <p class="mono">family · goals<br/>risk-tolerance</p>
           </div>
           <div class="card">
             <h3>Money state</h3>
-            <p class="mono" style="color:var(--gravel);">accounts · debts<br/>expenses · income · insurance</p>
+            <p class="mono">accounts · debts<br/>expenses · income · insurance</p>
           </div>
           <div class="card">
             <h3>Investing</h3>
-            <p class="mono" style="color:var(--gravel);">investment-policy<br/>portfolio/holdings</p>
+            <p class="mono">investment-policy<br/>portfolio/holdings</p>
           </div>
           <div class="card">
             <h3>Business &amp; tax</h3>
-            <p class="mono" style="color:var(--gravel);">business/entities<br/>tax/profile · strategies</p>
+            <p class="mono">business/entities<br/>tax/profile · strategies</p>
           </div>
           <div class="card">
             <h3>Other</h3>
-            <p class="mono" style="color:var(--gravel);">real-estate<br/>health (per member)</p>
+            <p class="mono">real-estate<br/>health (per member)</p>
           </div>
           <div class="card">
             <h3>Reference</h3>
-            <p class="mono" style="color:var(--gravel);">api-guide · SOURCES<br/>credentials (kept private)</p>
+            <p class="mono">api-guide · SOURCES<br/>credentials (kept private)</p>
           </div>
         </div>
       </section>
@@ -455,8 +454,8 @@
         <h2>How a "team" skill runs</h2>
         <p>The heavyweight skills don't answer in a single pass. One command puts several specialist researchers on the problem at once, then a lead synthesizes their findings into a single coherent report — fast, deep, and consistent.</p>
         <div class="diagram">
-          <div class="col-flow" style="min-width:680px;">
-            <div class="node dark" style="min-width:280px;">You run <code style="background:#222;border-color:#333;color:#fff;">/cio</code></div>
+          <div class="col-flow" style="min-width:640px;">
+            <div class="node dark" style="min-width:280px;">You run <code>/cio</code></div>
             <span class="arrow">↓</span>
             <div class="node soft" style="min-width:320px;">The lead reads your profile<br/><small>goals · investment policy · holdings · risk limits</small></div>
             <span class="arrow">↓ &nbsp;fans out to a team &nbsp;↓</span>
