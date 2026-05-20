@@ -105,14 +105,33 @@ Ask these questions using AskUserQuestion, one round at a time (max 4 questions 
 2. "What's your target asset allocation? (e.g., 60% stocks, 20% bonds, 20% alternatives)" — Let user type
 3. "Do you want agents to strictly follow your strategy, or suggest improvements?" — Options: Strictly follow my strategy / Follow it but flag opportunities outside it / Actively suggest improvements and alternatives
 
-### Phase 4: File Import (File Parsing)
+### Phase 4: Financial Data — connect a brokerage and/or import files
 
-After the AskUserQuestion rounds, present this message:
+After the AskUserQuestion rounds, present this message. There are two ways to bring in accounts and holdings — the user can use either or both:
 
 ```
-Great — I have your profile details. Now let's get your financial data.
+Great — I have your profile details. Now let's get your financial data. You have two options (use either or both):
 
-Drop any of the following files into the `imports/` folder and I'll extract and structure everything:
+OPTION A — Connect a brokerage for live data (recommended if you can)
+This system ships with a read-only Charles Schwab integration (scripts/schwab/).
+If you have a Schwab account: register a free personal app at developer.schwab.com,
+put the app key/secret in profile/api-keys.json, and run
+`python3.10 scripts/schwab/auth.py` once. After that, /sync pulls your live
+balances, holdings, and transactions automatically — no manual exports, and it
+stays current.
+
+  Using a different broker?
+  • Fidelity, Vanguard, and most banks don't offer a self-serve API for personal
+    accounts — for those, use Option B (export statements). It works for any
+    institution.
+  • If your broker DOES have a developer API (e.g. Interactive Brokers, E*TRADE,
+    Tradier, Alpaca) or you use an aggregator (SnapTrade, Plaid), just tell me
+    which one — it can be wired in the same way the Schwab client works, and we'd
+    note it in profile/api-guide.md.
+
+OPTION B — Drop in statements / exports (works for any institution)
+Drop any of the following files into the imports/ folder and I'll extract and
+structure everything:
 
 imports/bank-statements/    — Bank account CSVs or PDFs
 imports/brokerage/          — Holdings exports, trade history
@@ -122,8 +141,10 @@ imports/tax-returns/        — Prior year tax returns (PDF)
 imports/loan-docs/          — Mortgage, auto, student loan statements
 imports/other/              — Anything else (insurance docs, business P&L, etc.)
 
-Drop your files and tell me when you're ready, or type "skip" to fill in details later.
+Connect Schwab, drop your files, or both — then tell me when you're ready, or type "skip" to fill in details later.
 ```
+
+Then use **AskUserQuestion** to capture how they want to proceed: *"How do you want to bring in your accounts & holdings?"* — Options: "Connect Schwab (live data)" / "I'll drop in statements/exports" / "Both" / "Another broker — I'll tell you which" / "Skip for now". If they pick a connect option, walk them through the relevant setup before parsing; if they name another broker with an API, note it for wiring in and fall back to file import for now.
 
 When the user confirms files are ready:
 

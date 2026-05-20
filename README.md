@@ -35,7 +35,7 @@ This repo ships **generic** — there is no personal data in it. The operating r
 | `/cio` | Chief Investment Officer — orchestrates parallel research agents, sets allocation, runs the investment committee |
 | `/equity-research` | Equity Research Analyst — institutional-grade single-stock analysis (5 parallel agents) |
 | `/mgmt-diligence` | Management Team Diligence — scores leadership quality and character ("bet on the jockey") |
-| `/lead-edge-eight` | Lead Edge Eight — scores a company against 8 growth-stage quality criteria |
+| `/lead-edge-eight` | Scores a company against an 8-criterion growth-quality rubric inspired by Lead Edge Capital founder Mitchell Green's investing framework |
 | `/macro` | Macro Strategist — economic cycle, Fed, inflation, credit, geopolitics |
 | `/technicals` | Technical Analyst — price action, patterns, entry/exit timing |
 | `/options` | Options & Income Strategist — covered calls, puts, spreads, hedging |
