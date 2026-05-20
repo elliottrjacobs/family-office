@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Family Office — System Visual Explainer</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0b1020;
+    --bg-elev: #131a30;
+    --bg-card: #182240;
+    --border: #283155;
+    --text: #e6ecff;
+    --text-dim: #9aa6c7;
+    --text-faint: #6a7596;
+    --accent: #7c5cff;
+    --accent-2: #22d3ee;
+    --green: #22c55e;
+    --purple: #8b5cf6;
+    --blue: #3b82f6;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+    --pink: #ec4899;
+    --code-bg: #0f1428;
+  }
+  [data-theme="light"] {
+    --bg: #f6f7fb;
+    --bg-elev: #ffffff;
+    --bg-card: #ffffff;
+    --border: #e2e6f0;
+    --text: #1a2238;
+    --text-dim: #4a556e;
+    --text-faint: #7a86a4;
+    --code-bg: #f0f2f8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .layout { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+  /* Sidebar */
+  aside.sidebar {
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    background: var(--bg-elev); border-right: 1px solid var(--border);
+    padding: 24px 18px; font-size: 13.5px;
+  }
+  .brand { font-weight: 700; font-size: 15px; letter-spacing: 0.2px; margin-bottom: 4px; }
+  .brand-sub { color: var(--text-faint); font-size: 11.5px; margin-bottom: 22px; }
+  .nav-section { color: var(--text-faint); text-transform: uppercase; font-size: 10.5px; letter-spacing: 1.4px; margin: 18px 0 6px; }
+  .nav a {
+    display: flex; align-items: center; gap: 8px;
+    color: var(--text-dim); text-decoration: none;
+    padding: 6px 8px; border-radius: 6px;
+    border-left: 2px solid transparent;
+    transition: background 0.15s, color 0.15s;
+  }
+  .nav a:hover { background: rgba(124,92,255,0.08); color: var(--text); }
+  .nav a.active { background: rgba(124,92,255,0.14); color: var(--text); border-left-color: var(--accent); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Theme toggle */
+  .theme-toggle {
+    margin-top: 24px; padding: 8px 12px; cursor: pointer;
+    background: transparent; color: var(--text-dim);
+    border: 1px solid var(--border); border-radius: 6px;
+    font-size: 12px; width: 100%;
+  }
+  .theme-toggle:hover { color: var(--text); border-color: var(--accent); }
+
+  /* Main */
+  main { padding: 40px 48px 80px; max-width: 1200px; }
+  h1 { font-size: 32px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.4px; }
+  h2 { font-size: 22px; font-weight: 600; margin: 48px 0 14px; letter-spacing: -0.2px; padding-top: 12px; }
+  h3 { font-size: 16px; font-weight: 600; margin: 22px 0 8px; color: var(--text); }
+  p { color: var(--text-dim); margin: 8px 0; }
+  code { background: var(--code-bg); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; font-size: 12.5px; color: var(--accent-2); }
+  a { color: var(--accent-2); }
+
+  /* Hero */
+  .hero { padding: 32px 36px; background: linear-gradient(135deg, rgba(124,92,255,0.15), rgba(34,211,238,0.08)); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 28px; }
+  .hero .sub { color: var(--text-dim); margin: 8px 0 14px; max-width: 780px; }
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .pill { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-dim); padding: 4px 11px; border-radius: 999px; font-size: 12px; }
+
+  /* Stat grid */
+  .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin: 18px 0 8px; }
+  .stat { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .stat .n { font-size: 26px; font-weight: 700; line-height: 1.1; }
+  .stat .l { color: var(--text-faint); font-size: 12px; margin-top: 4px; }
+
+  /* Cards */
+  .diagram-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; margin: 18px 0 28px; overflow: hidden; }
+  .diagram-card .header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); background: var(--bg-elev); }
+  .diagram-card .header .title { font-weight: 600; font-size: 14px; }
+  .badge { font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.2px; padding: 3px 8px; border-radius: 999px; background: rgba(124,92,255,0.18); color: #c4b5fd; border: 1px solid rgba(124,92,255,0.35); }
+  .diagram-body { padding: 18px; position: relative; }
+  .zoom-wrap { position: relative; }
+  .zoom-controls { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; z-index: 5; }
+  .zoom-btn { background: var(--bg-elev); border: 1px solid var(--border); color: var(--text-dim); width: 28px; height: 28px; border-radius: 5px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .zoom-btn:hover { color: var(--text); border-color: var(--accent); }
+  .mermaid { overflow: hidden; transform-origin: top left; transition: transform 0.15s; }
+  .pan-wrap { overflow: auto; max-height: 720px; cursor: grab; }
+  .pan-wrap.dragging { cursor: grabbing; }
+
+  /* Tables */
+  .table-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 14px 0 24px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--bg-elev); font-weight: 600; color: var(--text); font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; }
+  tr:last-child td { border-bottom: 0; }
+  tr:hover td { background: rgba(124,92,255,0.04); }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: var(--accent-2); }
+  .tag { display: inline-block; font-size: 10.5px; padding: 2px 7px; border-radius: 4px; margin: 1px 3px 1px 0; border: 1px solid; }
+  .tag-read { background: rgba(34,197,94,0.10); color: var(--green); border-color: rgba(34,197,94,0.35); }
+  .tag-write { background: rgba(59,130,246,0.10); color: var(--blue); border-color: rgba(59,130,246,0.35); }
+  .tag-parallel { background: rgba(139,92,246,0.10); color: var(--purple); border-color: rgba(139,92,246,0.35); }
+  .tag-direct { background: rgba(245,158,11,0.10); color: var(--yellow); border-color: rgba(245,158,11,0.35); }
+  .tag-tool { background: rgba(236,72,153,0.10); color: var(--pink); border-color: rgba(236,72,153,0.35); }
+
+  /* Category headers in tables */
+  .cat-row td { background: rgba(124,92,255,0.10); color: var(--text); font-weight: 600; padding: 8px 14px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.7px; }
+
+  /* Legend */
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 8px 0 22px; padding: 12px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-dim); }
+  .swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--border); }
+
+  /* Callouts */
+  .callout { background: var(--bg-card); border-left: 3px solid var(--accent); padding: 12px 16px; border-radius: 6px; margin: 14px 0; font-size: 13.5px; color: var(--text-dim); }
+  .callout strong { color: var(--text); }
+
+  /* Code blocks */
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 12.5px; line-height: 1.55; }
+  pre code { background: transparent; border: 0; padding: 0; color: var(--text-dim); }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    aside.sidebar { position: relative; height: auto; }
+    main { padding: 28px 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="brand">AI Family Office</div>
+    <div class="brand-sub">System Visual Explainer</div>
+    <nav class="nav">
+      <div class="nav-section">Overview</div>
+      <a href="#hero"><span class="dot" style="background:var(--accent)"></span>Introduction</a>
+      <a href="#architecture"><span class="dot" style="background:var(--green)"></span>Architecture</a>
+      <a href="#dataflow"><span class="dot" style="background:var(--blue)"></span>Data Flow</a>
+      <a href="#profile-model"><span class="dot" style="background:var(--purple)"></span>Profile Model</a>
+
+      <div class="nav-section">Skills</div>
+      <a href="#skills-overview"><span class="dot" style="background:var(--accent-2)"></span>All Skills (Index)</a>
+      <a href="#skills-investment"><span class="dot" style="background:var(--green)"></span>Investment Team</a>
+      <a href="#skills-sector"><span class="dot" style="background:var(--purple)"></span>Sector Specialists</a>
+      <a href="#skills-money"><span class="dot" style="background:var(--blue)"></span>Money Management</a>
+      <a href="#skills-protection"><span class="dot" style="background:var(--red)"></span>Protection</a>
+      <a href="#skills-other"><span class="dot" style="background:var(--yellow)"></span>Healthcare / RE / Biz</a>
+      <a href="#skills-intel"><span class="dot" style="background:var(--accent-2)"></span>Market Intelligence</a>
+      <a href="#skills-utility"><span class="dot" style="background:var(--pink)"></span>Utility</a>
+
+      <div class="nav-section">Patterns</div>
+      <a href="#orchestration"><span class="dot" style="background:var(--purple)"></span>Orchestration Pattern</a>
+      <a href="#tool-cascade"><span class="dot" style="background:var(--yellow)"></span>Tool Cascade</a>
+      <a href="#report-flow"><span class="dot" style="background:var(--blue)"></span>Report Output Flow</a>
+
+      <div class="nav-section">Build Guide</div>
+      <a href="#recreate"><span class="dot" style="background:var(--accent)"></span>Recreate This System</a>
+      <a href="#scaffolding"><span class="dot" style="background:var(--green)"></span>Folder Scaffold</a>
+      <a href="#skill-template"><span class="dot" style="background:var(--accent-2)"></span>Skill Template</a>
+      <a href="#api-mapping"><span class="dot" style="background:var(--yellow)"></span>API Mapping</a>
+    </nav>
+    <button class="theme-toggle" onclick="toggleTheme()">Toggle theme</button>
+  </aside>
+
+  <main>
+    <!-- HERO -->
+    <section id="hero" class="hero">
+      <h1>AI-Powered Family Office</h1>
+      <div class="sub">A team of 25 specialized financial agents, each invoked via a slash command, coordinated through a shared file-based data model. Skills read structured profile data, dispatch parallel research sub-agents to external data sources, then synthesize findings into versioned reports.</div>
+      <div class="pills">
+        <span class="pill">25 Skills</span>
+        <span class="pill">File-based State</span>
+        <span class="pill">Parallel Sub-Agents</span>
+        <span class="pill">Tool-Priority Cascade</span>
+        <span class="pill">API-Agnostic Pattern</span>
+      </div>
+      <div class="info-grid" style="margin-top:22px;">
+        <div class="stat"><div class="n">25</div><div class="l">Skills total</div></div>
+        <div class="stat"><div class="n">11</div><div class="l">Parallel orchestrators</div></div>
+        <div class="stat"><div class="n">39+</div><div class="l">Profile data files</div></div>
+        <div class="stat"><div class="n">18</div><div class="l">Report categories</div></div>
+        <div class="stat"><div class="n">6</div><div class="l">External data sources</div></div>
+      </div>
+    </section>
+
+    <!-- ARCHITECTURE -->
+    <h2 id="architecture">System Architecture</h2>
+    <p>The user interacts with skills via slash commands. Each skill reads from a shared <code>profile/</code> data store, calls external data sources through a prioritized tool cascade, and writes versioned markdown reports. Memory persists between sessions.</p>
+    <div class="diagram-card">
+      <div class="header"><div class="title">High-Level System Map</div><span class="badge">Architecture</span></div>
+      <div class="diagram-body">
+        <div class="zoom-wrap">
+          <div class="zoom-controls"><button class="zoom-btn" data-zoom="in">+</button><button class="zoom-btn" data-zoom="out">−</button><button class="zoom-btn" data-zoom="reset">⟲</button></div>
+          <div class="pan-wrap">
+<div class="mermaid">
+flowchart TB
+  User([User])
+  subgraph CLI["Slash-Command Interface"]
+    Skills["25 Skills<br/>(/cio, /tax, /briefing ...)"]
+  end
+  subgraph State["File-Based State (the source of truth)"]
+    Profile[(profile/<br/>structured JSON)]
+    Imports[(imports/<br/>raw CSV/PDF drop)]
+    Reports[(reports/<br/>versioned MD output)]
+    Briefings[(briefings/<br/>daily &amp; weekly)]
+    Journal[(journal/<br/>trade decisions)]
+    Memory[(memory/<br/>lessons, freshness)]
+    Medical[(medical/<br/>EOBs, bills)]
+  end
+  subgraph Compute["Compute Layer"]
+    Orch["Orchestrator Skill<br/>(synthesizer agent)"]
+    Subs["Parallel Sub-Agents<br/>(specialist researchers)"]
+  end
+  subgraph External["External Data Sources (Tool Cascade)"]
+    P1["Tier 1<br/>Structured market data API"]
+    P2["Tier 2<br/>Filing / fundamentals API"]
+    P3["Tier 3<br/>Macro/economic API"]
+    P4["Qualitative<br/>research / synthesis API"]
+    P5["Docs<br/>library / framework"]
+    P6["Web search<br/>(LAST resort)"]
+  end
+
+  User -->|slash command| Skills
+  Skills --> Orch
+  Orch -->|fan-out| Subs
+  Subs --> P1
+  Subs --> P2
+  Subs --> P3
+  Subs --> P4
+  Subs --> P5
+  Subs -.->|fallback| P6
+  Profile --> Orch
+  Profile --> Subs
+  Imports -.->|sync skill| Profile
+  Orch -->|writes| Reports
+  Orch -->|writes| Briefings
+  Orch -->|writes| Journal
+  Orch -->|reads| Memory
+  Orch -->|writes| Memory
+  Medical -.->|/medical| Profile
+  Reports --> User
+
+  style User fill:#dcfce7,stroke:#22c55e,color:#000
+  style Skills fill:#ede9fe,stroke:#8b5cf6,color:#000
+  style Orch fill:#dbeafe,stroke:#3b82f6,color:#000
+  style Subs fill:#dbeafe,stroke:#3b82f6,color:#000
+  style Profile fill:#fef3c7,stroke:#f59e0b,color:#000
+  style Imports fill:#fef3c7,stroke:#f59e0b,color:#000
+  style Reports fill:#fef3c7,stroke:#f59e0b,color:#000
+  style Briefings fill:#fef3c7,stroke:#f59e0b,color:#000
+  style Journal fill:#fef3c7,stroke:#f59e0b,color:#000
+  style Memory fill:#fef3c7,stroke:#f59e0b,color:#000
+  style Medical fill:#fef3c7,stroke:#f59e0b,color:#000
+  style P6 fill:#fee2e2,stroke:#ef4444,color:#000
+</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DATA FLOW -->
+    <h2 id="dataflow">End-to-End Data Flow</h2>
+    <p>Raw documents enter through <code>imports/</code>. The <code>/sync</code> skill normalizes them into the structured profile. Every other skill then reads from <code>profile/</code>, performs research, and writes a dated markdown report.</p>
+    <div class="diagram-card">
+      <div class="header"><div class="title">Raw Files → Structured Profile → Analysis → Reports</div><span class="badge">Data Flow</span></div>
+      <div class="diagram-body">
+        <div class="zoom-wrap">
+          <div class="zoom-controls"><button class="zoom-btn" data-zoom="in">+</button><button class="zoom-btn" data-zoom="out">−</button><button class="zoom-btn" data-zoom="reset">⟲</button></div>
+          <div class="pan-wrap">
+<div class="mermaid">
+flowchart LR
+  subgraph Stage1["1. Raw Intake"]
+    A1[Bank CSVs]
+    A2[Brokerage exports]
+    A3[Pay stubs PDF]
+    A4[Tax returns]
+    A5[Loan statements]
+    A6[Medical EOBs]
+  end
+  subgraph Stage2["2. Normalization"]
+    Onboard[/onboard<br/>first-run setup/]
+    Sync[/sync<br/>diff &amp; merge/]
+    Medical[/medical sync<br/>EOB parsing/]
+  end
+  subgraph Stage3["3. Structured Profile"]
+    P1[family.json]
+    P2[goals.json]
+    P3[investment-policy.json]
+    P4[risk-tolerance.json]
+    P5[portfolio/holdings.csv]
+    P6[accounts/*.json]
+    P7[debts/*.json]
+    P8[income/*.json]
+    P9[tax/*.json]
+    P10[business/*.json]
+    P11[health/*.json]
+  end
+  subgraph Stage4["4. Analysis Skills"]
+    S1[Investment skills<br/>read IPS + holdings]
+    S2[Money skills<br/>read accounts + cashflow]
+    S3[Protection skills<br/>read all + insurance]
+    S4[Intel skills<br/>read holdings + watchlist]
+  end
+  subgraph Stage5["5. Outputs"]
+    R1[reports/&lt;cat&gt;/<br/>YYYY-MM-DD-*.md]
+    R2[briefings/daily<br/>briefings/weekly]
+    R3[journal/entries<br/>journal/reviews]
+    R4[memory/<br/>lessons + freshness]
+  end
+
+  A1 --> Sync
+  A2 --> Sync
+  A3 --> Sync
+  A4 --> Sync
+  A5 --> Sync
+  A6 --> Medical
+
+  Onboard -->|seeds| P1
+  Onboard -->|seeds| P2
+  Onboard -->|seeds| P3
+  Onboard -->|seeds| P4
+
+  Sync --> P5
+  Sync --> P6
+  Sync --> P7
+  Sync --> P8
+  Sync --> P9
+  Sync --> P10
+  Medical --> P11
+
+  P1 --> S1
+  P3 --> S1
+  P5 --> S1
+  P2 --> S2
+  P6 --> S2
+  P7 --> S2
+  P8 --> S2
+  P1 --> S3
+  P5 --> S4
+
+  S1 --> R1
+  S1 --> R3
+  S2 --> R1
+  S3 --> R1
+  S4 --> R2
+  S1 -.-> R4
+  S2 -.-> R4
+
+  style Onboard fill:#ede9fe,stroke:#8b5cf6,color:#000
+  style Sync fill:#ede9fe,stroke:#8b5cf6,color:#000
+  style Medical fill:#ede9fe,stroke:#8b5cf6,color:#000
+  style R1 fill:#dcfce7,stroke:#22c55e,color:#000
+  style R2 fill:#dcfce7,stroke:#22c55e,color:#000
+  style R3 fill:#dcfce7,stroke:#22c55e,color:#000
+  style R4 fill:#fef3c7,stroke:#f59e0b,color:#000
+</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROFILE MODEL -->
+    <h2 id="profile-model">Profile Data Model</h2>
+    <p>The <code>profile/</code> directory is the single source of truth that every skill reads from. It is organized by domain. Each file is small, structured (mostly JSON), and human-readable.</p>
+    <div class="diagram-card">
+      <div class="header"><div class="title">Profile Tree (what each skill depends on)</div><span class="badge">Schema</span></div>
+      <div class="diagram-body">
+        <div class="zoom-wrap">
+          <div class="zoom-controls"><button class="zoom-btn" data-zoom="in">+</button><button class="zoom-btn" data-zoom="out">−</button><button class="zoom-btn" data-zoom="reset">⟲</button></div>
+          <div class="pan-wrap">
+<div class="mermaid">
+flowchart TB
+  Root[("profile/")]
+  Root --> Core["Core Identity"]
+  Root --> Money["Money State"]
+  Root --> Investing["Investing"]
+  Root --> Biz["Business"]
+  Root --> Tax["Tax"]
+  Root --> Other["Other"]
+  Root --> Meta["Meta"]
+
+  Core --> family[family.json<br/><i>members, ages, dependents</i>]
+  Core --> goals[goals.json<br/><i>priorities, timelines</i>]
+  Core --> risk[risk-tolerance.json<br/><i>score, drawdown limits</i>]
+
+  Money --> accts[accounts/<br/>brokerage, retirement,<br/>checking, crypto]
+  Money --> debts[debts/<br/>mortgage, auto, student,<br/>cards, other]
+  Money --> exp[expenses/<br/>monthly, recurring, summary]
+  Money --> inc[income/<br/>w2, 1099, other-income]
+  Money --> ins[insurance/<br/>health, life, disability,<br/>property, policies]
+
+  Investing --> ips[investment-policy.json<br/><i>IPS: allocation, restrictions</i>]
+  Investing --> port[portfolio/<br/>holdings.csv, watchlist.json]
+
+  Biz --> bizf[business/<br/>entities, overview,<br/>financials, tax-setup]
+
+  Tax --> taxp[tax/<br/>profile, strategies-in-place,<br/>filed-returns/]
+
+  Other --> re[real-estate/<br/>primary, investment]
+  Other --> health[health/<br/>per-member medical history]
+
+  Meta --> api[api-guide.md<br/><i>tool priority reference</i>]
+  Meta --> keys[api-keys.json<br/><i>credentials (gitignored)</i>]
+
+  style Root fill:#ede9fe,stroke:#8b5cf6,color:#000
+  style Core fill:#dcfce7,stroke:#22c55e,color:#000
+  style Investing fill:#dbeafe,stroke:#3b82f6,color:#000
+  style Money fill:#fef3c7,stroke:#f59e0b,color:#000
+  style Tax fill:#fee2e2,stroke:#ef4444,color:#000
+  style Meta fill:#fef3c7,stroke:#f59e0b,color:#000
+</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SKILL INDEX -->
+    <h2 id="skills-overview">All Skills (Index)</h2>
+    <div class="legend">
+      <div class="legend-item"><span class="swatch" style="background:#dcfce7"></span>Investment</div>
+      <div class="legend-item"><span class="swatch" style="background:#ede9fe"></span>Sector</div>
+      <div class="legend-item"><span class="swatch" style="background:#dbeafe"></span>Money</div>
+      <div class="legend-item"><span class="swatch" style="background:#fee2e2"></span>Protection</div>
+      <div class="legend-item"><span class="swatch" style="background:#fef3c7"></span>Other / Intel</div>
+      <div class="legend-item"><span class="swatch" style="background:#f5d0fe"></span>Utility</div>
+      <div class="legend-item"><span class="tag tag-parallel">parallel</span> spawns sub-agents</div>
+      <div class="legend-item"><span class="tag tag-direct">direct</span> single-agent skill</div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Skill</th><th>Role</th><th>Pattern</th><th>Sub-Agents</th><th>Primary Output</th></tr></thead>
+        <tbody>
+          <tr class="cat-row"><td colspan="5">Investment Team</td></tr>
+          <tr><td class="mono">/cio</td><td>Chief Investment Officer — orchestrates the full investment committee</td><td><span class="tag tag-parallel">parallel</span></td><td>6 (macro, equity, technical, options, risk, alts)</td><td><span class="mono">reports/investment-committee/</span></td></tr>
+          <tr><td class="mono">/equity-research</td><td>Institutional-grade single-stock fundamental analysis</td><td><span class="tag tag-parallel">parallel</span></td><td>5 (fundamentals, competitive, growth, valuation, risk)</td><td><span class="mono">reports/equity-research/</span></td></tr>
+          <tr><td class="mono">/macro</td><td>Economic outlook, Fed policy, rates, sector rotation</td><td><span class="tag tag-parallel">parallel</span></td><td>5 (cycle, Fed, inflation/labor, credit, geopolitics)</td><td><span class="mono">reports/macro/</span></td></tr>
+          <tr><td class="mono">/options</td><td>Covered calls, puts, spreads, hedging, income generation</td><td><span class="tag tag-parallel">parallel</span></td><td>4 (IV/context, income, hedging, greeks)</td><td><span class="mono">reports/options/</span></td></tr>
+          <tr><td class="mono">/technicals</td><td>Chart analysis, entry/exit timing, momentum signals</td><td><span class="tag tag-direct">direct</span></td><td>—</td><td><span class="mono">reports/equity-research/*-technicals.md</span></td></tr>
+          <tr><td class="mono">/alts-scout</td><td>Crypto, commodities, real assets, alternative opportunities</td><td><span class="tag tag-direct">direct</span></td><td>—</td><td><span class="mono">reports/equity-research/*-alts.md</span></td></tr>
+
+          <tr class="cat-row"><td colspan="5">Sector Specialists</td></tr>
+          <tr><td class="mono">/sector-tech</td><td>Software, semis, cloud, AI/ML, cybersecurity</td><td><span class="tag tag-parallel">parallel</span></td><td>4 (semis/AI, cloud/SaaS, consumer, cyber)</td><td><span class="mono">reports/sectors/tech/</span></td></tr>
+          <tr><td class="mono">/sector-energy</td><td>Oil &amp; gas, uranium, renewables, mining</td><td><span class="tag tag-parallel">parallel</span></td><td>4 (oil/gas, uranium, renewables, mining)</td><td><span class="mono">reports/sectors/energy/</span></td></tr>
+          <tr><td class="mono">/sector-finance</td><td>Banks, REITs, insurance, fintech</td><td><span class="tag tag-parallel">parallel</span></td><td>4 (banks, REITs, insurance/AM, fintech)</td><td><span class="mono">reports/sectors/finance/</span></td></tr>
+          <tr><td class="mono">/sector-biotech</td><td>Pharma, biotech, medtech, FDA catalysts</td><td><span class="tag tag-parallel">parallel</span></td><td>4 (big pharma, biotech, medtech, themes)</td><td><span class="mono">reports/sectors/biotech/</span></td></tr>
+
+          <tr class="cat-row"><td colspan="5">Idea Generation &amp; Discipline</td></tr>
+          <tr><td class="mono">/screener</td><td>Filter the market by criteria, then deep-dive top candidates</td><td><span class="tag tag-parallel">parallel</span></td><td>1 per candidate (up to 5)</td><td><span class="mono">reports/screener/</span></td></tr>
+          <tr><td class="mono">/journal</td><td>Log trades, check thesis validity, periodic decision reviews</td><td><span class="tag tag-direct">direct</span></td><td>—</td><td><span class="mono">journal/entries, journal/reviews</span></td></tr>
+
+          <tr class="cat-row"><td colspan="5">Money Management</td></tr>
+          <tr><td class="mono">/cfo</td><td>Net worth, cash flow, goal progress, financial health</td><td><span class="tag tag-parallel">parallel</span></td><td>4 (net worth, cash flow, goals, health)</td><td><span class="mono">reports/financial-reviews/</span></td></tr>
+          <tr><td class="mono">/tax</td><td>TLH, Roth, business tax, family/state tax planning</td><td><span class="tag tag-parallel">parallel</span></td><td>4 (TLH, Roth/retirement, income/biz, family/state)</td><td><span class="mono">reports/tax/</span></td></tr>
+          <tr><td class="mono">/debt</td><td>Payoff strategies, refinancing, invest-vs-payoff</td><td><span class="tag tag-direct">direct</span></td><td>—</td><td><span class="mono">reports/debt/</span></td></tr>
+
+          <tr class="cat-row"><td colspan="5">Protection</td></tr>
+          <tr><td class="mono">/risk</td><td>Stress testing, correlation, IPS compliance</td><td><span class="tag tag-parallel">parallel</span></td><td>4 (concentration, stress, tail risk, sizing)</td><td><span class="mono">reports/risk/</span></td></tr>
+          <tr><td class="mono">/estate</td><td>Wills, trusts, insurance gaps, wealth transfer</td><td><span class="tag tag-direct">direct</span></td><td>—</td><td><span class="mono">reports/estate/</span></td></tr>
+
+          <tr class="cat-row"><td colspan="5">Healthcare / Real Estate / Business</td></tr>
+          <tr><td class="mono">/medical</td><td>EOB auditor, bill cross-ref, medical history, cost optimizer</td><td><span class="tag tag-parallel">parallel</span></td><td>4 (EOBs, bills, history, costs)</td><td><span class="mono">reports/medical/, profile/health/</span></td></tr>
+          <tr><td class="mono">/realestate</td><td>Deal analysis, cap rates, rent vs. buy, market comps</td><td><span class="tag tag-direct">direct</span></td><td>—</td><td><span class="mono">reports/real-estate/</span></td></tr>
+          <tr><td class="mono">/ventures</td><td>Entity structuring, S-Corp analysis, business tax, valuation</td><td><span class="tag tag-direct">direct</span></td><td>—</td><td><span class="mono">reports/business/</span></td></tr>
+
+          <tr class="cat-row"><td colspan="5">Market Intelligence</td></tr>
+          <tr><td class="mono">/briefing</td><td>Morning briefing — market snapshot, holdings news, calendar, stories</td><td><span class="tag tag-parallel">parallel</span></td><td>4 (market, holdings, calendar, stories)</td><td><span class="mono">briefings/daily/</span></td></tr>
+          <tr><td class="mono">/weekly-review</td><td>End-of-week portfolio &amp; market review</td><td><span class="tag tag-parallel">parallel</span></td><td>4 (market perf, port perf, narrative, next week)</td><td><span class="mono">briefings/weekly/</span></td></tr>
+
+          <tr class="cat-row"><td colspan="5">Utility</td></tr>
+          <tr><td class="mono">/onboard</td><td>Guided profile setup — generates all base profile JSON</td><td><span class="tag tag-direct">direct</span></td><td>—</td><td><span class="mono">profile/* (initial seed)</span></td></tr>
+          <tr><td class="mono">/sync</td><td>Parses imports/, diffs profile, flags IPS violations</td><td><span class="tag tag-direct">direct</span></td><td>—</td><td><span class="mono">profile/* (updates)</span></td></tr>
+          <tr><td class="mono">/eli5</td><td>Re-explains the last agent output in plain English</td><td><span class="tag tag-direct">direct</span></td><td>—</td><td>Inline response only</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- INVESTMENT SKILLS DETAIL -->
+    <h2 id="skills-investment">Investment Team — Detail</h2>
+    <p>The investment team produces all forward-looking market &amp; security analysis. The CIO is the top-level orchestrator that fans out to all the others.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Skill</th><th>Reads From</th><th>Writes To</th><th>External Tools Used</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="mono">/cio</td>
+            <td>
+              <span class="tag tag-read">investment-policy.json</span>
+              <span class="tag tag-read">risk-tolerance.json</span>
+              <span class="tag tag-read">goals.json</span>
+              <span class="tag tag-read">portfolio/holdings.csv</span>
+              <span class="tag tag-read">portfolio/watchlist.json</span>
+              <span class="tag tag-read">accounts/*</span>
+              <span class="tag tag-read">memory/*</span>
+              <span class="tag tag-read">briefings/weekly/</span>
+              <span class="tag tag-read">journal/entries/</span>
+            </td>
+            <td><span class="tag tag-write">reports/investment-committee/YYYY-MM-DD.md</span></td>
+            <td><span class="tag tag-tool">market-data API</span><span class="tag tag-tool">filings API</span><span class="tag tag-tool">macro API</span><span class="tag tag-tool">qualitative-research API</span></td>
+          </tr>
+          <tr>
+            <td class="mono">/equity-research</td>
+            <td>
+              <span class="tag tag-read">investment-policy.json</span>
+              <span class="tag tag-read">portfolio/holdings.csv</span>
+              <span class="tag tag-read">portfolio/watchlist.json</span>
+            </td>
+            <td><span class="tag tag-write">reports/equity-research/YYYY-MM-DD-TICKER-analysis.md</span></td>
+            <td><span class="tag tag-tool">market-data API</span><span class="tag tag-tool">filings API</span><span class="tag tag-tool">earnings transcripts</span><span class="tag tag-tool">qualitative-research API</span></td>
+          </tr>
+          <tr>
+            <td class="mono">/macro</td>
+            <td>
+              <span class="tag tag-read">investment-policy.json</span>
+              <span class="tag tag-read">portfolio/holdings.csv</span>
+            </td>
+            <td><span class="tag tag-write">reports/macro/YYYY-MM-DD-macro-outlook.md</span></td>
+            <td><span class="tag tag-tool">macro API (FRED-style)</span><span class="tag tag-tool">market-data API</span><span class="tag tag-tool">qualitative-research API</span></td>
+          </tr>
+          <tr>
+            <td class="mono">/options</td>
+            <td>
+              <span class="tag tag-read">portfolio/holdings.csv</span>
+              <span class="tag tag-read">investment-policy.json</span>
+              <span class="tag tag-read">risk-tolerance.json</span>
+            </td>
+            <td><span class="tag tag-write">reports/options/YYYY-MM-DD-TICKER-strategy.md</span></td>
+            <td><span class="tag tag-tool">options chains/Greeks API</span><span class="tag tag-tool">qualitative-research API</span></td>
+          </tr>
+          <tr>
+            <td class="mono">/technicals</td>
+            <td>
+              <span class="tag tag-read">portfolio/holdings.csv</span>
+              <span class="tag tag-read">investment-policy.json</span>
+            </td>
+            <td><span class="tag tag-write">reports/equity-research/YYYY-MM-DD-TICKER-technicals.md</span></td>
+            <td><span class="tag tag-tool">technical indicators API</span><span class="tag tag-tool">market-data API</span></td>
+          </tr>
+          <tr>
+            <td class="mono">/alts-scout</td>
+            <td>
+              <span class="tag tag-read">investment-policy.json</span>
+              <span class="tag tag-read">portfolio/holdings.csv</span>
+              <span class="tag tag-read">accounts/crypto.json</span>
+              <span class="tag tag-read">risk-tolerance.json</span>
+            </td>
+            <td><span class="tag tag-write">reports/equity-research/*-alts-analysis.md</span></td>
+            <td><span class="tag tag-tool">crypto/commodities API</span><span class="tag tag-tool">qualitative-research API</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- SECTOR SKILLS DETAIL -->
+    <h2 id="skills-sector">Sector Specialists — Detail</h2>
+    <p>Each sector skill operates in two modes: <b>landscape</b> (full sector survey, 4 sub-agents) and <b>ticker</b> (specific stock, 4 dimension agents).</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Skill</th><th>4 Sub-Agents</th><th>Output Path</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="mono">/sector-tech</td>
+            <td>Semis/AI · Cloud/SaaS · Consumer Tech · Cybersecurity</td>
+            <td class="mono">reports/sectors/tech/</td>
+          </tr>
+          <tr>
+            <td class="mono">/sector-energy</td>
+            <td>Oil/Gas · Uranium/Nuclear · Renewables · Mining/Metals</td>
+            <td class="mono">reports/sectors/energy/</td>
+          </tr>
+          <tr>
+            <td class="mono">/sector-finance</td>
+            <td>Banks · REITs · Insurance/Asset Managers · Fintech</td>
+            <td class="mono">reports/sectors/finance/</td>
+          </tr>
+          <tr>
+            <td class="mono">/sector-biotech</td>
+            <td>Big Pharma · Biotech/Catalysts · MedTech · GLP-1/Themes</td>
+            <td class="mono">reports/sectors/biotech/</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout"><strong>Pattern:</strong> All four sector skills share an identical structure — only the sub-agent specializations and the report output directory differ. This is the cleanest possible template for adding a new sector skill (e.g., <code>/sector-consumer</code>, <code>/sector-industrial</code>).</div>
+
+    <!-- MONEY SKILLS DETAIL -->
+    <h2 id="skills-money">Money Management — Detail</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Skill</th><th>Reads From</th><th>Writes To</th><th>4 Sub-Agents (if parallel)</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="mono">/cfo</td>
+            <td>
+              <span class="tag tag-read">accounts/*</span>
+              <span class="tag tag-read">portfolio/holdings.csv</span>
+              <span class="tag tag-read">expenses/*</span>
+              <span class="tag tag-read">debts/*</span>
+              <span class="tag tag-read">income/*</span>
+              <span class="tag tag-read">goals.json</span>
+              <span class="tag tag-read">real-estate/*</span>
+              <span class="tag tag-read">business/financials.json</span>
+              <span class="tag tag-read">accounts/crypto.json</span>
+            </td>
+            <td><span class="tag tag-write">reports/financial-reviews/YYYY-MM-month-review.md</span></td>
+            <td>Net Worth · Cash Flow · Goal Progress · Financial Health</td>
+          </tr>
+          <tr>
+            <td class="mono">/tax</td>
+            <td>
+              <span class="tag tag-read">tax/profile.json</span>
+              <span class="tag tag-read">tax/strategies-in-place.json</span>
+              <span class="tag tag-read">income/*</span>
+              <span class="tag tag-read">portfolio/holdings.csv</span>
+              <span class="tag tag-read">accounts/retirement.json</span>
+              <span class="tag tag-read">business/tax-setup.json</span>
+              <span class="tag tag-read">debts/mortgage.json</span>
+              <span class="tag tag-read">expenses/*</span>
+              <span class="tag tag-read">family.json</span>
+            </td>
+            <td><span class="tag tag-write">reports/tax/YYYY-MM-DD-*.md</span></td>
+            <td>TLH/Investment · Roth/Retirement · Income/Business · Family/State</td>
+          </tr>
+          <tr>
+            <td class="mono">/debt</td>
+            <td>
+              <span class="tag tag-read">debts/mortgage.json</span>
+              <span class="tag tag-read">debts/auto.json</span>
+              <span class="tag tag-read">debts/student.json</span>
+              <span class="tag tag-read">debts/credit-cards.json</span>
+              <span class="tag tag-read">debts/other-debt.json</span>
+              <span class="tag tag-read">income/*</span>
+              <span class="tag tag-read">expenses/summary.json</span>
+              <span class="tag tag-read">portfolio/holdings.csv</span>
+              <span class="tag tag-read">goals.json</span>
+            </td>
+            <td><span class="tag tag-write">reports/debt/YYYY-MM-DD-*.md</span></td>
+            <td>— (direct)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- PROTECTION DETAIL -->
+    <h2 id="skills-protection">Protection — Detail</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Skill</th><th>Reads From</th><th>Writes To</th><th>Sub-Agents</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="mono">/risk</td>
+            <td>
+              <span class="tag tag-read">investment-policy.json</span>
+              <span class="tag tag-read">risk-tolerance.json</span>
+              <span class="tag tag-read">portfolio/holdings.csv</span>
+              <span class="tag tag-read">accounts/*</span>
+              <span class="tag tag-read">debts/*</span>
+            </td>
+            <td><span class="tag tag-write">reports/risk/YYYY-MM-DD-*.md</span></td>
+            <td>4: Concentration · Stress Test · Tail Risk · Position Sizing</td>
+          </tr>
+          <tr>
+            <td class="mono">/estate</td>
+            <td>
+              <span class="tag tag-read">family.json</span>
+              <span class="tag tag-read">accounts/*</span>
+              <span class="tag tag-read">portfolio/*</span>
+              <span class="tag tag-read">real-estate/*</span>
+              <span class="tag tag-read">business/*</span>
+              <span class="tag tag-read">insurance/*</span>
+              <span class="tag tag-read">debts/*</span>
+              <span class="tag tag-read">goals.json</span>
+              <span class="tag tag-read">tax/profile.json</span>
+            </td>
+            <td><span class="tag tag-write">reports/estate/YYYY-MM-DD-*.md</span></td>
+            <td>— (direct)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- HEALTHCARE / RE / BIZ -->
+    <h2 id="skills-other">Healthcare / Real Estate / Business — Detail</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Skill</th><th>Reads From</th><th>Writes To</th><th>Sub-Agents</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="mono">/medical</td>
+            <td>
+              <span class="tag tag-read">family.json</span>
+              <span class="tag tag-read">insurance/health.json</span>
+              <span class="tag tag-read">insurance/policies.json</span>
+              <span class="tag tag-read">profile/health/*</span>
+              <span class="tag tag-read">medical/eobs</span>
+              <span class="tag tag-read">medical/bills</span>
+              <span class="tag tag-read">medical/claims</span>
+              <span class="tag tag-read">medical/disputes</span>
+            </td>
+            <td>
+              <span class="tag tag-write">reports/medical/</span>
+              <span class="tag tag-write">profile/health/&lt;member&gt;.json</span>
+            </td>
+            <td>4: EOB Auditor · Bill Cross-Ref · Medical History · Cost Optimizer</td>
+          </tr>
+          <tr>
+            <td class="mono">/realestate</td>
+            <td>
+              <span class="tag tag-read">goals.json</span>
+              <span class="tag tag-read">accounts/*</span>
+              <span class="tag tag-read">expenses/summary.json</span>
+              <span class="tag tag-read">income/*</span>
+              <span class="tag tag-read">real-estate/*</span>
+              <span class="tag tag-read">debts/mortgage.json</span>
+              <span class="tag tag-read">tax/profile.json</span>
+            </td>
+            <td><span class="tag tag-write">reports/real-estate/YYYY-MM-DD-*.md</span></td>
+            <td>— (direct)</td>
+          </tr>
+          <tr>
+            <td class="mono">/ventures</td>
+            <td>
+              <span class="tag tag-read">business/overview.json</span>
+              <span class="tag tag-read">business/financials.json</span>
+              <span class="tag tag-read">business/tax-setup.json</span>
+              <span class="tag tag-read">tax/profile.json</span>
+              <span class="tag tag-read">income/1099.json</span>
+              <span class="tag tag-read">income/w2.json</span>
+              <span class="tag tag-read">goals.json</span>
+            </td>
+            <td><span class="tag tag-write">reports/business/YYYY-MM-DD-*.md</span></td>
+            <td>— (direct)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- INTEL -->
+    <h2 id="skills-intel">Market Intelligence — Detail</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Skill</th><th>Reads From</th><th>Writes To</th><th>4 Sub-Agents</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="mono">/briefing</td>
+            <td>
+              <span class="tag tag-read">portfolio/holdings.csv</span>
+              <span class="tag tag-read">portfolio/watchlist.json</span>
+              <span class="tag tag-read">briefings/daily/ (prior)</span>
+            </td>
+            <td><span class="tag tag-write">briefings/daily/YYYY-MM-DD.md</span></td>
+            <td>Market Snapshot · Holdings News · Calendar · Top Stories</td>
+          </tr>
+          <tr>
+            <td class="mono">/weekly-review</td>
+            <td>
+              <span class="tag tag-read">portfolio/holdings.csv</span>
+              <span class="tag tag-read">portfolio/watchlist.json</span>
+              <span class="tag tag-read">briefings/daily/ (week)</span>
+              <span class="tag tag-read">journal/entries/ (week)</span>
+              <span class="tag tag-read">investment-policy.json</span>
+              <span class="tag tag-read">briefings/weekly/ (prior)</span>
+            </td>
+            <td><span class="tag tag-write">briefings/weekly/YYYY-WXX.md</span></td>
+            <td>Market Performance · Portfolio Performance · Narrative · Next Week Preview</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- UTILITY -->
+    <h2 id="skills-utility">Utility Skills — Detail</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Skill</th><th>Purpose</th><th>Reads</th><th>Writes</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="mono">/onboard</td>
+            <td>First-run guided setup — interactive Q&amp;A + file parsing seed all base profile data</td>
+            <td>imports/* (initial files), user answers</td>
+            <td>
+              <span class="tag tag-write">profile/family.json</span>
+              <span class="tag tag-write">profile/goals.json</span>
+              <span class="tag tag-write">profile/risk-tolerance.json</span>
+              <span class="tag tag-write">profile/investment-policy.json</span>
+              <span class="tag tag-write">profile/accounts/*</span>
+              <span class="tag tag-write">profile/debts/*</span>
+              <span class="tag tag-write">profile/income/*</span>
+              <span class="tag tag-write">profile/insurance/*</span>
+              <span class="tag tag-write">profile/portfolio/holdings.csv</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="mono">/sync</td>
+            <td>Idempotent re-sync — parses new files in imports/, diffs profile, flags IPS violations, updates memory/data-freshness</td>
+            <td>imports/* (incremental), profile/* (before snapshot), memory/data-freshness.json</td>
+            <td>
+              <span class="tag tag-write">profile/portfolio/holdings.csv</span>
+              <span class="tag tag-write">profile/accounts/*</span>
+              <span class="tag tag-write">profile/debts/*</span>
+              <span class="tag tag-write">profile/expenses/*</span>
+              <span class="tag tag-write">memory/data-freshness.json</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="mono">/eli5</td>
+            <td>Re-explains the last agent output in plain English — no jargon, no tables, no analyst-speak</td>
+            <td>Most recent agent output in current conversation</td>
+            <td>Inline response (no file)</td>
+          </tr>
+          <tr>
+            <td class="mono">/journal</td>
+            <td>Three modes: log a trade, check a thesis, review decisions over a quarter</td>
+            <td>journal/entries/* (existing), memory/lessons-learned.md, profile/portfolio/holdings.csv</td>
+            <td>
+              <span class="tag tag-write">journal/entries/YYYY-MM-DD-action-TICKER.md</span>
+              <span class="tag tag-write">journal/reviews/YYYY-QX-decision-review.md</span>
+              <span class="tag tag-write">memory/lessons-learned.md</span>
+              <span class="tag tag-write">profile/portfolio/holdings.csv (after trade)</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ORCHESTRATION PATTERN -->
+    <h2 id="orchestration">Orchestration Pattern — Parallel Sub-Agents</h2>
+    <p>11 of the 25 skills use the same fan-out pattern: read profile state → spawn N specialist sub-agents in parallel → synthesize their outputs → write a single report. This is the system's core compute primitive.</p>
+    <div class="diagram-card">
+      <div class="header"><div class="title">How a Multi-Agent Skill Executes</div><span class="badge">Sequence</span></div>
+      <div class="diagram-body">
+        <div class="zoom-wrap">
+          <div class="zoom-controls"><button class="zoom-btn" data-zoom="in">+</button><button class="zoom-btn" data-zoom="out">−</button><button class="zoom-btn" data-zoom="reset">⟲</button></div>
+          <div class="pan-wrap">
+<div class="mermaid">
+sequenceDiagram
+  participant U as User
+  participant O as Orchestrator Skill
+  participant FS as profile/ &amp; memory/
+  participant A1 as Sub-Agent 1
+  participant A2 as Sub-Agent 2
+  participant A3 as Sub-Agent 3
+  participant A4 as Sub-Agent 4
+  participant EXT as External APIs
+  participant R as reports/
+
+  U->>O: /cio (or /tax, /risk, etc.)
+  O->>FS: Read profile (IPS, goals, holdings, ...)
+  FS-->>O: Structured context
+  Note over O: Confirm today's date<br/>Establish profile context
+  par Parallel fan-out
+    O->>A1: Specialized prompt + profile slice + tool-priority instruction
+    A1->>EXT: Tool-cascade calls
+    EXT-->>A1: Data
+    A1-->>O: Findings (markdown)
+  and
+    O->>A2: Specialized prompt
+    A2->>EXT: Tool-cascade calls
+    EXT-->>A2: Data
+    A2-->>O: Findings
+  and
+    O->>A3: Specialized prompt
+    A3-->>O: Findings
+  and
+    O->>A4: Specialized prompt
+    A4-->>O: Findings
+  end
+  Note over O: Synthesize 4 findings into<br/>one cohesive report<br/>(don't just paste)
+  O->>R: Write reports/&lt;cat&gt;/YYYY-MM-DD-*.md
+  O->>FS: Optionally update memory/
+  O-->>U: Return executive summary
+</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout"><strong>Why this works.</strong> Parallelism gives wall-clock speed (4–6 agents researching at once). Specialization gives depth (each agent focuses narrowly). The synthesizing orchestrator gives coherence (a single voice, single report, no contradictions). The shared profile gives all sub-agents the same grounding.</div>
+
+    <!-- TOOL CASCADE -->
+    <h2 id="tool-cascade">Tool Cascade (API-Agnostic)</h2>
+    <p>Every research sub-agent receives an explicit instruction to use a prioritized tool cascade. The pattern is more important than the specific APIs — substitute whatever APIs you have access to in your environment.</p>
+    <div class="diagram-card">
+      <div class="header"><div class="title">Decision Tree: Which Tool For Which Question?</div><span class="badge">Decision Tree</span></div>
+      <div class="diagram-body">
+        <div class="zoom-wrap">
+          <div class="zoom-controls"><button class="zoom-btn" data-zoom="in">+</button><button class="zoom-btn" data-zoom="out">−</button><button class="zoom-btn" data-zoom="reset">⟲</button></div>
+          <div class="pan-wrap">
+<div class="mermaid">
+flowchart TD
+  Q{What kind of<br/>data do I need?}
+  Q --> Q1{Structured market<br/>quote / fundamentals /<br/>options / technicals?}
+  Q --> Q2{SEC filing /<br/>regulatory document?}
+  Q --> Q3{Macro indicator?<br/>Treasury, CPI, Fed,<br/>unemployment...}
+  Q --> Q4{Qualitative<br/>why / sentiment /<br/>multi-source synthesis?}
+  Q --> Q5{Library /<br/>framework / SDK<br/>docs?}
+  Q --> Q6{Same-day<br/>breaking news?}
+
+  Q1 -->|Yes| T1[Tier 1: Market-data API<br/><i>e.g. AlphaVantage, Polygon, IEX</i>]
+  T1 -->|rate limited| T1B[Tier 2: Filings API<br/><i>e.g. SEC EDGAR scraper</i>]
+  T1B -->|no result| T1C[LAST: Web search]
+
+  Q2 -->|Yes| T2[Filings API<br/><i>SEC EDGAR, fundamentals scraper</i>]
+  T2 -->|fallback| T2B[Direct gov. endpoint<br/><i>SEC EDGAR XBRL via HTTP</i>]
+  T2B -->|no result| T2C[LAST: Web search]
+
+  Q3 -->|Yes| T3[Macro API<br/><i>FRED, World Bank, BLS</i>]
+  T3 -->|fallback| T3B[Market-data macro endpoints]
+  T3B --> T3C[LAST: Web search]
+
+  Q4 -->|Yes| T4[Qualitative research API<br/><i>e.g. Gemini, deep web</i>]
+  T4 -->|quota| T4B[Web search + fetch]
+
+  Q5 -->|Yes| T5[Docs API<br/><i>e.g. Context7</i>]
+  T5 -->|fallback| T5B[Web search]
+
+  Q6 -->|Yes| T6[Web search<br/><i>only place it's first stop</i>]
+
+  style T1 fill:#dcfce7,stroke:#22c55e,color:#000
+  style T2 fill:#dcfce7,stroke:#22c55e,color:#000
+  style T3 fill:#dcfce7,stroke:#22c55e,color:#000
+  style T4 fill:#dcfce7,stroke:#22c55e,color:#000
+  style T5 fill:#dcfce7,stroke:#22c55e,color:#000
+  style T6 fill:#dcfce7,stroke:#22c55e,color:#000
+  style T1C fill:#fee2e2,stroke:#ef4444,color:#000
+  style T2C fill:#fee2e2,stroke:#ef4444,color:#000
+  style T3C fill:#fee2e2,stroke:#ef4444,color:#000
+</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout"><strong>Anti-pattern (DO NOT):</strong> Defaulting to web search for structured data. When a structured API exists for the data type, use it first. Web search is a <i>last resort</i> for structured data — it's only the <i>first stop</i> for same-day breaking news.</div>
+
+    <!-- REPORT FLOW -->
+    <h2 id="report-flow">Report Output Convention</h2>
+    <p>Every skill that produces an artifact writes it as a dated markdown file under a category folder. Naming follows a strict convention so reports are sortable and discoverable.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Output Type</th><th>Path Convention</th><th>Example</th></tr></thead>
+        <tbody>
+          <tr><td>Standard report</td><td class="mono">reports/&lt;category&gt;/YYYY-MM-DD-description.md</td><td class="mono">reports/tax/2026-05-10-roth-conversion.md</td></tr>
+          <tr><td>Daily briefing</td><td class="mono">briefings/daily/YYYY-MM-DD.md</td><td class="mono">briefings/daily/2026-05-10.md</td></tr>
+          <tr><td>Weekly review</td><td class="mono">briefings/weekly/YYYY-WXX.md</td><td class="mono">briefings/weekly/2026-W19.md</td></tr>
+          <tr><td>Monthly CFO review</td><td class="mono">reports/financial-reviews/YYYY-MM-month-review.md</td><td class="mono">reports/financial-reviews/2026-05-month-review.md</td></tr>
+          <tr><td>Quarterly review</td><td class="mono">reports/&lt;category&gt;/YYYY-QX-description.md</td><td class="mono">reports/risk/2026-Q2-stress-test.md</td></tr>
+          <tr><td>Trade journal entry</td><td class="mono">journal/entries/YYYY-MM-DD-action-TICKER.md</td><td class="mono">journal/entries/2026-05-10-buy-NVDA.md</td></tr>
+          <tr><td>Decision review</td><td class="mono">journal/reviews/YYYY-QX-decision-review.md</td><td class="mono">journal/reviews/2026-Q2-decision-review.md</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Every report begins with the same header</h3>
+<pre><code># [Report Title]
+**Date:** [Today's date]
+**Agent:** [Agent role name]
+**Prepared for:** [Family / User Name]
+---
+</code></pre>
+    <h3>Investment recommendations always use this structure</h3>
+<pre><code>## Analysis
+[Data, reasoning, pros/cons, risk/reward framework]
+
+## Recommendation
+Action:        BUY / SELL / HOLD / TRIM / ADD
+Target:        $XXX (or N/A)
+Conviction:    HIGH / MEDIUM / LOW
+Position Size: X% of portfolio
+Risk:          [What could go wrong]
+Time Horizon:  [When this should play out]
+Invalidation:  [What would change this recommendation]
+</code></pre>
+
+    <h3>The <code>--challenge</code> flag adds adversarial review</h3>
+    <p>Any skill producing an investment recommendation supports <code>--challenge</code>, which appends a <i>Devil's Advocate</i> section arguing the opposite position with full conviction. Prevents confirmation bias.</p>
+
+    <!-- RECREATE THIS SYSTEM -->
+    <h2 id="recreate">Recreate This System (API-Agnostic Blueprint)</h2>
+    <p>This section is the build guide for another agent. It describes the patterns, not the specific APIs. Substitute the data sources you have access to.</p>
+
+    <h3>Core principles</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Principle</th><th>What it means concretely</th></tr></thead>
+        <tbody>
+          <tr><td><b>File-based state</b></td><td>No databases. All state lives in JSON/CSV/MD files in a versioned directory. Every skill reads and writes plain text. The user can inspect any state with a text editor.</td></tr>
+          <tr><td><b>Skills as slash commands</b></td><td>Each agent is a self-contained markdown file with YAML frontmatter (name, description, argument-hint, disable-model-invocation). Invoked via <code>/skill-name</code>. The skill's body is the system prompt.</td></tr>
+          <tr><td><b>Profile-first grounding</b></td><td>Every skill MUST read relevant profile files before doing anything else. Never guess household state — read it.</td></tr>
+          <tr><td><b>Parallel sub-agents for depth</b></td><td>Complex skills fan out to N specialist sub-agents in parallel, then a synthesizing orchestrator merges their findings. 4–6 agents is the sweet spot.</td></tr>
+          <tr><td><b>Tool-priority cascade</b></td><td>Each data type has a preferred API. Sub-agents are told explicitly to use the right tool first and treat web search as a last resort for structured data.</td></tr>
+          <tr><td><b>Versioned outputs</b></td><td>Every artifact is dated and saved. The directory is the journal — reports are never overwritten.</td></tr>
+          <tr><td><b>Standardized recommendation format</b></td><td>Analysis first, then a fixed structure (Action / Target / Conviction / Size / Risk / Horizon / Invalidation). Makes outputs comparable across time.</td></tr>
+          <tr><td><b>Devil's advocate built-in</b></td><td><code>--challenge</code> flag flips the orchestrator into adversarial mode after the primary analysis. Forces both sides.</td></tr>
+          <tr><td><b>Date awareness</b></td><td>Every session opens by confirming today's date. All data is tagged with recency. Stale data is flagged, not silently served.</td></tr>
+          <tr><td><b>Idempotent sync</b></td><td>The intake skill (<code>/sync</code>) is rerunnable. Drop files in, run sync, see a diff, accept. No write-once side effects.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- SCAFFOLD -->
+    <h2 id="scaffolding">Folder Scaffold (Copy This)</h2>
+<pre><code>your-family-office/
+├── .claude/
+│   ├── skills/
+│   │   ├── cio/SKILL.md
+│   │   ├── equity-research/SKILL.md
+│   │   └── ...               # one folder per skill, each with SKILL.md
+│   └── settings.json         # permission allow-list for tools
+├── CLAUDE.md                 # global rules (read first by every agent)
+├── profile/
+│   ├── api-guide.md          # tool priority reference
+│   ├── api-keys.json         # gitignored credentials
+│   ├── family.json
+│   ├── goals.json
+│   ├── investment-policy.json
+│   ├── risk-tolerance.json
+│   ├── accounts/             # brokerage, retirement, checking, crypto
+│   ├── debts/                # mortgage, auto, student, credit-cards
+│   ├── expenses/             # monthly, recurring, summary
+│   ├── income/               # w2, 1099, other
+│   ├── insurance/            # health, life, disability, property
+│   ├── portfolio/            # holdings.csv, watchlist.json
+│   ├── real-estate/          # primary, investment
+│   ├── business/             # entities, financials, tax-setup
+│   ├── tax/                  # profile, strategies, filed-returns/
+│   └── health/               # per-member medical history
+├── imports/                  # raw drop zone (CSV/PDF/XLSX)
+│   ├── bank-statements/
+│   ├── brokerage/
+│   ├── credit-cards/
+│   ├── pay-stubs/
+│   ├── tax-returns/
+│   ├── loan-docs/
+│   └── other/
+├── reports/                  # versioned analysis outputs
+│   ├── investment-committee/
+│   ├── equity-research/
+│   ├── macro/
+│   ├── options/
+│   ├── sectors/{tech,energy,finance,biotech}/
+│   ├── financial-reviews/
+│   ├── tax/
+│   ├── debt/
+│   ├── risk/
+│   ├── estate/
+│   ├── business/
+│   ├── real-estate/
+│   ├── medical/
+│   └── screener/
+├── briefings/
+│   ├── daily/
+│   └── weekly/
+├── journal/
+│   ├── entries/
+│   ├── reviews/
+│   └── strategies/
+├── medical/                  # raw EOBs and bills, parsed by /medical
+│   ├── eobs/
+│   ├── bills/
+│   ├── claims/
+│   ├── disputes/
+│   ├── receipts/
+│   └── history/
+└── memory/
+    ├── MEMORY.md
+    ├── data-freshness.json
+    ├── lessons-learned.md
+    ├── investment-thesis.md
+    └── market-context.md
+</code></pre>
+
+    <!-- SKILL TEMPLATE -->
+    <h2 id="skill-template">Skill File Template (API-Agnostic)</h2>
+    <p>Save as <code>.claude/skills/&lt;skill-name&gt;/SKILL.md</code>. Substitute your own API names in the tool-priority block.</p>
+<pre><code>---
+name: my-skill
+description: One-sentence description of what this skill does and when to use it.
+argument-hint: "[topic or question]"
+disable-model-invocation: true
+---
+
+# /my-skill — Role Title
+
+## Trigger
+Invoked when the user types /my-skill or asks about [topic area].
+
+## Before You Begin
+1. Confirm today's date.
+2. Read profile files this skill depends on:
+   - `profile/&lt;file1&gt;.json`
+   - `profile/&lt;file2&gt;.json`
+   - `profile/&lt;file3&gt;.json`
+3. Read recent reports in `reports/&lt;category&gt;/` for continuity.
+4. (If applicable) Read prior context from `memory/`.
+
+## Research Tool Priority (MANDATORY)
+Include this in every sub-agent prompt:
+&gt; Tool priority is mandatory:
+&gt; - Structured market data → [Tier 1 API]
+&gt;   On rate-limit → [Tier 2 fallback], NOT web search
+&gt; - Filings / regulatory → [Filings API]
+&gt; - Macro indicators → [Macro API]
+&gt; - Qualitative research → [Research API]
+&gt; - Library / framework docs → [Docs API]
+&gt; - Web search is the LAST resort for structured data;
+&gt;   it is the FIRST stop only for same-day breaking news.
+
+## Parallel Agent Orchestration  (omit if direct-mode skill)
+### Agent 1 — &lt;Specialization&gt;
+[Specific prompt for agent 1, including the slice of profile it needs]
+
+### Agent 2 — &lt;Specialization&gt;
+[...]
+
+### Agent 3 — &lt;Specialization&gt;
+[...]
+
+### Agent 4 — &lt;Specialization&gt;
+[...]
+
+## Synthesis
+After all N agents return, YOU synthesize — do not just paste outputs.
+Resolve conflicts. Produce a single coherent voice.
+
+## Output Format
+Save to `reports/&lt;category&gt;/YYYY-MM-DD-description.md`:
+
+# &lt;Report Title&gt;
+**Date:** &lt;today&gt;
+**Agent:** &lt;Role&gt;
+**Prepared for:** &lt;Family/User&gt;
+---
+## Executive Summary
+## Analysis
+## Recommendation
+  Action / Target / Conviction / Size / Risk / Horizon / Invalidation
+## Risks
+## Action Items
+
+## --challenge Flag
+If `--challenge` was passed, append a Devil's Advocate section
+that argues the opposite position with full conviction.
+
+## Quality Standards
+- Cite sources for every quantitative claim.
+- Distinguish facts, estimates, opinions.
+- Flag stale or missing data — never silently fabricate.
+- End with a one-line standardized AI-generated-advice disclaimer.
+</code></pre>
+
+    <!-- API MAPPING -->
+    <h2 id="api-mapping">API Mapping (substitute yours)</h2>
+    <p>This system was built around a specific set of APIs, but the architecture works with any data sources. Map the role to whatever you have:</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Role</th><th>What it provides</th><th>This system uses</th><th>You could substitute</th></tr></thead>
+        <tbody>
+          <tr><td>Tier 1 Market Data</td><td>Quotes, fundamentals, options, technicals, commodities, FX, crypto, news sentiment</td><td>AlphaVantage MCP</td><td>Polygon, IEX Cloud, Tiingo, Finnhub, Yahoo Finance unofficial</td></tr>
+          <tr><td>Filings / SEC</td><td>10-K/Q, 8-K, Form 4, 13F, XBRL financials</td><td>Direct SEC EDGAR HTTP (curl, User-Agent required)</td><td>Direct SEC EDGAR HTTP, Sharadar, EDGAR-Online, financialmodelingprep</td></tr>
+          <tr><td>Macro / Economic</td><td>Treasury yields, CPI, Fed funds, unemployment, GDP, mortgage rates</td><td>FRED via HTTP</td><td>BLS API, World Bank, OECD, Trading Economics</td></tr>
+          <tr><td>Qualitative Research</td><td>"Why is X happening?", sentiment, multi-source synthesis</td><td>Gemini (fast + deep research, <code>scripts/gemini/</code>)</td><td>OpenAI deep-research, Tavily, Exa, Brave search + LLM synthesis</td></tr>
+          <tr><td>Library / Framework Docs</td><td>Up-to-date docs for SDKs, frameworks, CLIs</td><td>Context7 MCP</td><td>Direct fetch of docs sites, llms.txt files</td></tr>
+          <tr><td>Same-day breaking news</td><td>Hour-fresh news headlines</td><td>Web search</td><td>Any general-purpose search engine</td></tr>
+          <tr><td>Communication (optional)</td><td>Sending reports to a channel</td><td>Slack MCP</td><td>Email, Discord, Telegram, SMS</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout"><strong>What matters more than the specific APIs:</strong> the discipline of <i>prioritizing structured data over web search</i>, the discipline of <i>telling sub-agents the priority order explicitly in every prompt</i>, and the discipline of <i>defining a clean fallback chain for each data type</i>. Without those, the LLM will default to web search and your output quality will collapse.</div>
+
+    <!-- COLOR LEGEND -->
+    <h2>Color Legend (used throughout)</h2>
+    <div class="legend">
+      <div class="legend-item"><span class="swatch" style="background:#dcfce7"></span>Entry points / preferred path / success</div>
+      <div class="legend-item"><span class="swatch" style="background:#ede9fe"></span>Skills / orchestrators</div>
+      <div class="legend-item"><span class="swatch" style="background:#dbeafe"></span>Compute / sub-agents / mutations</div>
+      <div class="legend-item"><span class="swatch" style="background:#fef3c7"></span>Data stores / state</div>
+      <div class="legend-item"><span class="swatch" style="background:#fee2e2"></span>Last-resort path / anti-patterns</div>
+    </div>
+
+    <p style="color: var(--text-faint); margin-top: 60px; font-size: 12px; text-align: center;">Generated visualization of the AI Family Office system &middot; All paths and conventions inferred from <code>CLAUDE.md</code>, <code>profile/api-guide.md</code>, and the SKILL.md files in <code>.claude/skills/</code>.</p>
+  </main>
+</div>
+
+<script>
+  // Mermaid init
+  function initMermaid(theme) {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: theme === 'light' ? 'default' : 'dark',
+      themeVariables: {
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif',
+        fontSize: '13.5px',
+      },
+      flowchart: { curve: 'basis', useMaxWidth: true, htmlLabels: true },
+      sequence: { useMaxWidth: true, mirrorActors: false },
+    });
+  }
+  function renderAllMermaid() {
+    document.querySelectorAll('.mermaid').forEach((el, idx) => {
+      if (!el.dataset.src) el.dataset.src = el.textContent;
+      el.innerHTML = el.dataset.src;
+      el.removeAttribute('data-processed');
+    });
+    mermaid.run({ querySelector: '.mermaid' });
+  }
+
+  // Theme
+  function toggleTheme() {
+    const cur = document.documentElement.getAttribute('data-theme');
+    const next = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    initMermaid(next);
+    renderAllMermaid();
+  }
+
+  // Zoom / pan
+  function setupZoom() {
+    document.querySelectorAll('.diagram-card').forEach(card => {
+      const wrap = card.querySelector('.mermaid');
+      const pan = card.querySelector('.pan-wrap');
+      let scale = 1;
+      card.querySelectorAll('.zoom-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const op = btn.dataset.zoom;
+          if (op === 'in') scale = Math.min(3, scale + 0.2);
+          else if (op === 'out') scale = Math.max(0.4, scale - 0.2);
+          else scale = 1;
+          wrap.style.transform = `scale(${scale})`;
+        });
+      });
+      // wheel zoom
+      pan.addEventListener('wheel', (e) => {
+        if (!e.ctrlKey && !e.metaKey) return;
+        e.preventDefault();
+        scale = Math.max(0.4, Math.min(3, scale + (e.deltaY < 0 ? 0.1 : -0.1)));
+        wrap.style.transform = `scale(${scale})`;
+      }, { passive: false });
+      // drag pan
+      let isDown = false, startX = 0, startY = 0, scrollL = 0, scrollT = 0;
+      pan.addEventListener('mousedown', (e) => {
+        isDown = true; pan.classList.add('dragging');
+        startX = e.pageX - pan.offsetLeft; startY = e.pageY - pan.offsetTop;
+        scrollL = pan.scrollLeft; scrollT = pan.scrollTop;
+      });
+      window.addEventListener('mouseup', () => { isDown = false; pan.classList.remove('dragging'); });
+      pan.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - pan.offsetLeft;
+        const y = e.pageY - pan.offsetTop;
+        pan.scrollLeft = scrollL - (x - startX);
+        pan.scrollTop = scrollT - (y - startY);
+      });
+    });
+  }
+
+  // Scroll-spy nav
+  function setupScrollSpy() {
+    const links = document.querySelectorAll('.nav a');
+    const ids = Array.from(links).map(a => a.getAttribute('href').slice(1));
+    const map = {};
+    ids.forEach(id => { map[id] = document.getElementById(id); });
+    function update() {
+      let activeId = ids[0];
+      const y = window.scrollY + 120;
+      for (const id of ids) {
+        const el = map[id]; if (!el) continue;
+        if (el.offsetTop <= y) activeId = id;
+      }
+      links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + activeId));
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    update();
+  }
+
+  // Boot
+  initMermaid('dark');
+  renderAllMermaid();
+  setupZoom();
+  setupScrollSpy();
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Edit",
+      "Write",
+      "WebSearch",
+      "WebFetch",
+      "Task",
+      "mcp__alphavantage__TOOL_CALL",
+      "mcp__alphavantage__TOOL_GET",
+      "mcp__alphavantage__TOOL_LIST",
+      "mcp__apify__get-actor-output",
+      "mcp__apify__lukaskrivka--article-extractor-smart",
+      "mcp__apify__trudax--reddit-scraper-lite",
+      "mcp__apify__apify--rag-web-browser",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__query-docs"
+    ]
+  }
+}

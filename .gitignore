@@ -1,0 +1,45 @@
+# ─── Secrets & credentials (never commit) ───────────────────────────
+.env
+.env.*
+.mcp.json
+*.key
+*.pem
+credentials.json
+secrets.json
+**/api_keys*
+**/api-keys*
+**/tokens*
+**/.schwab-token*
+
+# ─── Private data (generated locally by /onboard — stays on your machine) ───
+# Everything inside these dirs is ignored; only the .gitkeep placeholders are
+# tracked so the directory structure still ships with the repo.
+/profile/*
+!/profile/.gitkeep
+!/profile/api-guide.md
+!/profile/SOURCES.md
+/imports/**
+!/imports/
+!/imports/**/
+!/imports/**/.gitkeep
+/medical/
+/reports/*
+!/reports/.gitkeep
+/briefings/*
+!/briefings/.gitkeep
+/journal/*
+!/journal/.gitkeep
+/memory/*
+!/memory/.gitkeep
+
+# ─── Local / machine-specific ───────────────────────────────────────
+.claude/settings.local.json
+scripts/logs/
+scripts/.slack-message.txt
+
+# ─── Python / OS junk ───────────────────────────────────────────────
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+.obsidian/
