@@ -2,6 +2,16 @@
 
 A self-hosted, open-source family office for [Claude Code](https://claude.com/claude-code) — a team of 27 specialized financial agents (CIO, equity research, macro, tax, CFO, risk, estate, and more) that manage your household's investments, money, taxes, and planning the way a traditional ultra-high-net-worth family office would. All your data stays local on your machine.
 
+<p align="center">
+  <a href="https://htmlpreview.github.io/?https://github.com/elliottrjacobs/family-office/blob/main/family-office-system.html">
+    <img src="docs/explainer-preview.png" alt="AI Family Office — interactive visual explainer" width="820">
+  </a>
+  <br/>
+  <strong><a href="https://htmlpreview.github.io/?https://github.com/elliottrjacobs/family-office/blob/main/family-office-system.html">📖 Open the interactive explainer →</a></strong>
+</p>
+
+> The image above is a preview of [`family-office-system.html`](family-office-system.html) — a visual walkthrough of how the system works. Click it to open the fully-styled, interactive version in your browser.
+
 ## Prerequisites
 
 - [Claude Code](https://claude.com/claude-code) installed and authenticated
