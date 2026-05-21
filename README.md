@@ -124,6 +124,26 @@ The agents pull live data through a mandatory tool-priority stack (full referenc
 
 Add your API keys to `profile/api-keys.json` (gitignored) or the corresponding environment variables. The agents degrade gracefully when a key is missing.
 
+### Bring your own tools (swap anything)
+
+None of these providers are sacred — the architecture is **role-based, not vendor-locked**. Each entry above fills a *role* (account data, market data, fundamentals, macro, qualitative research, web search). Swap in whatever you already pay for or prefer, or delete a row entirely and let it fall back to plain WebSearch. The only thing that matters is keeping the *priority order* explicit so agents reach for structured data before scraping the open web.
+
+Common substitutions by role:
+
+| Role | This repo uses | Swap in (examples) |
+|------|----------------|--------------------|
+| Accounts & positions | Schwab (read-only) | Interactive Brokers, E\*TRADE, Tradier, Alpaca; aggregators (SnapTrade, Plaid); or just CSV export → `/sync` |
+| Quotes / options / history | Schwab → AlphaVantage | Polygon, IEX Cloud, Tiingo, Finnhub, Yahoo Finance |
+| Fundamentals | AlphaVantage → SEC EDGAR | financialmodelingprep, Sharadar, Koyfin |
+| Macro / rates | FRED | BLS, World Bank, OECD, Trading Economics |
+| Qualitative research / "why" / synthesis | Gemini | Perplexity, OpenAI, Anthropic, or any LLM with web access |
+| Web research / source-finding / page extraction | WebSearch + WebFetch | **Exa** (`web_search_exa` / `web_fetch_exa`), Tavily, Brave Search, Firecrawl |
+| Library / SDK docs | context7 | direct docs fetch, `llms.txt` |
+
+> **Exa** is already wired into this environment as an MCP and is a strong drop-in for the web-research/extraction role — it returns clean page content (transcripts, filings, analyst pieces) rather than just links, and supports `category:people`/`category:company` searches that are handy for management diligence.
+
+To change a provider, edit the tool-priority table in `CLAUDE.md` and `profile/api-guide.md`, and the "research tools" instruction block inside the relevant `.claude/skills/*/SKILL.md`. Prefer the simplest setup? Remove the API rows and the system runs entirely on WebSearch — lower fidelity, zero keys.
+
 ## Privacy
 
 Your financial life never leaves your machine. These directories are **gitignored** and hold all personal data — only `.gitkeep` placeholders are tracked so the structure ships with the repo:
