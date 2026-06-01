@@ -76,6 +76,42 @@ Invoked with `/sync` (full sync) or `/sync --dry-run` (parse and show changes wi
 
 So Phase 0 handles Schwab account data, then Phase 1 picks up everything else.
 
+### Phase 0.5: Bank & Credit-Card Live Sync (SimpleFIN, API-first)
+
+**After Schwab, attempt a live bank/card sync via SimpleFIN.** This is the primary data path for checking/savings balances, credit-card balances, and bank/card transactions — bank/card PDFs and CSVs in `imports/` are a fallback only.
+
+**Steps:**
+
+1. Read `profile/api-keys.json` and check the `simplefin` block:
+   - If `simplefin.access_url` is missing or starts with `PASTE` -> skip Phase 0.5, print: `"⚠ SimpleFIN not configured — run: python3.10 scripts/simplefin/auth.py to connect, or drop bank/card statements in imports/ as fallback."`
+
+2. If configured, run the sync script via Bash:
+   ```
+   python3.10 scripts/simplefin/sync.py --apply
+   ```
+   This pulls current balances plus a trailing window of transactions, updates `profile/accounts/*` and `profile/debts/credit-cards.json` (accounts matched by last-4, with your authored notes preserved), merges transactions (deduped by id, accumulating over time) into `profile/transactions/`, rebuilds the per-account `rollups.json` + the cross-account `index.json`, and writes the `api_sources.simplefin` block into `memory/data-freshness.json`. SimpleFIN is **read-only**, and the access URL **never expires** — there is no re-auth. **Do not run `auth.py` from `/sync`** — that's the one-time setup-token claim the user runs manually.
+
+3. **First-ever population** (no transaction history yet): run `python3.10 scripts/simplefin/sync.py --full --apply` to backfill the full available window instead of just the trailing one.
+
+4. Surface any **unmatched accounts** the script reports — these need a `simplefin.account_map` entry in `profile/api-keys.json` (mapping the SimpleFIN account id to a last-4) before their balances/transactions can land. Re-run after adding the mapping.
+
+5. If the script exits non-zero, print the error and fall through to the CSV/PDF pipeline for bank & card data.
+
+### Phase 0.7: Budget Rollup (expense categorization)
+
+**After SimpleFIN refreshes `profile/transactions/`, regenerate the categorized budget + dashboard** so expense figures never go stale:
+
+```
+python3.10 scripts/expenses/categorize.py
+python3.10 scripts/expenses/build_dashboard.py
+```
+
+- `categorize.py` reads `profile/transactions/` (live), an optional Monarch/Mint export in `imports/monarch/` (if present), and the **AUTHORED** rules in `profile/expenses/categories.json` (the only hand-authored expense file — its schema is documented in `scripts/expenses/categories.example.json`). It writes the **DERIVED** `profile/expenses/budget-data.json` (full categorized rollup) and `profile/expenses/summary.json` (compact monthly summary).
+- `build_dashboard.py` reads `budget-data.json` and writes `reports/budget-dashboard.html`.
+- **Never hand-edit the derived files** (`budget-data.json`, `summary.json`, `budget-dashboard.html`) — they are regenerated every sync. To change how a merchant is categorized, edit the rule in `categories.json` and re-run.
+- If `budget-data.json`'s `needs_review` array is non-empty, surface those merchants to the user so they can add a rule to `categories.json`, then re-run `categorize.py`.
+- **Skip Phase 0.7 with a note if SimpleFIN was skipped** in Phase 0.5 (no fresh transactions to roll up).
+
 ### Phase 1: Scan & Inventory
 
 Scan `imports/` recursively using Glob for all files (CSV, PDF, XLSX, JSON, etc.):
@@ -229,10 +265,7 @@ Profile files to potentially update (same as onboard Phase 6):
 - `profile/accounts/brokerage.json`
 - `profile/accounts/retirement.json`
 - `profile/accounts/crypto.json`
-- `profile/portfolio/holdings.csv`
-- `profile/expenses/recurring-monthly.json`
-- `profile/expenses/recurring-annual.json`
-- `profile/expenses/summary.json`
+- `profile/portfolio/holdings.json` (canonical; `holdings.csv` is a derived export, not the source of truth)
 - `profile/debts/mortgage.json`
 - `profile/debts/auto.json`
 - `profile/debts/student.json`
@@ -249,6 +282,8 @@ Profile files to potentially update (same as onboard Phase 6):
 - `profile/insurance/property-liability.json`
 - `profile/real-estate/primary-residence.json`
 - `profile/real-estate/investment-properties.json`
+
+> **Bank/card balances + transactions are written by Phase 0.5 (SimpleFIN); expense rollups by Phase 0.7. The only authored expense file is `profile/expenses/categories.json` — `budget-data.json` and `summary.json` are DERIVED and must not be hand-edited here.**
 
 ### Phase 5: IPS & Goal Compliance Check
 

@@ -36,6 +36,11 @@ This file records **which file is canonical for each fact** in the profile. Ever
 | Data freshness timestamps | `memory/data-freshness.json` | 2 (derived) | `/sync` only |
 | Income actuals (W-2, 1099, other) | `profile/income/*.json` | 2 (derived) | filed return / `/onboard` |
 | Debt balances | `profile/debts/*.json` | 2 (live) | statements via `/sync` / hand |
+| **Bank/card transactions** | `profile/transactions/<slug>/<year>.json` (accumulating); derived: `<slug>/rollups.json` + `index.json` | 2 (live) | `scripts/simplefin/sync.py` (sync-owned) |
+| Bank/card balances | `profile/accounts/*` + `profile/debts/credit-cards.json` | 2 (live) | `scripts/simplefin/sync.py` |
+| **Expense categories / budget rules** | `profile/expenses/categories.json` | **1 (authored)** | hand |
+| Budget rollup (categorized) | `profile/expenses/budget-data.json` + `summary.json` | 2 (derived) | `scripts/expenses/categorize.py` |
+| Budget dashboard | `reports/budget-dashboard.html` | 2 (derived) | `scripts/expenses/build_dashboard.py` |
 
 ## Drift lint
 

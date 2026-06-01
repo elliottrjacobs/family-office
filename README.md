@@ -125,6 +125,7 @@ Two disciplines keep the data honest:
 The agents pull live data through a mandatory tool-priority stack (full reference in `profile/api-guide.md`):
 
 - **Schwab Trader API** — a **read-only** wrapper (`scripts/schwab/client.py`) that surfaces your account positions, balances, and transactions, and is the **primary** source for stock quotes, options chains, and price history (for held *and* unheld tickers). Order placement is blocked at the wrapper layer. Run `python3.10 scripts/schwab/auth.py` to authenticate; the refresh token expires every 7 days.
+- **SimpleFIN** — the easiest, **seamless** way to pull **bank & credit-card balances + transactions** into the profile, via a **read-only** wrapper (`scripts/simplefin/client.py`). Claim a setup token once (`python3.10 scripts/simplefin/auth.py`); the access URL **never expires** — no weekly re-auth (unlike Schwab) and read-only by protocol, so there's no order-placement risk. This is the recommended path for live banking data: it feeds cash-flow analysis, the budget categorizer, net-worth math, and `/debt`. `/sync` pulls it automatically and accumulates transaction history forward over time.
 - **AlphaVantage** (MCP) — primary for fundamentals, ratios, earnings, transcripts, commodities, FX, and crypto; fallback for quotes/options/history.
 - **SEC EDGAR** — filings (10-K/10-Q/8-K/Form 4/13F) and XBRL financials, accessed via Bash curl with a `User-Agent` header.
 - **FRED** (via WebFetch) — Treasury yields, CPI, Fed funds, GDP, unemployment, mortgage rates.
@@ -133,6 +134,15 @@ The agents pull live data through a mandatory tool-priority stack (full referenc
 - **WebSearch** — last resort for structured data; first stop only for same-day breaking news.
 
 Add your API keys to `profile/api-keys.json` (gitignored) or the corresponding environment variables. The agents degrade gracefully when a key is missing.
+
+### Budget & expense tracking
+
+Once bank/card data is flowing (SimpleFIN above), `/sync` runs the expense pipeline in `scripts/expenses/`:
+
+- **`categorize.py`** applies your authored rules in `profile/expenses/categories.json` (taxonomy + descriptor/payee rules — start from `scripts/expenses/categories.example.json`) to your transactions. It splits even tricky cases — e.g. grocery-delivery by the underlying store, which lives in the bank descriptor (`IC* COSTCO BY INSTACART` → groceries vs. `DD *DOORDASH <restaurant>` → takeout) — and separates real spending from internal transfers, savings moves, and credit-card payments so the totals aren't double-counted. It writes a derived rollup (`profile/expenses/budget-data.json` + `summary.json`).
+- **`build_dashboard.py`** renders a self-contained, offline `reports/budget-dashboard.html` — income-vs-spend trend, full spend-by-category breakdown, top merchants, savings-flow (contributions vs. withdrawals), and an operating-net headline.
+
+Drop a Monarch/Mint CSV export into `imports/monarch/` to backfill years of history and bulk-seed the category map from your own past categorizations. The pipeline regenerates automatically on every `/sync`.
 
 ### Bring your own tools (swap anything)
 
@@ -143,6 +153,7 @@ Common substitutions by role:
 | Role | This repo uses | Swap in (examples) |
 |------|----------------|--------------------|
 | Accounts & positions | Schwab (read-only) | Interactive Brokers, E\*TRADE, Tradier, Alpaca; aggregators (SnapTrade, Plaid); or just CSV export → `/sync` |
+| Bank & card data | SimpleFIN (read-only) | Plaid, MX, Teller, Finicity, GoCardless; or CSV export → `/sync` |
 | Quotes / options / history | Schwab → AlphaVantage | Polygon, IEX Cloud, Tiingo, Finnhub, Yahoo Finance |
 | Fundamentals | AlphaVantage → SEC EDGAR | financialmodelingprep, Sharadar, Koyfin |
 | Macro / rates | FRED | BLS, World Bank, OECD, Trading Economics |

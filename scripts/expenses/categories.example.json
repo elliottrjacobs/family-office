@@ -1,0 +1,46 @@
+{
+  "_README": "EXAMPLE / TEMPLATE. Copy to profile/expenses/categories.json and edit for your finances. This is the ONLY hand-authored expense file. scripts/expenses/categorize.py applies it to your transactions (SimpleFIN-synced + an optional Monarch/Mint CSV in imports/monarch/) to DERIVE profile/expenses/budget-data.json + summary.json; build_dashboard.py then renders reports/budget-dashboard.html. Never hand-edit the derived files. Precedence per transaction: descriptor_rules -> payee_overrides -> Monarch row's own category -> merchant-map inference -> needs_review. All account numbers/merchants below are placeholders.",
+  "as_of": "YYYY-MM-DD",
+  "taxonomy_types": {
+    "_doc": "Map each category to a budget TYPE so the dashboard separates real consumption from internal money movement. spend=consumption | income | savings (transfers to savings/brokerage; inflows back are withdrawals) | transfer (internal/excluded, never spend) | tax | debt (loan/lease). Unlisted categories default to 'spend'.",
+    "spend": ["Groceries", "Restaurants & Bars", "Food Delivery", "Coffee Shops", "Shopping",
+              "Clothing", "Gas", "Utilities", "Internet & Cable", "Phone", "Insurance", "Medical",
+              "Pets", "Fitness", "Personal", "Gifts", "Entertainment & Recreation", "Travel & Vacation",
+              "Books", "Subscriptions", "Parking & Tolls", "Taxi & Ride Shares", "Rent", "Childcare",
+              "Home Improvement", "Auto Maintenance", "Office Supplies & Expenses", "Miscellaneous"],
+    "income": ["Paychecks", "Business Income", "Other Income", "Interest"],
+    "savings": ["Savings", "Buy", "Sell"],
+    "transfer": ["Transfer", "Credit Card Payment", "Check", "Balance Adjustments", "Loan Repayment"],
+    "tax": ["Taxes"],
+    "debt": ["Auto Payment"]
+  },
+  "descriptor_rules": {
+    "_doc": "Highest priority. Case-insensitive SUBSTRING match against the raw bank descriptor (transaction 'description'); first match wins, so list specific patterns before general ones. This is how to split delivery services by the underlying store, which lives in the descriptor (e.g. 'IC* COSTCO BY INSTACART', 'DD *DOORDASH SPROUTS').",
+    "rules": [
+      {"match": "PAYMENT THANK YOU", "category": "Credit Card Payment", "note": "card-payment credit — NOT income"},
+      {"match": "IC* INSTACART", "category": "Groceries", "note": "Instacart grocery order"},
+      {"match": "DOORDASH SPROUTS", "category": "Groceries", "note": "grocery delivery, not restaurant"},
+      {"match": "DD *DOORDASH", "category": "Food Delivery", "note": "any other DoorDash = restaurant takeout"},
+      {"match": "UBER   *EATS", "category": "Food Delivery"},
+      {"match": "UBER   *TRIP", "category": "Taxi & Ride Shares"}
+    ]
+  },
+  "payee_overrides": {
+    "_doc": "Applied after descriptor_rules, before the Monarch map. Resolves a merchant to one category. Key = normalized payee (lowercased, punctuation stripped). Use to fix merchants you categorize inconsistently or that a CSV mislabels.",
+    "example merchant": "Subscriptions"
+  },
+  "needs_review_payees": {
+    "_doc": "Payees the categorizer will NOT guess on — it leaves them uncategorized and lists them for you. Resolve by moving each into payee_overrides. Keep this lean.",
+    "unknown merchant example": "is this a person, a store, or a transfer?"
+  },
+  "account_routing": {
+    "_doc": "Which source owns each account's transactions, to avoid double-counting on the overlap window. SimpleFIN (live) for linked accounts from simplefin_start forward; an optional CSV (imports/monarch/) for dates before that AND for accounts you can't link live.",
+    "simplefin_linked_last4": ["1234", "5678"],
+    "monarch_only_last4": [],
+    "exclude_last4": [],
+    "exclude_note": "Brokerage accounts (Buy/Sell/dividends) and any account that isn't spending — exclude from the budget.",
+    "business_slugs": [],
+    "business_slugs_note": "Transaction-store slugs (e.g. 'credit_card_1234') for business accounts to keep OUT of the personal budget.",
+    "simplefin_start": "YYYY-MM-DD"
+  }
+}
