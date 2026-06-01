@@ -49,7 +49,7 @@ Examples:
 
 
 ## Research Tools
-**Schwab Trader API (via `scripts/schwab/client.py`) is primary for stock/ETF quotes and price history** (covers crypto ETFs like TICKER2, commodity ETFs, alts equities). AlphaVantage MCP is primary for commodity spot prices (`WTI`, `BRENT`, `GOLD_SILVER_SPOT`) and crypto-OTC (`DIGITAL_CURRENCY_DAILY`). Use WebSearch for on-chain metrics, fund performance reports, private market data, and same-day news. SEC EDGAR via Bash curl for SEC filings and XBRL data (User-Agent required). Gemini (Deep Research via `scripts/gemini/deep_research.py`, Flash-Lite via `scripts/gemini/fast.py`) for qualitative — sentiment, trends, regulatory developments.
+**Schwab Trader API (via `scripts/schwab/client.py`) is primary for stock/ETF quotes and price history** (covers spot-crypto ETFs, commodity ETFs, alts equities). AlphaVantage MCP is primary for commodity spot prices (`WTI`, `BRENT`, `GOLD_SILVER_SPOT`) and crypto-OTC (`DIGITAL_CURRENCY_DAILY`). Use WebSearch for on-chain metrics, fund performance reports, private market data, and same-day news. SEC EDGAR via Bash curl for SEC filings and XBRL data (User-Agent required). Gemini (Deep Research via `scripts/gemini/deep_research.py`, Flash-Lite via `scripts/gemini/fast.py`) for qualitative — sentiment, trends, regulatory developments.
 
 ## Coverage Areas
 

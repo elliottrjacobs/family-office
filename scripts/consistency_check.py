@@ -63,23 +63,13 @@ def canonical(h):
     """Derive canonical numbers from holdings.json."""
     accts = h["accounts"]
     total = h["total_portfolio_value"]
-    out = {"total": total, "accounts": {}, "ibit_by_acct": {}, "etf_total": 0.0}
+    out = {"total": total, "accounts": {}}
     for slot, a in accts.items():
         out["accounts"][slot] = a["market_value"]
-        for pos in a["holdings"]:
-            if pos["symbol"] == "TICKER2":
-                out["ibit_by_acct"][slot] = pos["market_value"]
-                out["etf_total"] += pos["market_value"]
-            if pos["symbol"] == "TICKER1":
-                out["axsm"] = pos["market_value"]
-                out["axsm_pct_acct"] = pos["pct_of_account"]
-            if pos["symbol"] == "SWVXX":
-                out["swvxx"] = pos["market_value"]
-    out["etf_total"] = round(out["etf_total"], 2)
     return out
 
 
-def check_structured(c):
+def check_structured(c, h):
     # data-freshness.json
     if FRESHNESS.exists():
         f = load(FRESHNESS)
@@ -112,14 +102,26 @@ def check_structured(c):
         else:
             add("FAIL", f"brokerage.json total_taxable_value=${ttv:,.2f} != taxable slots ${taxable:,.2f}")
 
-    # crypto.json TICKER2 exposure
+    # crypto.json crypto-ETF exposure. Which tickers count as "crypto exposure"
+    # is declared in crypto.json itself ("tracked_symbols": [...]), so this
+    # public check names no specific holding. Skipped if not configured.
     if CRYPTO.exists():
         cr = load(CRYPTO)
-        tie = (cr.get("total_ibit_exposure") or {}).get("total_market_value")
-        if tie is None or near(tie, c["etf_total"]):
-            add("PASS", f"crypto.json total TICKER2 matches holdings (${c['etf_total']:,.2f})")
+        symbols = set(cr.get("tracked_symbols") or [])
+        declared = (cr.get("total_crypto_etf_exposure") or {}).get("total_market_value")
+        if not symbols or declared is None:
+            add("PASS", "crypto.json crypto-ETF exposure check skipped (no tracked_symbols / exposure declared)")
         else:
-            add("FAIL", f"crypto.json total_ibit_exposure=${tie:,.2f} != holdings TICKER2 ${c['etf_total']:,.2f} (run /sync --apply)")
+            holdings_total = round(sum(
+                pos["market_value"]
+                for a in h["accounts"].values()
+                for pos in a["holdings"]
+                if pos["symbol"] in symbols
+            ), 2)
+            if near(declared, holdings_total):
+                add("PASS", f"crypto.json crypto-ETF exposure matches holdings (${holdings_total:,.2f})")
+            else:
+                add("FAIL", f"crypto.json total_crypto_etf_exposure=${declared:,.2f} != holdings ${holdings_total:,.2f} (run /sync --apply)")
 
 
 def check_paths():
@@ -197,8 +199,9 @@ def main():
         print("FAIL: profile/portfolio/holdings.json not found — cannot establish canonical values")
         sys.exit(2)
 
-    c = canonical(load(HOLDINGS))
-    check_structured(c)
+    h = load(HOLDINGS)
+    c = canonical(h)
+    check_structured(c, h)
     check_blocklist()
     check_paths()
 

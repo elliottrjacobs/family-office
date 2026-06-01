@@ -14,7 +14,7 @@ Updates on --apply (all derived/live data — never hand-edit these):
   profile/portfolio/holdings.json   (canonical)
   profile/portfolio/holdings.csv
   profile/accounts/brokerage.json, retirement.json, accounts.json
-  profile/accounts/crypto.json      (TICKER2 exposure)
+  profile/accounts/crypto.json      (crypto-ETF exposure)
   memory/data-freshness.json        (api_sources.schwab + key_metrics)
 """
 import argparse
@@ -66,6 +66,21 @@ SUFFIX_TO_SLOT = {
 }
 
 MONEY_MARKET_SYMBOLS = {"SWVXX", "SNAXX", "SNVXX", "SNSXX"}
+
+
+def load_tracked_crypto_symbols():
+    """Crypto-ETF tickers the owner counts as "crypto exposure", declared in the
+    gitignored crypto.json ("tracked_symbols": [...]). Returns a set — empty if
+    crypto.json is absent or doesn't declare them, so no ticker is hardcoded in
+    this (public) script."""
+    if not CRYPTO_PATH.exists():
+        return set()
+    try:
+        with open(CRYPTO_PATH) as f:
+            cr = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return set()
+    return set(cr.get("tracked_symbols") or [])
 
 
 def classify_type(symbol, asset_type, description):
@@ -173,13 +188,14 @@ def build_holdings(accounts_resp, now_iso):
             all_positions.append({**p, "_slot": slot})
 
     # portfolio_summary
+    crypto_symbols = load_tracked_crypto_symbols()
     summary = {
         "total_equities": round(sum(p["market_value"] for p in all_positions if p["type"] == "equity"), 2),
         "total_etfs_funds": round(sum(p["market_value"] for p in all_positions if p["type"] in ("etf", "mutual_fund")), 2),
         "total_cash_money_market": round(sum(p["market_value"] for p in all_positions if p["type"] in ("cash", "money_market")), 2),
-        "total_bitcoin_exposure_ibit": round(sum(p["market_value"] for p in all_positions if p["symbol"] == "TICKER2"), 2),
+        "total_crypto_etf_exposure": round(sum(p["market_value"] for p in all_positions if p["symbol"] in crypto_symbols), 2),
     }
-    summary["bitcoin_pct_of_portfolio"] = round(summary["total_bitcoin_exposure_ibit"] / total * 100, 2) if total else 0
+    summary["crypto_etf_pct_of_portfolio"] = round(summary["total_crypto_etf_exposure"] / total * 100, 2) if total else 0
 
     # aggregate same-symbol across accounts for top5
     by_sym = {}
@@ -424,12 +440,20 @@ def update_accounts_file(new_holdings):
 
 
 def update_crypto_file(new_holdings):
-    """Refresh TICKER2 exposure in crypto.json from live holdings (pure derived data)."""
+    """Refresh crypto-ETF exposure in crypto.json from live holdings (pure derived
+    data). Which tickers count as crypto exposure is declared in crypto.json
+    itself ("tracked_symbols": [...]), so no ticker is hardcoded here."""
     if not CRYPTO_PATH.exists():
         print(f"  skip {CRYPTO_PATH.name} (file not present)")
         return
     with open(CRYPTO_PATH) as f:
         cr = json.load(f)
+
+    symbols = set(cr.get("tracked_symbols") or [])
+    if not symbols:
+        print(f'  skip {CRYPTO_PATH.name} (no "tracked_symbols" declared — add e.g. '
+              f'"tracked_symbols": ["..."] to enable crypto-ETF exposure tracking)')
+        return
 
     total = new_holdings["total_portfolio_value"]
     accts = []
@@ -437,9 +461,10 @@ def update_crypto_file(new_holdings):
     total_mv = 0.0
     for slot, acct in new_holdings["accounts"].items():
         for h in acct["holdings"]:
-            if h["symbol"] == "TICKER2":
+            if h["symbol"] in symbols:
                 accts.append({
                     "account": CRYPTO_ACCT_LABELS.get(slot, slot),
+                    "symbol": h["symbol"],
                     "shares": h["shares"],
                     "market_value": h["market_value"],
                     "cost_basis": h["cost_basis_total"],
@@ -448,7 +473,7 @@ def update_crypto_file(new_holdings):
                 total_mv += h["market_value"] or 0
     cr["as_of"] = new_holdings["last_updated"]
     cr["source"] = "Schwab Trader API (live) — see profile/portfolio/holdings.json (canonical)"
-    cr["total_ibit_exposure"] = {
+    cr["total_crypto_etf_exposure"] = {
         "total_shares": total_shares,
         "total_market_value": round(total_mv, 2),
         "pct_of_total_portfolio": round(total_mv / total * 100, 2) if total else 0,
@@ -457,7 +482,7 @@ def update_crypto_file(new_holdings):
     with open(CRYPTO_PATH, "w") as f:
         json.dump(cr, f, indent=2)
         f.write("\n")
-    print(f"  updated {CRYPTO_PATH.name} (TICKER2 exposure refreshed: ${total_mv:,.2f})")
+    print(f"  updated {CRYPTO_PATH.name} (crypto-ETF exposure refreshed: ${total_mv:,.2f})")
 
 
 def update_memory_status(new_holdings):
