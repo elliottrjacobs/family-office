@@ -22,7 +22,9 @@ runrate_months = ", ".join(D["runrate_months_used"])
 
 # ---- monthly trend (last 15 months) ----
 mbt = D["monthly_by_type"]
-months = sorted(mbt.keys())[-15:]
+all_months = sorted(mbt.keys())
+hist_span = f"{all_months[0][:4]}–{all_months[-1][:4]}" if all_months else "all months"
+months = all_months[-15:]
 maxv = max([max(mbt[m].get("income", 0), mbt[m].get("spend", 0)) for m in months] + [1])
 trend_rows = ""
 for m in months:
@@ -182,12 +184,12 @@ HTML = f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 
   <div class="card">
     <h2>All categories — full breakdown by type</h2>
-    <div class="sub" style="margin:-6px 0 14px">Run-rate/mo = average over {runrate_months}. All-time = total across the full YYYY–YYYY history. # = transaction count.</div>
+    <div class="sub" style="margin:-6px 0 14px">Run-rate/mo = average over {runrate_months}. All-time = total across the full {hist_span} history. # = transaction count.</div>
     {groups}
   </div>
 
   <div class="cols">
-    <div class="card"><h2>Top merchants (all-time, YYYY–YYYY)</h2><table>{mer_rows}</table></div>
+    <div class="card"><h2>Top merchants (all-time, {hist_span})</h2><table>{mer_rows}</table></div>
     <div class="card"><h2>Notes &amp; open items</h2>{flag_html}
       <div style="margin-top:8px; font-size:13px;">Needs categorization:</div>
       <ul style="margin:6px 0 0; padding-left:18px; font-size:12px; color:var(--mut);">{review_rows}</ul>

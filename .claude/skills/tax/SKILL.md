@@ -129,4 +129,4 @@ Save to `reports/tax/YYYY-MM-DD-description.md`:
 - Quantify in dollars. "$4,200 saved" beats "saves taxes."
 - Flag deadlines prominently.
 - Account for wash sale 30-day window across ALL accounts.
-- If the household has both W2 and 1099 income. Always consider the interaction.
+- If the household has both W2 and 1099 income (check `profile/income/`), always consider the interaction.

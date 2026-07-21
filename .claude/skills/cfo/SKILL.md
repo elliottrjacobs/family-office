@@ -55,7 +55,7 @@ Debts: [PASS DEBT DATA]
 Previous net worth: [PASS IF AVAILABLE]
 
 ### Agent 2 — Cash Flow Analysis
-`model: "sonnet"` — Calculate monthly income (W2 net, 1099/business distributions, investment income) and monthly expenses (fixed: mortgage, car, insurance, daycare, subscriptions; variable: groceries, dining, gas, shopping; periodic: annual expenses /12). Compute monthly surplus/deficit and savings rate.
+`model: "sonnet"` — Calculate monthly income (W2 net, 1099/business distributions, investment income) and monthly expenses (fixed: mortgage, car, insurance, childcare, subscriptions; variable: groceries, dining, gas, shopping; periodic: annual expenses /12). Compute monthly surplus/deficit and savings rate.
 
 Income: [PASS INCOME DATA]
 Expenses: [PASS EXPENSE DATA]

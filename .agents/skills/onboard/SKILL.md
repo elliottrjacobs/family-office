@@ -158,7 +158,7 @@ When the user confirms files are ready:
    - Tax returns: AGI, filing status, deductions taken, tax owed/refunded
 3. **Categorize transactions** into recurring monthly, recurring annual, and one-time
 4. **Flag anything ambiguous** and use AskUserQuestion to clarify:
-   - "I found a recurring $1,500/mo payment to a childcare provider — is this daycare?"
+   - "I found a recurring monthly payment to a childcare provider — should I add it as a fixed expense?"
    - "I see two Schwab accounts. Which is your taxable brokerage and which is the Roth IRA?"
    - "There's a $3,200/mo payment — is this mortgage or rent?"
 

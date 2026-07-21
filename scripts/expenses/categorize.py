@@ -68,7 +68,7 @@ def categorize(payee, desc, mcat=None):
     # 2 explicit review flags -> uncategorized
     if npayee in REVIEW:
         return None, "needs_review"
-    # 3 payee overrides (fix known Monarch mistakes, e.g. DoctorName=MD->Medical)
+    # 3 payee overrides (fix known Monarch mistakes, e.g. a doctor's payee name mapped to Medical)
     if npayee in OVERRIDES:
         return OVERRIDES[npayee], "override"
     # 4 Monarch row's OWN user-assigned category = ground truth for Monarch-sourced txns

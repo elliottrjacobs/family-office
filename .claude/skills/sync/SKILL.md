@@ -60,17 +60,17 @@ Invoked with `/sync` (full sync) or `/sync --dry-run` (parse and show changes wi
    ```
    python3.10 scripts/schwab/sync.py --apply
    ```
-   This fetches positions across all configured accounts (configured accounts), rebuilds `profile/portfolio/holdings.json` from live data, and updates `memory/data-freshness.json` with the `api_sources.schwab` block. **Do not run `auth.py` from `/sync`** — that's only for the initial OAuth dance or when the refresh token expires; the user runs it manually (reminder-app reminder fires every 6 days).
+   This fetches positions across all configured accounts (see `ACCOUNT_SUFFIX_MAP` in `scripts/schwab/auth.py`), rebuilds `profile/portfolio/holdings.json` from live data, and updates `memory/data-freshness.json` with the `api_sources.schwab` block. **Do not run `auth.py` from `/sync`** — that's only for the initial OAuth dance or when the refresh token expires; the user runs it manually (set a recurring reminder every 6 days).
 
 3. Capture the script's output (it prints per-account totals, portfolio delta vs prior, and top-10 position changes). Surface that to the user as part of the sync summary.
 
 4. If the script exits non-zero (HTTP error, schema parse error, etc.), print the error and fall through to Phase 1 (CSV pipeline) as the backup.
 
 **What Phase 0 does NOT cover** (these still come from CSV / PDF in `imports/`):
-- bank statements
+- Bank statements
 - Credit card statements
 - Pay stubs / W-2 / 1099
-- ExternalPlan 403(b) / pension (separate custodian)
+- External retirement plan / pension (separate custodian)
 - Loan / mortgage docs
 - Insurance docs
 
@@ -235,7 +235,7 @@ For each profile file that would change, compute and display the diff:
 ### Expenses (profile/expenses/)
 - New recurring: Spotify $15.99/mo
 - Removed: Hulu $17.99/mo (no longer appearing)
-- Changed: Daycare $1,500 → $1,600/mo
+- Changed: Childcare $1,500 → $1,600/mo
 
 ### Income (profile/income/)
 - W2 gross: $X,XXX/mo → $X,XXX/mo (raise detected)
@@ -375,7 +375,7 @@ This treats `profile/portfolio/holdings.json` as canonical, verifies the derived
 **Compliance alerts:** X flags (or "None — all clear")
 
 ## What Changed
-[Brief narrative: "Portfolio value increased $7,400 driven by AAPL and new NVDA position. Monthly expenses up $100 due to daycare increase. Net worth up $9,100 from last sync on YYYY-MM-DD."]
+[Brief narrative: "Portfolio value increased $7,400 driven by AAPL and new NVDA position. Monthly expenses up $100 due to a childcare cost increase. Net worth up $9,100 from last sync on YYYY-MM-DD."]
 
 ## Suggested Actions
 [Only if compliance alerts exist:]

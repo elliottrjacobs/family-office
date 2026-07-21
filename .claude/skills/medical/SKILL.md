@@ -37,7 +37,7 @@ Examples:
 - `/medical` — full medical & healthcare review
 - `/medical sync` — parse new EOBs/bills/claims dropped into `medical/` folders
 - `/medical "How much have we spent on pediatrics this year?"`
-- `/medical "Is this bill from Regional Medical correct?"`
+- `/medical "Is this bill from Example Hospital correct?"`
 - `/medical "What's our deductible status?"`
 - `/medical "Draft a dispute for this ER charge"`
 - `/medical "[child]'s medical history summary"`
@@ -282,6 +282,6 @@ When creating or updating `profile/health/`, use one JSON file per family member
 - Never guess at medical history. Only record what's documented in EOBs, claims, and bills. Ask the user to fill in gaps.
 - Billing disputes should be specific and actionable — include the regulation or billing rule being violated.
 - Track deductible progress throughout the year. In December, flag end-of-year medical spending optimization (schedule procedures before deductible resets if you've already met it).
-- When a family member's business involves healthcare (professional liability, CPE, health-related business expenses), flag the tax-deductible portions for the /tax agent.
+- If a family member's business involves healthcare (professional liability, CPE, health-related business expenses), flag the tax-deductible portions for the /tax agent.
 - For infants and young children the pediatric visit schedule is frequent — track well-child visit compliance closely.
 - Always note whether a provider is in-network or out-of-network. This is the #1 source of surprise bills.

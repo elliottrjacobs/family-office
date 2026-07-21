@@ -11,11 +11,12 @@ Usage:
   python3.10 scripts/consistency_check.py --quiet   # only print FAIL/WARN lines
 
 Run weekly (alongside the Schwab re-auth) and after any /sync. This is the
-automated version of the automated consistency audit.
+automated consistency audit.
 """
 import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -42,6 +43,31 @@ BLOCKLIST_ALLOW = {}
 # Directories scanned for the blocklist (reports/ excluded — historical snapshots).
 SCAN_DIRS = [ROOT / "profile", ROOT / "memory"]
 SCAN_EXTS = {".json", ".md"}
+
+# ---------------------------------------------------------------------------
+# Genericity scrub-lint: patterns that must never appear in TRACKED files.
+# This repo ships as a generic template — no household facts, personal vendors,
+# account-number fragments, or specific holdings belong in anything git tracks.
+# (key = human label, value = regex). Scanned over `git ls-files` output only,
+# so private gitignored data is never touched.
+GENERICITY_PATTERNS = {
+    "account slug with digit suffix (use aaa/bbb placeholders)":
+        r'(?:brokerage|ira|roth|custodial|utma)_\d{2,4}\b',
+    "household composition stated as fact": r'minor children in the household',
+    "household income mix stated as fact": r'User has BOTH W2',
+    "gendered household reference in examples": r'\bmy spouse\b',
+}
+# Additional household-specific patterns (names, vendors, geography, tickers)
+# belong in the gitignored profile/scrub-patterns.local.json — a {label: regex}
+# map merged in at runtime — so the public lint itself reveals nothing about
+# any household. Seed yours with whatever your own scrub removed.
+LOCAL_PATTERNS_PATH = ROOT / "profile" / "scrub-patterns.local.json"
+# Tracked paths exempt from the scrub (prefix match): this script defines the
+# pattern regexes themselves.
+GENERICITY_ALLOW_PREFIXES = (
+    "scripts/consistency_check.py",
+)
+GENERICITY_EXTS = {".md", ".py", ".json", ".html", ".toml", ".yaml", ".yml"}
 
 results = []  # (level, message)
 
@@ -190,19 +216,64 @@ def check_blocklist():
             add("PASS", f"no occurrence of {label}")
 
 
+def check_genericity():
+    """Scrub-lint over tracked files: fail if personal residue reappears."""
+    patterns = dict(GENERICITY_PATTERNS)
+    if LOCAL_PATTERNS_PATH.exists():
+        try:
+            patterns.update(load(LOCAL_PATTERNS_PATH))
+        except (json.JSONDecodeError, OSError) as e:
+            add("WARN", f"scrub-patterns.local.json unreadable ({e}) — using tracked patterns only")
+    try:
+        out = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True,
+                             text=True, check=True).stdout
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        add("WARN", "genericity scrub skipped (git ls-files unavailable)")
+        return
+    tracked = [t for t in out.splitlines()
+               if t and Path(t).suffix in GENERICITY_EXTS
+               and not t.startswith(GENERICITY_ALLOW_PREFIXES)]
+    hits = []
+    for rel in tracked:
+        p = ROOT / rel
+        if not p.is_file():
+            continue
+        text = p.read_text(errors="ignore")
+        for label, pattern in GENERICITY_PATTERNS.items():
+            for m in re.finditer(pattern, text):
+                line_no = text.count("\n", 0, m.start()) + 1
+                hits.append((rel, line_no, label))
+    if hits:
+        for rel, line_no, label in hits:
+            add("FAIL", f"genericity — {label}: {rel}:{line_no}")
+    else:
+        add("PASS", f"genericity scrub clean ({len(tracked)} tracked files scanned)")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--quiet", action="store_true", help="only print FAIL/WARN lines")
     args = ap.parse_args()
 
     if not HOLDINGS.exists():
-        print("FAIL: profile/portfolio/holdings.json not found — cannot establish canonical values")
-        sys.exit(2)
+        # Template state (no synced data yet): run only the genericity scrub —
+        # numeric checks need canonical values, and the path-lint would report
+        # profile//memory/ files that /onboard hasn't created yet.
+        check_genericity()
+        fails = [m for lvl, m in results if lvl == "FAIL"]
+        for lvl, msg in results:
+            if args.quiet and lvl == "PASS":
+                continue
+            mark = {"PASS": "  ok ", "WARN": " warn", "FAIL": "FAIL "}[lvl]
+            print(f"[{mark}] {msg}")
+        print(f"\n{len(fails)} FAIL (no holdings.json — numeric checks skipped)")
+        sys.exit(1 if fails else 0)
 
     h = load(HOLDINGS)
     c = canonical(h)
     check_structured(c, h)
     check_blocklist()
+    check_genericity()
     check_paths()
 
     fails = [m for lvl, m in results if lvl == "FAIL"]

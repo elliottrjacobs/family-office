@@ -161,7 +161,7 @@ Common substitutions by role:
 | Web research / source-finding / page extraction | WebSearch + WebFetch | **Exa** (`web_search_exa` / `web_fetch_exa`), Tavily, Brave Search, Firecrawl |
 | Library / SDK docs | context7 | direct docs fetch, `llms.txt` |
 
-> **Exa** is already wired into this environment as an MCP and is a strong drop-in for the web-research/extraction role — it returns clean page content (transcripts, filings, analyst pieces) rather than just links, and supports `category:people`/`category:company` searches that are handy for management diligence.
+> **Exa** is a strong drop-in for the web-research/extraction role if you add its MCP — it returns clean page content (transcripts, filings, analyst pieces) rather than just links, and supports `category:people`/`category:company` searches that are handy for management diligence.
 
 To change a provider, edit the tool-priority table in `CLAUDE.md` and `profile/api-guide.md`, and the "research tools" instruction block inside the relevant `.claude/skills/*/SKILL.md`. Prefer the simplest setup? Remove the API rows and the system runs entirely on WebSearch — lower fidelity, zero keys.
 
