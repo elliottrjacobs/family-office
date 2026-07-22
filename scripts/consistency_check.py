@@ -53,9 +53,12 @@ SCAN_EXTS = {".json", ".md"}
 GENERICITY_PATTERNS = {
     "account slug with digit suffix (use aaa/bbb placeholders)":
         r'(?:brokerage|ira|roth|custodial|utma)_\d{2,4}\b',
-    "household composition stated as fact": r'minor children in the household',
-    "household income mix stated as fact": r'User has BOTH W2',
-    "gendered household reference in examples": r'\bmy spouse\b',
+    # Note: these two use character-class breaks (e.g. chil[d]) so the pattern
+    # text itself never contains the phrase it blocks — keeps history-rewrite
+    # tools and this lint from tripping on the lint's own source.
+    "household composition stated as fact": r'young chil[d] in the family',
+    "household income mix stated as fact": r'User has BOTH W[2]',
+    "gendered household reference in examples": r'\bmy wi[f]e\b',
 }
 # Additional household-specific patterns (names, vendors, geography, tickers)
 # belong in the gitignored profile/scrub-patterns.local.json — a {label: regex}
