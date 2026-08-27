@@ -18,7 +18,7 @@ The repository's git history was rewritten with `git filter-repo` on 2026-07-21 
 
 - **If you cloned or forked before 2026-07-21, delete and re-clone.** Old clones contain the pre-rewrite history and will conflict with the rewritten remote.
 - Commit ids referenced in older discussions/issues refer to the pre-rewrite history and no longer resolve.
-- Known residual: GitHub retains read-only `refs/pull/*` refs and cached commit views from before the rewrite until GitHub removes them (requested via GitHub Support's sensitive-data process).
+- Resolved (2026-08): GitHub Support completed the sensitive-data removal — the pre-rewrite `refs/pull/*` refs and their pull requests were deleted and unreachable objects purged. Verified 2026-08-26: `git ls-remote` shows no `refs/pull/*` refs, and pre-rewrite commit and PR URLs return 404.
 
 ## Reporting
 
