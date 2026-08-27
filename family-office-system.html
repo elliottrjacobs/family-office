@@ -372,6 +372,7 @@
               <div style="font-size:11px;color:var(--mid);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.6px;">Outside data sources</div>
               <div class="chip-wrap">
                 <span class="chip">Schwab</span>
+                <span class="chip">SimpleFIN</span>
                 <span class="chip">AlphaVantage</span>
                 <span class="chip">SEC EDGAR</span>
                 <span class="chip">FRED</span>
@@ -399,7 +400,7 @@
           <div class="pipeline" style="min-width:760px;">
             <div class="stage">
               <div class="stage-h"><span>01</span> Raw intake</div>
-              <ul><li>Bank CSVs</li><li>Brokerage exports</li><li>Pay stubs</li><li>Statements &amp; bills</li></ul>
+              <ul><li>Live feeds: Schwab · SimpleFIN</li><li>Bank CSVs</li><li>Brokerage exports</li><li>Pay stubs · statements &amp; bills</li></ul>
             </div>
             <div class="pipe-arrow">→</div>
             <div class="stage">
@@ -409,7 +410,7 @@
             <div class="pipe-arrow">→</div>
             <div class="stage">
               <div class="stage-h"><span>03</span> Your profile</div>
-              <ul><li>family · goals</li><li>holdings · accounts</li><li>debts · income · tax</li></ul>
+              <ul><li>family · goals</li><li>holdings · accounts</li><li>debts · income · tax</li><li>transactions · expenses</li></ul>
             </div>
             <div class="pipe-arrow">→</div>
             <div class="stage">
@@ -419,7 +420,7 @@
             <div class="pipe-arrow">→</div>
             <div class="stage">
               <div class="stage-h"><span>05</span> Outputs</div>
-              <ul><li>reports</li><li>briefings</li><li>journal · memory</li></ul>
+              <ul><li>reports</li><li>briefings</li><li>budget dashboard</li><li>journal · memory</li></ul>
             </div>
           </div>
         </div>
@@ -438,7 +439,7 @@
           </div>
           <div class="card">
             <h3>Money state</h3>
-            <p class="mono">accounts · debts<br/>expenses · income · insurance</p>
+            <p class="mono">accounts · debts · transactions<br/>expenses · income · insurance</p>
           </div>
           <div class="card">
             <h3>Investing</h3>
@@ -489,7 +490,7 @@
               <tr><td class="mono">/journal</td><td>Log trades, track thesis validity, review decisions</td><td><span class="lbl">solo</span></td></tr>
 
               <tr class="cat"><td colspan="3">Money management</td></tr>
-              <tr><td class="mono">/cfo</td><td>Net worth, cash flow, goal progress, financial health</td><td><span class="lbl team">team · 4</span></td></tr>
+              <tr><td class="mono">/cfo</td><td>Net worth, cash flow, budget, goal progress, financial health</td><td><span class="lbl team">team · 4</span></td></tr>
               <tr><td class="mono">/tax</td><td>Loss harvesting, Roth, business &amp; state tax planning</td><td><span class="lbl team">team · 4</span></td></tr>
               <tr><td class="mono">/debt</td><td>Payoff strategies, refinancing, invest-vs-payoff</td><td><span class="lbl">solo</span></td></tr>
 
@@ -508,7 +509,7 @@
 
               <tr class="cat"><td colspan="3">Utility</td></tr>
               <tr><td class="mono">/onboard</td><td>Guided first-time setup — builds your profile</td><td><span class="lbl">solo</span></td></tr>
-              <tr><td class="mono">/sync</td><td>Parses new files / live data, updates the profile, flags issues</td><td><span class="lbl">solo</span></td></tr>
+              <tr><td class="mono">/sync</td><td>Pulls live brokerage + bank/card data, parses new files, updates the profile, flags issues</td><td><span class="lbl">solo</span></td></tr>
               <tr><td class="mono">/eli5</td><td>Re-explains the last answer in plain English</td><td><span class="lbl">solo</span></td></tr>
             </tbody>
           </table>
@@ -550,6 +551,10 @@
           <div class="cascade-row">
             <div class="cascade-q">Your accounts &amp; positions<small>balances, holdings, transactions</small></div>
             <div class="cascade-path"><span class="chip primary">Schwab (read-only)</span><span class="arrow">→</span><span class="chip last">no fallback — lives at Schwab</span></div>
+          </div>
+          <div class="cascade-row">
+            <div class="cascade-q">Bank &amp; card activity<small>checking, savings, credit cards</small></div>
+            <div class="cascade-path"><span class="chip primary">SimpleFIN (read-only)</span><span class="arrow">→</span><span class="chip last">statement imports · fallback</span></div>
           </div>
           <div class="cascade-row">
             <div class="cascade-q">Quotes · options · price history<small>held &amp; unheld tickers</small></div>
@@ -616,6 +621,7 @@ Invalidation:  [what changes the call]</pre>
             <thead><tr><th>Role</th><th>What it provides</th><th>This system uses</th></tr></thead>
             <tbody>
               <tr><td>Accounts &amp; positions</td><td>Real balances, holdings, transactions</td><td>Schwab Trader API — read-only</td></tr>
+              <tr><td>Bank &amp; card data</td><td>Checking, savings &amp; credit-card balances + transactions; feeds the budget dashboard</td><td>SimpleFIN — read-only, no expiring auth</td></tr>
               <tr><td>Quotes / options / history</td><td>Live &amp; EOD quotes, chains, price history</td><td>Schwab (primary) → AlphaVantage</td></tr>
               <tr><td>Fundamentals</td><td>P/E, ratios, statements, earnings</td><td>AlphaVantage → SEC EDGAR XBRL</td></tr>
               <tr><td>Filings / SEC</td><td>10-K/Q, 8-K, Form 4, 13F</td><td>SEC EDGAR (direct HTTP)</td></tr>
