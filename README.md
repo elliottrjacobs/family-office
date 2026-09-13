@@ -127,12 +127,11 @@ profiles, append-only JSONL data, reports, and notebook events. SQLite indexes
 can be rebuilt. Secrets, raw imports, caches, and medical documents are ignored
 by Git. Missing lot dates or basis remain unknown.
 
-The agent runs `fo migrate-v1 SOURCE --dry-run`, resolves mapping issues, compares
-balances and counts, then applies migration to a fresh office. It never reads
-legacy credential files or changes the source. `notebook/migration-report.md`
-records ambiguities, and `notebook/legacy-context.md` preserves historical policy
-context that needs reconciliation. An identical `--force` rerun is a no-op;
-changed sources and populated destinations are refused to preserve new work.
+New users start with an empty private office; no migration is needed. Setup does
+not run `fo migrate-v1`. Keep your office folder outside this public checkout.
+
+`fo migrate-v1` is an optional compatibility utility only for someone who already
+has data in the supported legacy layout. It is not part of normal onboarding.
 
 Scheduling prepares four launchd definitions without activating them. The agent
 loads them after runtime verification and cutover approval. See
