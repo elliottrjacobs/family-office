@@ -1,0 +1,20 @@
+name: all-weather
+title: All Weather
+attribution: Inspired by the All Weather approach; portfolio bands come from the household
+  IPS, not a claimed universal allocation
+scope: portfolio
+criteria:
+- id: '1'
+  title: Balance exposure to growth and inflation surprises
+  kind: judgment
+  evidence: []
+- id: '2'
+  title: Assess real-rate and duration sensitivity
+  kind: judgment
+  evidence: []
+- id: '3'
+  title: Check liquidity, leverage, and rebalancing constraints
+  kind: judgment
+  evidence: []
+verdict:
+  format: Human judgment with evidence, uncertainty, and invalidation.

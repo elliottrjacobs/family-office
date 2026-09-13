@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "as_of",
+    "stale_accounts",
+    "positions",
+    "stale_providers"
+  ],
+  "properties": {
+    "as_of": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "stale_accounts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "positions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "account_id",
+          "symbol",
+          "value"
+        ],
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
+          }
+        }
+      }
+    },
+    "stale_providers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

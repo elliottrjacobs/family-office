@@ -1,0 +1,28 @@
+name: fisher
+title: Fisher
+attribution: Philip Fisher, Common Stocks and Uncommon Profits; condensed interpretive
+  checklist
+scope: company
+criteria:
+- id: '1'
+  title: Sustainable sales opportunities and productive research
+  kind: judgment
+  evidence: []
+- id: '2'
+  title: Sales capability, margins, and cost controls
+  kind: judgment
+  evidence: []
+- id: '3'
+  title: Management depth, integrity, and candor
+  kind: judgment
+  evidence: []
+- id: '4'
+  title: Employee relations and durable competitive position
+  kind: judgment
+  evidence: []
+- id: '5'
+  title: Financing needs and dilution over the investment horizon
+  kind: judgment
+  evidence: []
+verdict:
+  format: Human judgment with evidence, uncertainty, and invalidation.

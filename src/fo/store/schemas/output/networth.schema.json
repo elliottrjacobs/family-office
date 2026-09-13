@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "as_of",
+    "stale_accounts",
+    "stale_providers",
+    "total",
+    "groups",
+    "missing_accounts"
+  ],
+  "properties": {
+    "as_of": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "stale_accounts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "stale_providers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "total": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
+    },
+    "groups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "value"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
+          }
+        }
+      }
+    },
+    "missing_accounts": {
+      "type": "array"
+    }
+  }
+}

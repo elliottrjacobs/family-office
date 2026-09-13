@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "as_of",
+    "stale_accounts",
+    "stale_providers",
+    "months"
+  ],
+  "properties": {
+    "as_of": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "stale_accounts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "stale_providers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "months": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "month",
+          "income",
+          "spend",
+          "net"
+        ],
+        "properties": {
+          "income": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
+          },
+          "spend": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
+          },
+          "net": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
+          }
+        }
+      }
+    }
+  }
+}

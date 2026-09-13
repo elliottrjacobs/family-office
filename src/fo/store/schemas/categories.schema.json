@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"rules":{"type":"array","items":{"type":"object","properties":{"pattern":{"type":"string"},"category":{"type":"string"},"payee":{"type":"string"},"account":{"type":"string"}},"required":["category"],"additionalProperties":true}}},"required":["rules"],"additionalProperties":false}

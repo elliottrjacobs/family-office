@@ -1,0 +1,35 @@
+name: powers
+title: Powers
+attribution: Hamilton Helmer, 7 Powers; interpretive checklist
+scope: company
+criteria:
+- id: '1'
+  title: Scale economies
+  kind: judgment
+  evidence: []
+- id: '2'
+  title: Network economies
+  kind: judgment
+  evidence: []
+- id: '3'
+  title: Counter-positioning
+  kind: judgment
+  evidence: []
+- id: '4'
+  title: Switching costs
+  kind: judgment
+  evidence: []
+- id: '5'
+  title: Branding
+  kind: judgment
+  evidence: []
+- id: '6'
+  title: Cornered resource
+  kind: judgment
+  evidence: []
+- id: '7'
+  title: Process power
+  kind: judgment
+  evidence: []
+verdict:
+  format: Human judgment with evidence, uncertainty, and invalidation.

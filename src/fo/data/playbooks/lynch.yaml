@@ -1,0 +1,23 @@
+name: lynch
+title: Lynch
+attribution: Peter Lynch, One Up on Wall Street; interpretive checklist
+scope: company
+criteria:
+- id: '1'
+  title: Classify the business and explain the earnings story
+  kind: judgment
+  evidence: []
+- id: '2'
+  title: Understand balance-sheet resilience and hidden liabilities
+  kind: judgment
+  evidence: []
+- id: '3'
+  title: Compare growth expectations with valuation
+  kind: judgment
+  evidence: []
+- id: '4'
+  title: Name the observable event that disproves the story
+  kind: judgment
+  evidence: []
+verdict:
+  format: Human judgment with evidence, uncertainty, and invalidation.

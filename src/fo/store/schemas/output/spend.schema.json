@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "as_of",
+    "stale_accounts",
+    "stale_providers",
+    "month",
+    "spend",
+    "income",
+    "categories",
+    "transaction_count"
+  ],
+  "properties": {
+    "as_of": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "stale_accounts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "stale_providers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "month": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}$"
+    },
+    "spend": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
+    },
+    "income": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
+    },
+    "categories": {
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
+      }
+    },
+    "transaction_count": {
+      "type": "integer"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+name: greenblatt
+title: Greenblatt
+attribution: Joel Greenblatt, The Little Book That Beats the Market; positive signs
+  are screens, not Magic Formula ranks
+scope: company
+criteria:
+- id: '1'
+  title: Positive return on invested capital
+  kind: mechanical
+  metric: roic
+  op: '>'
+  threshold: 0
+  evidence: []
+- id: '2'
+  title: Positive earnings yield
+  kind: mechanical
+  metric: earnings_yield
+  op: '>'
+  threshold: 0
+  evidence: []
+- id: '3'
+  title: Rank return on capital and earnings yield within a comparable universe; explain
+    exclusions
+  kind: judgment
+  evidence: []
+verdict:
+  format: Human judgment with evidence, uncertainty, and invalidation.

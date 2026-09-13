@@ -1,0 +1,23 @@
+name: marks
+title: Marks
+attribution: Howard Marks / Oaktree; interpretive risk and cycle checklist
+scope: market
+criteria:
+- id: '1'
+  title: Locate sentiment and credit conditions in the cycle
+  kind: judgment
+  evidence: []
+- id: '2'
+  title: Distinguish business quality from the price paid
+  kind: judgment
+  evidence: []
+- id: '3'
+  title: Assess permanent loss and financing risk
+  kind: judgment
+  evidence: []
+- id: '4'
+  title: Explain where consensus could be wrong
+  kind: judgment
+  evidence: []
+verdict:
+  format: Human judgment with evidence, uncertainty, and invalidation.

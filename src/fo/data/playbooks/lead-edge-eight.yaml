@@ -1,0 +1,50 @@
+name: lead-edge-eight
+title: Lead Edge Eight
+attribution: Mitchell Green / Lead Edge Eight; thresholds carried from the archived
+  family-office rubric
+scope: company
+criteria:
+- id: '1'
+  title: Revenue scale
+  kind: mechanical
+  metric: revenue
+  op: '>='
+  threshold: 10000000
+  evidence: []
+- id: '2'
+  title: Revenue growth
+  kind: mechanical
+  metric: revenue_growth
+  op: '>='
+  threshold: 0.25
+  evidence: []
+- id: '3'
+  title: Gross margin
+  kind: mechanical
+  metric: gross_margin
+  op: '>='
+  threshold: 0.7
+  evidence: []
+- id: '4'
+  title: Recurring revenue supported by disclosures
+  kind: judgment
+  evidence: []
+- id: '5'
+  title: Revenue exceeds cumulative cash burn; incomplete pre-IPO history remains
+    unknown
+  kind: judgment
+  evidence: []
+- id: '6'
+  title: Profitable operations or an evidenced path to profitability
+  kind: judgment
+  evidence: []
+- id: '7'
+  title: Customer concentration supported by disclosures
+  kind: judgment
+  evidence: []
+- id: '8'
+  title: Forward valuation after multiple compression and dilution; show assumptions
+  kind: judgment
+  evidence: []
+verdict:
+  format: Human judgment with evidence, uncertainty, and invalidation.

@@ -1,0 +1,47 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "family-office"
+version = "2.0.0a1"
+description = "A private, local-first family office with deterministic financial tools."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = [
+    "typer>=0.16,<1",
+    "jsonschema>=4.23,<5",
+    "httpx>=0.28,<1",
+    "PyYAML>=6,<7",
+    "schwab-py>=1.5,<2",
+    "rich>=15,<16",
+]
+
+[project.scripts]
+fo = "fo.cli:app"
+
+[dependency-groups]
+dev = ["pytest>=8.3,<10", "ruff>=0.12,<1", "build>=1.2,<2"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fo"]
+
+[tool.hatch.build.targets.sdist]
+# Development symlinks must not win Hatch's source-directory deduplication.
+only-include = ["src/fo", "skills", "agents", "README.md", "SECURITY.md", "LICENSE", "pyproject.toml", "uv.lock"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"skills" = "fo/data/skills"
+"agents" = "fo/data/agents"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501", "B008"]

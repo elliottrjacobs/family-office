@@ -1,0 +1,71 @@
+name: piotroski
+title: Piotroski
+attribution: 'Joseph Piotroski, Value Investing: The Use of Historical Financial Statement
+  Information to Separate Winners from Losers (2000)'
+scope: company
+criteria:
+- id: '1'
+  title: Positive return on assets
+  kind: mechanical
+  metric: roa
+  op: '>'
+  threshold: 0
+  evidence: []
+- id: '2'
+  title: Positive operating cash flow
+  kind: mechanical
+  metric: cash_flow
+  op: '>'
+  threshold: 0
+  evidence: []
+- id: '3'
+  title: Improving return on assets
+  kind: mechanical
+  metric: roa_change
+  op: '>'
+  threshold: 0
+  evidence: []
+- id: '4'
+  title: Cash flow exceeds net income
+  kind: mechanical
+  metric: accrual_quality
+  op: '>'
+  threshold: 0
+  evidence: []
+- id: '5'
+  title: Lower leverage
+  kind: mechanical
+  metric: leverage_change
+  op: <
+  threshold: 0
+  evidence: []
+- id: '6'
+  title: Improving liquidity
+  kind: mechanical
+  metric: liquidity_change
+  op: '>'
+  threshold: 0
+  evidence: []
+- id: '7'
+  title: No equity issuance
+  kind: mechanical
+  metric: shares_change
+  op: <=
+  threshold: 0
+  evidence: []
+- id: '8'
+  title: Improving gross margin
+  kind: mechanical
+  metric: margin_change
+  op: '>'
+  threshold: 0
+  evidence: []
+- id: '9'
+  title: Improving asset turnover
+  kind: mechanical
+  metric: turnover_change
+  op: '>'
+  threshold: 0
+  evidence: []
+verdict:
+  format: Human judgment with evidence, uncertainty, and invalidation.

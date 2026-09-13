@@ -1,0 +1,25 @@
+[office]
+timezone = "America/New_York"
+
+[hosts]
+writer = "fixture-writer"
+remote = ""
+
+[schedule]
+sync_hours = 24
+
+[notebook]
+verdict_days = 180
+
+[models.claude]
+fast = {model = "haiku", effort = "low"}
+balanced = {model = "sonnet", effort = "high"}
+strong = {model = "opus", effort = "high"}
+
+[models.codex]
+fast = {model = "gpt-5.6-luna", effort = "low"}
+balanced = {model = "gpt-5.6-sol", effort = "high"}
+strong = {model = "gpt-6-astra", effort = "high"}
+
+[providers.alphavantage]
+daily_limit = 25

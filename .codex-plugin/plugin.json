@@ -1,0 +1,15 @@
+{
+  "name": "family-office",
+  "version": "2.0.0a1",
+  "description": "Private financial research powered by the fo CLI.",
+  "author": {
+    "name": "Elliott Jacobs"
+  },
+  "repository": "https://github.com/elliottrjacobs/family-office",
+  "license": "MIT",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "family-office",
+    "shortDescription": "Private financial research with deterministic tools."
+  }
+}

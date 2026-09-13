@@ -1,0 +1,44 @@
+{
+  "networth": {
+    "total": "250"
+  },
+  "positions": {
+    "positions": 1
+  },
+  "allocation": {
+    "total": "250",
+    "weights": {
+      "ACME": "0.8"
+    }
+  },
+  "spend": {
+    "spend": "20",
+    "income": "0",
+    "transaction_count": 1
+  },
+  "cashflow": {
+    "months": 3
+  },
+  "goals": {
+    "goals": 0
+  },
+  "lots": {
+    "symbol": "ACME",
+    "lots": 1
+  },
+  "quote": {
+    "price": "125"
+  },
+  "fundamentals": {
+    "revenue": "100"
+  },
+  "filings": {
+    "data": 1
+  },
+  "macro": {
+    "observations": 1
+  },
+  "screen": {
+    "data": 1
+  }
+}

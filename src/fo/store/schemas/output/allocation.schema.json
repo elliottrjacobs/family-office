@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "as_of",
+    "stale_accounts",
+    "stale_providers",
+    "weights",
+    "bands",
+    "total",
+    "unclassified"
+  ],
+  "properties": {
+    "as_of": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "stale_accounts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "stale_providers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "weights": {
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
+      }
+    },
+    "bands": {
+      "type": "array"
+    },
+    "total": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
+    },
+    "unclassified": {
+      "type": "array"
+    }
+  }
+}

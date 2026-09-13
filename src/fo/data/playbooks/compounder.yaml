@@ -1,0 +1,40 @@
+name: compounder
+title: Compounder
+attribution: Family Office operational quality checklist; thresholds are editable
+  house defaults
+scope: company
+criteria:
+- id: '1'
+  title: Revenue growth
+  kind: mechanical
+  metric: revenue_growth
+  op: '>='
+  threshold: 0.1
+  evidence: []
+- id: '2'
+  title: Gross margin
+  kind: mechanical
+  metric: gross_margin
+  op: '>='
+  threshold: 0.4
+  evidence: []
+- id: '3'
+  title: Free cash flow
+  kind: mechanical
+  metric: fcf
+  op: '>'
+  threshold: 0
+  evidence: []
+- id: '4'
+  title: Return on invested capital
+  kind: mechanical
+  metric: roic
+  op: '>='
+  threshold: 0.15
+  evidence: []
+- id: '5'
+  title: Reinvestment runway and durable competitive advantage
+  kind: judgment
+  evidence: []
+verdict:
+  format: Human judgment with evidence, uncertainty, and invalidation.
