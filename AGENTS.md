@@ -1,8 +1,6 @@
 # Family Office — development
 
 This repository contains the public `family-office` Python package and `fo` CLI.
-The original implementation is preserved in the separate
-`elliottrjacobs/family-office-v1-archive` repository at the `v1-archive` tag.
 The private office lives outside this repository. Never read the real office or
 copy its financial data into this checkout; development uses synthetic fixtures.
 
@@ -26,4 +24,4 @@ copy its financial data into this checkout; development uses synthetic fixtures.
 
 Run review and implementation work sequentially in the main task. Batch
 independent tool reads where useful. Use fixtures, not real financial accounts,
-for automated tests. Elliott owns credentials, live validation, and cutover.
+for automated tests. The user owns credentials, live validation, and cutover.

@@ -2,9 +2,7 @@
 
 ## 2.0.0a1 — 2026-09-13
 
-Clean rebuild of family-office with fresh repository history. The original code
-is preserved in [family-office-v1-archive](https://github.com/elliottrjacobs/family-office-v1-archive)
-at the `v1-archive` tag.
+Clean rebuild of family-office with fresh repository history.
 
 - Separate public package and private office repositories; automated setup,
   credential protection, diagnostics, and cross-host skill rendering.

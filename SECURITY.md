@@ -7,7 +7,10 @@ issue, pull request, or fixture.
 ## Trust boundaries
 
 The CLI does not provide order placement or money-movement operations. Brokerage
-credentials may nevertheless be trade-capable; keep them confidential. Permission
+credentials may nevertheless be trade-capable; keep them confidential. Use
+provider-enforced read-only credentials where available. If the provider cannot
+issue them and you require credentials that cannot trade, use offline imports
+without configuring brokerage credentials. Permission
 templates are accident-prevention measures, not protection against arbitrary code
 running as the same OS user. Codex workspace-write permits reads in the office;
 the office instructions forbid reading secrets, but do not enforce a read barrier.

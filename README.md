@@ -2,20 +2,62 @@
 
 A private family office built around the `fo` command. Python computes the facts;
 28 advisor skills interpret evidence and record decisions. Accounts are read-only.
-This repository starts with fresh Git history. The original implementation and
-its history are preserved in [family-office-v1-archive](https://github.com/elliottrjacobs/family-office-v1-archive),
-at the `v1-archive` tag. The product remains **family-office**.
+`fo` (short for “family office”) is the command-line tool installed by this
+package. For example, `fo positions` shows holdings and `fo networth` calculates
+net worth. Your coding agent uses these same commands to retrieve facts.
 
-This is a prerelease. Automated checks use synthetic accounts. Live provider
-reconciliation, native host acceptance, and the final cutover remain separate
-acceptance gates; the existing office continues operating until they pass.
+This is an alpha prerelease (`2.0.0a1`). Automated tests use synthetic accounts;
+end-to-end live account reconciliation and scheduled operation have not yet been
+validated. Check imported balances and holdings against your institution before
+relying on the results.
 
 ## Setup
 
-Ask your agent to set up the office. It owns installation, account discovery,
-configuration, synchronization, diagnostics, and reconciliation. You provide
-credentials and browser consent, choose whether to use a private remote, and
-approve the eventual cutover. You do not need to look up account IDs or edit JSON.
+Ask your coding agent to install the package and set up a separate private office.
+It handles configuration, account discovery, synchronization, and diagnostics.
+You enter credentials locally and approve the provider's authorization screen.
+Never paste passwords, API secrets, or tokens into an agent chat or this public
+repository. A private Git remote is optional; setup does not create one.
+
+### Connections and credentials
+
+- **Schwab:** the current direct brokerage integration requires your developer
+  application's app key, app secret, and registered callback URL. Setup prompts
+  for the key and secret with hidden terminal input. It opens the browser so you
+  can sign in directly to Schwab and authorize account access. The local callback
+  receives the authorization result and saves tokens; you do not give your
+  brokerage password to the agent. An approved developer application is a
+  prerequisite that setup cannot create for you.
+- **SimpleFIN:** connect your institutions through SimpleFIN, then enter its setup
+  token at the hidden local prompt. The CLI exchanges it for an access credential.
+  Institution coverage and available data depend on the connection.
+- **Other brokerages:** the calculations and advisor skills use normalized account
+  data, but direct authentication and synchronization currently support Schwab
+  only. Fidelity or another brokerage requires a new read-only adapter if it
+  offers an accessible developer API; changing a broker name or API key is not
+  enough. Supported CSV imports are another path; other export formats need mapping.
+
+Choose `--provider schwab` or `--provider simplefin` to connect only that provider;
+without this option, setup attempts both. Use `--offline` to prepare an office
+without either connection. Optional market-data API keys are separate from
+brokerage credentials.
+
+After authorization, supported providers return account identifiers automatically.
+The CLI creates the local registry and keeps Schwab account hashes in secrets,
+so you normally do not need to look up IDs. Ambiguous matches stop for resolution;
+you may still need to identify account owners or clarify account labels.
+Credentials are stored only in the private office's Git-ignored `secrets/`
+directory, with restrictive file permissions.
+
+### No trade execution
+
+The CLI and provider adapters expose account and market-data reads only: no
+placing, changing, or canceling orders, and no transfers or money movement.
+Recommendations remain decisions for you to execute separately. This is an
+application boundary, not a guarantee that the broker-issued token cannot trade.
+Use provider-enforced read-only access where available. If you require a strict
+no-trading credential boundary and the provider cannot supply one, use offline
+imports without connecting brokerage credentials. See [SECURITY.md](SECURITY.md).
 
 The development checkout runs with Python 3.12 and [uv](https://docs.astral.sh/uv/):
 

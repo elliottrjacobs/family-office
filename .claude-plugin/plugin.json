@@ -3,7 +3,7 @@
   "version": "2.0.0a1",
   "description": "Private financial research powered by the fo CLI.",
   "author": {
-    "name": "Elliott Jacobs"
+    "name": "family-office contributors"
   },
   "repository": "https://github.com/elliottrjacobs/family-office",
   "license": "MIT",
