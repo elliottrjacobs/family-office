@@ -24,7 +24,7 @@ FIELDS = {
     ),
     "transactions": (
         {
-            "amount": NUMBER,
+            **dict.fromkeys(("amount", "qty", "price", "fees"), NUMBER),
             "transaction_id": TEXT,
             "revision": {"type": "integer", "minimum": 1},
             "provider_ids": {"type": "array", "items": TEXT, "minItems": 1},

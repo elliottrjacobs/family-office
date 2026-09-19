@@ -68,13 +68,14 @@ def synchronize(root, provider=None, dry_run=False, full=False, commit=False, be
                         )
                     )
                     continue
+                zone = ZoneInfo(config.get("office", {}).get("timezone", "UTC"))
                 if name == "schwab":
-                    adapter = Schwab(root)
+                    adapter = Schwab(root, timezone=zone)
                 else:
                     access = read_secrets(root).get("simplefin", {}).get("access_url")
                     if not access:
                         raise OfficeError("missing_credentials", "Run fo auth simplefin locally.")
-                    adapter = SimpleFIN(access)
+                    adapter = SimpleFIN(access, timezone=zone)
                 response = adapter.accounts(accounts, full=full)
                 results.append(
                     ingest(
@@ -227,10 +228,17 @@ def ingest(
                     "memo",
                     "symbol",
                     "kind",
+                    "asset_type",
+                    "qty",
+                    "price",
+                    "fees",
                 )
             }
             if not row["provider_id"]:
                 raise OfficeError("invalid_transaction", "Transaction is missing its provider id.")
+            for key in ("qty", "price", "fees"):
+                if row[key] is not None:
+                    row[key] = decimal_text(row[key])
             row["amount"] = decimal_text(incoming["amount"])
             row["pending"] = bool(incoming.get("pending"))
             row["untrusted_fields"] = ["description", "payee", "memo"]
