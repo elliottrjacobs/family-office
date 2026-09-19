@@ -1,7 +1,6 @@
 ---
 name: fisher
-description: Use for fisher questions and reports; review evidence, assumptions, and
-  prior decisions.
+description: "Score a company with the fisher playbook. Use for 'fisher score', 'Fisher fifteen points', or 'scuttlebutt quality check on a growth company'. Gives an evidence scorecard, never a mechanical buy or sell verdict."
 metadata:
   tier: balanced
   default-context: none

@@ -1,7 +1,6 @@
 ---
 name: cfo
-description: Use for cfo questions and reports; review evidence, assumptions, and
-  prior decisions.
+description: "Household cash flow and liquidity: spending trends, savings rate, debt service, emergency runway, and goal funding. Use for 'where is the money going', 'can we afford X', 'monthly budget review'."
 metadata:
   tier: balanced
   default-context: full

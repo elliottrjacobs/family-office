@@ -1,7 +1,6 @@
 ---
 name: onboard
-description: Use for onboard questions and reports; review evidence, assumptions,
-  and prior decisions.
+description: "Guided first-time setup interview that fills in household, account roles, investment policy, goals, tax context, spending categories, and watch universes. Use for 'set up my office', 'get started', or after adding accounts."
 metadata:
   tier: balanced
   default-context: full

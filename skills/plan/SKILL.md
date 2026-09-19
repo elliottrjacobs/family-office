@@ -1,7 +1,6 @@
 ---
 name: plan
-description: Use for plan questions and reports; review evidence, assumptions, and
-  prior decisions.
+description: "Turn household goals into an ordered plan with scenarios, dependencies, and checkpoints: retirement, college, a home purchase, a sabbatical. Use for 'are we on track', 'when can we retire', 'plan for X'."
 metadata:
   tier: balanced
   default-context: full

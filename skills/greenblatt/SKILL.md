@@ -1,7 +1,6 @@
 ---
 name: greenblatt
-description: Use for greenblatt questions and reports; review evidence, assumptions,
-  and prior decisions.
+description: "Score a company with the greenblatt playbook. Use for 'greenblatt score', 'magic formula', or 'is it cheap and good on earnings yield and return on capital'. Gives an evidence scorecard, never a mechanical buy or sell verdict."
 metadata:
   tier: balanced
   default-context: none

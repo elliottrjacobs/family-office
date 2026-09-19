@@ -1,7 +1,6 @@
 ---
 name: compounder
-description: Use for compounder questions and reports; review evidence, assumptions,
-  and prior decisions.
+description: "Score a company with the compounder playbook. Use for 'compounder score', 'is this a long-term compounder', or 'can it reinvest at high returns'. Gives an evidence scorecard, never a mechanical buy or sell verdict."
 metadata:
   tier: balanced
   default-context: none

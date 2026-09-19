@@ -1,7 +1,6 @@
 ---
 name: lynch
-description: Use for lynch questions and reports; review evidence, assumptions, and
-  prior decisions.
+description: "Score a stock with the lynch playbook. Use for 'lynch score', 'Peter Lynch check', 'PEG ratio', or 'which Lynch category is this stock'. Gives an evidence scorecard, never a mechanical buy or sell verdict."
 metadata:
   tier: balanced
   default-context: none

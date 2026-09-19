@@ -1,7 +1,6 @@
 ---
 name: research
-description: Use for research questions and reports; review evidence, assumptions,
-  and prior decisions.
+description: "Full investment research on one company or ticker: business economics, moat, growth durability, valuation scenarios, catalysts, and what would disprove the thesis. Use for 'research ACME', 'should I own X', 'deep dive'."
 metadata:
   tier: balanced
   default-context: none

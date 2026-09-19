@@ -1,7 +1,6 @@
 ---
 name: diligence
-description: Use for diligence questions and reports; review evidence, assumptions,
-  and prior decisions.
+description: "Judge a company's management and governance: capital allocation, incentives, insider ownership, candor, and delivery against promises. Use for 'can I trust this management', 'diligence on the CEO', or before sizing a position."
 metadata:
   tier: balanced
   default-context: none

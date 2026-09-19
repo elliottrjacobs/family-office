@@ -1,7 +1,6 @@
 ---
 name: review
-description: Use for review questions and reports; review evidence, assumptions, and
-  prior decisions.
+description: "Periodic review of open journal decisions: check invalidation breaches, give verdicts that are due, close or reopen, and inspect calibration. Use for 'review my decisions', 'weekly review', 'which theses broke'."
 metadata:
   tier: balanced
   default-context: household

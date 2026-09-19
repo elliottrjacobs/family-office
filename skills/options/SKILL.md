@@ -1,7 +1,6 @@
 ---
 name: options
-description: Use for options questions and reports; review evidence, assumptions,
-  and prior decisions.
+description: "Explain an options position or strategy: payoff, assignment, expiry, liquidity, and tax effects, from sourced chain data only. Use for 'covered call on X', 'should I sell puts', 'what happens at expiry'. Never trades."
 metadata:
   tier: balanced
   default-context: household
