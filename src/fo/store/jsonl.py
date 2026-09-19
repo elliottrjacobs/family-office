@@ -91,21 +91,31 @@ def torn(root):
 
 
 def append(root, table, row):
+    append_many(root, table, [row])
+
+
+def append_many(root, table, rows):
+    """Validate every row, then write them with one durable append."""
     if table not in TABLES:
         raise OfficeError("unknown_table", "Unknown canonical table.")
-    check_safe(row)
-    validate(table, row)
-    try:
-        timestamp = datetime.fromisoformat(row["as_of"].replace("Z", "+00:00"))
-        if timestamp.tzinfo is None:
-            raise ValueError("timezone required")
-    except (KeyError, ValueError, TypeError, AttributeError) as exc:
-        raise OfficeError(
-            "invalid_record", "Every canonical row requires an RFC3339 timestamp with a timezone."
-        ) from exc
-    content = (
-        json.dumps(row, ensure_ascii=False, allow_nan=False, separators=(",", ":")) + "\n"
-    ).encode()
+    content = b""
+    for row in rows:
+        check_safe(row)
+        validate(table, row)
+        try:
+            timestamp = datetime.fromisoformat(row["as_of"].replace("Z", "+00:00"))
+            if timestamp.tzinfo is None:
+                raise ValueError("timezone required")
+        except (KeyError, ValueError, TypeError, AttributeError) as exc:
+            raise OfficeError(
+                "invalid_record",
+                "Every canonical row requires an RFC3339 timestamp with a timezone.",
+            ) from exc
+        content += (
+            json.dumps(row, ensure_ascii=False, allow_nan=False, separators=(",", ":")) + "\n"
+        ).encode()
+    if not content:
+        return
     path = contained(root, table)
     path.parent.mkdir(parents=True, exist_ok=True)
     fd = os.open(path, os.O_RDWR | os.O_APPEND | os.O_CREAT, 0o600)
