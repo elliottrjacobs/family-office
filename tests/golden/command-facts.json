@@ -40,5 +40,9 @@
   },
   "screen": {
     "data": 1
+  },
+  "performance": {
+    "method": "modified_dietz",
+    "accounts": 0
   }
 }

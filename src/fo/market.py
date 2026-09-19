@@ -27,6 +27,28 @@ def quote(root, symbol, read_only=False):
     return {**result, "symbol": symbol, "price": str(Decimal(str(price)))}
 
 
+def benchmark_return(root, symbol, since, read_only=False):
+    """Dividend-adjusted weekly closes; the start is the last close on or before the date."""
+    try:
+        result = stamped(Market(root, read_only).alpha("TIME_SERIES_WEEKLY_ADJUSTED", symbol))
+        series = result["data"].get("Weekly Adjusted Time Series", {})
+        closes = sorted((day, Decimal(str(v["5. adjusted close"]))) for day, v in series.items())
+        before = [close for day, close in closes if day <= since]
+        if not before or not closes:
+            raise OfficeError("missing_price", "Benchmark history does not cover the start date.")
+        value = closes[-1][1] / before[-1] - 1
+        return {
+            "symbol": symbol,
+            "return": str(value),
+            "through": closes[-1][0],
+            "granularity": "weekly",
+            "as_of": result["as_of"],
+        }
+    except (OfficeError, KeyError, ArithmeticError) as exc:
+        reason = exc.reason if isinstance(exc, OfficeError) else "invalid_provider_state"
+        return {"symbol": symbol, "return": None, "reason": reason}
+
+
 def cik(client, symbol):
     agent = client.config.get("providers", {}).get("edgar", {}).get("user_agent")
     result = client.cache.get(

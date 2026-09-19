@@ -105,7 +105,7 @@ no provider write operations; their instructions prohibit shell and file writes.
 On a host without workers, the parent performs these steps sequentially.
 
 Useful commands include `networth`, `positions`, `allocation`, `spend`, `cashflow`,
-`goals`, `lots`, `quote`, `fundamentals`, `filings`, `macro`, and `screen`.
+`goals`, `lots`, `performance`, `quote`, `fundamentals`, `filings`, `macro`, and `screen`.
 `fo --help` and each command's `--help` document arguments.
 
 Reports have dated paths, frontmatter, prior-report links, decision IDs, and a

@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "as_of",
+    "stale_accounts",
+    "stale_providers",
+    "since",
+    "method",
+    "accounts",
+    "total_return",
+    "realized_gains"
+  ],
+  "properties": {
+    "as_of": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "stale_accounts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "stale_providers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "since": {
+      "type": "string"
+    },
+    "method": {
+      "const": "modified_dietz"
+    },
+    "total_return": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
+    },
+    "realized_gains": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
+    },
+    "accounts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "account_id",
+          "begin_value",
+          "end_value",
+          "net_flows",
+          "return",
+          "flow_evidence",
+          "reason"
+        ],
+        "properties": {
+          "begin_value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
+          },
+          "end_value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
+          },
+          "net_flows": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
+          },
+          "gain": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
+          },
+          "return": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
+          },
+          "annualized": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
+          },
+          "dividends": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
+          },
+          "fees": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
+          },
+          "flow_evidence": {
+            "enum": [
+              "transactions",
+              "none_assumed"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

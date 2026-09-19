@@ -50,6 +50,22 @@ def register(app):
         run(ctx, lambda: compute.lots(root(ctx), symbol, ctx.obj["read_only"]))
 
     @app.command()
+    def performance(
+        ctx: typer.Context,
+        since: str = typer.Option(...),
+        account: str | None = None,
+        benchmark: str | None = None,
+        full: bool = False,
+    ):
+        ctx.obj["full"] = full
+        from fo.performance import performance as compute_performance
+
+        run(
+            ctx,
+            lambda: compute_performance(root(ctx), since, account, benchmark, ctx.obj["read_only"]),
+        )
+
+    @app.command()
     def categorize(ctx: typer.Context, full: bool = False):
         ctx.obj["full"] = full
         run(

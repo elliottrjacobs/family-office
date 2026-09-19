@@ -12,6 +12,7 @@ metadata:
   invocation: implicit
   args: <subject>
   commands:
+  - performance
   - review
   - journal list
   report-kind: review

@@ -60,6 +60,7 @@ def test_compute_json_contracts_and_golden_facts(tmp_path):
         "cashflow": [],
         "goals": [],
         "lots": ["ACME"],
+        "performance": ["--since", "2026-01-01"],
         "quote": ["ACME"],
         "fundamentals": ["ACME"],
         "filings": ["ACME", "--form", "10-K"],

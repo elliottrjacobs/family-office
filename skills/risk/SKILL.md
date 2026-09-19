@@ -12,6 +12,7 @@ metadata:
   invocation: implicit
   args: <subject>
   commands:
+  - performance
   - allocation
   - concentration
   - networth

@@ -12,6 +12,7 @@ metadata:
   invocation: implicit
   args: <subject> [--deep]
   commands:
+  - performance
   - allocation
   - networth
   - cashflow
