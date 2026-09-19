@@ -24,6 +24,7 @@ class SimpleFIN:
         host = parts.hostname + (f":{parts.port}" if parts.port else "")
         self._base = urlunsplit(("https", host, parts.path.rstrip("/"), "", ""))
         self._transport = transport
+        self.error_count = 0
 
     def accounts(self, registry, full=False):
         params = {"start-date": int(time.time()) - (90 if full else 30) * 86400, "pending": 1}
@@ -92,12 +93,14 @@ class SimpleFIN:
                 response = client.get(self._base + "/accounts", auth=self._auth, params=params)
                 response.raise_for_status()
                 body = response.json()
-            if (
-                not isinstance(body, dict)
-                or body.get("errors")
-                or not isinstance(body.get("accounts"), list)
-            ):
+            if not isinstance(body, dict) or not isinstance(body.get("accounts"), list):
                 raise ValueError("incomplete response")
+            errors = body.get("errors") or []
+            if errors and not body["accounts"]:
+                raise ValueError("incomplete response")
+            # One broken institution must not block the rest; its accounts surface as stale.
+            # Error text is provider-authored and is counted, never stored.
+            self.error_count = len(errors)
             return body
         except (httpx.HTTPError, ValueError, TypeError) as exc:
             raise OfficeError(

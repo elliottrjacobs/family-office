@@ -76,7 +76,16 @@ def synchronize(root, provider=None, dry_run=False, full=False, commit=False, be
                         raise OfficeError("missing_credentials", "Run fo auth simplefin locally.")
                     adapter = SimpleFIN(access)
                 response = adapter.accounts(accounts, full=full)
-                results.append(ingest(root, name, response, dry_run=dry_run, locked=True))
+                results.append(
+                    ingest(
+                        root,
+                        name,
+                        response,
+                        dry_run=dry_run,
+                        locked=True,
+                        provider_errors=getattr(adapter, "error_count", 0),
+                    )
+                )
             except (OfficeError, ValueError, TypeError, KeyError, OSError) as exc:
                 failure = {
                     "run_id": identifier(),
@@ -99,10 +108,18 @@ def synchronize(root, provider=None, dry_run=False, full=False, commit=False, be
     return results
 
 
-def ingest(root, provider, accounts, dry_run=False, locked=False, import_hashes=None):
+def ingest(
+    root,
+    provider,
+    accounts,
+    dry_run=False,
+    locked=False,
+    import_hashes=None,
+    provider_errors=0,
+):
     if not locked:
         with office_lock(root):
-            return ingest(root, provider, accounts, dry_run, True, import_hashes)
+            return ingest(root, provider, accounts, dry_run, True, import_hashes, provider_errors)
     state = project(root)
     from fo.config import read_config
 
@@ -126,6 +143,7 @@ def ingest(root, provider, accounts, dry_run=False, locked=False, import_hashes=
         "ambiguous_transactions": [],
         "pending_missing_counts": {},
         "import_hashes": import_hashes or [],
+        "provider_errors": provider_errors,
     }
     pending = []
     latest = state["providers"].get(provider, {})

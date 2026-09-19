@@ -105,3 +105,27 @@ def test_sync_wrong_writer_and_offline_failure(tmp_path):
     assert result.returncode != 0
     assert json.loads(result.stdout)["reason"] == "not_writer"
     assert (root / "data/sync_log.jsonl").read_text() == ""
+
+
+def test_simplefin_institution_error_keeps_healthy_accounts():
+    body = {
+        "accounts": [
+            {"id": "bridge-a", "balance": "15.20", "balance-date": 1789200000, "transactions": []}
+        ],
+        "errors": ["Connection to Example Bank needs attention SECRET"],
+    }
+    client = SimpleFIN(
+        "https://user:SECRET@bridge.example/base",
+        transport=httpx.MockTransport(lambda req: httpx.Response(200, json=body)),
+    )
+    rows = client.accounts([{"id": "a", "provider_ref": "bridge-a", "last4": ""}])
+    assert [r["account_id"] for r in rows] == ["a"]
+    assert client.error_count == 1
+    empty = SimpleFIN(
+        "https://user:SECRET@bridge.example/base",
+        transport=httpx.MockTransport(
+            lambda req: httpx.Response(200, json={"accounts": [], "errors": ["down"]})
+        ),
+    )
+    with pytest.raises(OfficeError):
+        empty.accounts([])

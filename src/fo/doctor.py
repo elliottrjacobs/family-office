@@ -117,6 +117,15 @@ def diagnose(root):
                     f"Last complete coverage check {max(0, age):.1f} hours ago.",
                 )
             )
+            if log.get("provider_errors"):
+                checks.append(
+                    check(
+                        "sync.errors." + provider,
+                        "warn",
+                        f"{log['provider_errors']} institution connection(s) reported errors; "
+                        "repair them at the provider.",
+                    )
+                )
         if state["stale_accounts"]:
             checks.append(
                 check(
