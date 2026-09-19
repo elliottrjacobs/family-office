@@ -29,6 +29,9 @@ FIELDS = {
             "revision": {"type": "integer", "minimum": 1},
             "provider_ids": {"type": "array", "items": TEXT, "minItems": 1},
             "pending": {"type": "boolean"},
+            "kind": {
+                "enum": ["trade", "dividend", "transfer", "corporate_action", "fee", "other", None]
+            },
         },
         ["run_id", "account_id", "transaction_id", "revision", "amount", "provider_ids"],
     ),

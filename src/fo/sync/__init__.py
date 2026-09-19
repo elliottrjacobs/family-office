@@ -208,6 +208,7 @@ def ingest(root, provider, accounts, dry_run=False, locked=False, import_hashes=
                     "payee",
                     "memo",
                     "symbol",
+                    "kind",
                 )
             }
             if not row["provider_id"]:

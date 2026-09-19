@@ -124,10 +124,11 @@ def metric_observations(root, symbol, metric, decision=None):
     decision = decision or {}
     try:
         if metric == "cash_months":
-            from fo.compute import cashflow, context, number, total
+            from fo.compute import cash_holdings, cashflow, context, total
 
             state = context(root, True)
-            cash = total(number(b.get("cash")) for b in state["balances"])
+            registry = {a["id"]: a for a in load(root, "accounts")["accounts"]}
+            cash = cash_holdings(state, registry)
             outflow = total(m["spend"] for m in cashflow(root, 3, True)["months"]) / 3
             if cash is None or not outflow:
                 return []

@@ -7,6 +7,17 @@ and reviews; correction retirement appends an event instead of deleting history.
 Reports retain their original text. `store.sqlite` is a disposable projection;
 `cache/cache.sqlite` holds expendable market responses and daily request budgets.
 
+## Account roles
+
+Each entry in `profile/accounts.json` may carry a `role`: `investment`, `cash`,
+`credit`, `loan`, `property`, or `other`. Without one, the role is inferred from
+the free-text `type` (Schwab accounts default to `investment`). Allocation weights
+divide by investable assets (investment and cash accounts), the cash band counts
+bank balances plus brokerage cash, and `fo doctor` warns about accounts whose role
+is unknown. `fo spend` ignores trades, dividends, and funding transfers, and a
+refund lowers its category. Mark an income rule with `income: true` in
+`profile/categories.yaml`.
+
 ## Agent-owned setup and cutover
 
 The agent runs setup and diagnostics, handles account discovery, and reconciles

@@ -24,6 +24,21 @@ def diagnose(root):
             checks.append(check("profile." + name, "pass", "Schema valid."))
         except OfficeError as exc:
             checks.append(check("profile." + name, "fail", exc.message))
+    try:
+        from fo.compute import account_role
+
+        unknown = [a["id"] for a in load(root, "accounts")["accounts"] if not account_role(a)]
+        if unknown:
+            checks.append(
+                check(
+                    "accounts.roles",
+                    "warn",
+                    "Set role in profile/accounts.json so cash, allocation, and spend are exact: "
+                    + ", ".join(unknown),
+                )
+            )
+    except OfficeError:
+        pass
     secret_dir = contained(root, "secrets")
     bad = secret_dir.exists() and (secret_dir.stat().st_mode & 0o777 != 0o700)
     if secret_dir.exists():

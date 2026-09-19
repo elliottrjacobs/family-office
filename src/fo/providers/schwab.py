@@ -5,6 +5,26 @@ from fo.config import load_json, read_secrets
 from fo.errors import OfficeError
 from fo.office import contained, write_json
 
+KINDS = {
+    "TRADE": "trade",
+    "RECEIVE_AND_DELIVER": "corporate_action",
+    "MONEY_MARKET": "trade",
+    "DIVIDEND_OR_INTEREST": "dividend",
+    **dict.fromkeys(
+        (
+            "ACH_RECEIPT",
+            "ACH_DISBURSEMENT",
+            "CASH_RECEIPT",
+            "CASH_DISBURSEMENT",
+            "ELECTRONIC_FUND",
+            "WIRE_IN",
+            "WIRE_OUT",
+            "JOURNAL",
+        ),
+        "transfer",
+    ),
+}
+
 
 def normalize_accounts(body, registry):
     result = []
@@ -127,6 +147,7 @@ class Schwab:
                             ],
                             "posted_date": tx.get("settlementDate", "")[:10],
                             "description": str(tx.get("type", "")),
+                            "kind": KINDS.get(str(tx.get("type", "")), "other"),
                             "pending": tx.get("status") == "PENDING",
                         }
                     )
