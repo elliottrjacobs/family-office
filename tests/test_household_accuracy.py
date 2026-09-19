@@ -136,3 +136,12 @@ def test_doctor_flags_accounts_without_a_role(office):
     path.write_text(json.dumps(data))
     check = next(c for c in diagnose(office) if c["name"] == "accounts.roles")
     assert check["status"] == "warn" and "mystery" in check["reason"]
+
+
+def test_holding_period_uses_the_anniversary():
+    from datetime import date
+
+    assert not compute.held_long(date(2023, 3, 1), date(2024, 3, 1))  # 366 days, leap year
+    assert compute.held_long(date(2023, 3, 1), date(2024, 3, 2))
+    assert not compute.held_long(date(2024, 2, 29), date(2025, 2, 28))
+    assert compute.held_long(date(2024, 2, 29), date(2025, 3, 1))

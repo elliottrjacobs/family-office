@@ -324,6 +324,15 @@ def goals(root, read_only=False):
     return envelope(state, goals=rows)
 
 
+def held_long(acquired, today):
+    """Long-term means disposed after the one-year anniversary, not after 365 days."""
+    try:
+        anniversary = acquired.replace(year=acquired.year + 1)
+    except ValueError:
+        anniversary = acquired.replace(year=acquired.year + 1, day=28)
+    return today > anniversary
+
+
 def lots(root, symbol, read_only=False):
     state = context(root, read_only)
     rows = []
@@ -343,7 +352,7 @@ def lots(root, symbol, read_only=False):
                 "gain": number(p["value"]) - basis
                 if basis is not None and p.get("value") is not None
                 else None,
-                "holding_period": ("long" if (date.today() - acquired).days > 365 else "short")
+                "holding_period": ("long" if held_long(acquired, date.today()) else "short")
                 if sourced
                 else None,
                 "reason": None if sourced and basis is not None else "missing_lot_evidence",
