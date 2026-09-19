@@ -59,7 +59,9 @@ def read_rows(root, table):
         return []
     rows = []
     try:
-        for line in path.read_text().splitlines():
+        # An unterminated tail is an interrupted append, never a committed record.
+        raw = path.read_bytes()
+        for line in raw[: raw.rfind(b"\n") + 1].decode().splitlines():
             if line.strip():
                 item = json.loads(line)
                 if not isinstance(item, dict):
@@ -73,6 +75,19 @@ def read_rows(root, table):
             "Canonical JSONL contains an unreadable record; repair from its Git history.",
         ) from exc
     return rows
+
+
+def torn(root):
+    """Tables whose last append was interrupted before its newline."""
+    result = []
+    for table in sorted(TABLES):
+        path = contained(root, table)
+        if path.exists() and path.stat().st_size:
+            with path.open("rb") as stream:
+                stream.seek(-1, os.SEEK_END)
+                if stream.read(1) != b"\n":
+                    result.append(table)
+    return result
 
 
 def append(root, table, row):
@@ -93,8 +108,12 @@ def append(root, table, row):
     ).encode()
     path = contained(root, table)
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+    fd = os.open(path, os.O_RDWR | os.O_APPEND | os.O_CREAT, 0o600)
     try:
+        size = os.fstat(fd).st_size
+        if size and os.pread(fd, 1, size - 1) != b"\n":
+            # Drop the fragment so the new record cannot fuse with it.
+            os.ftruncate(fd, os.pread(fd, size, 0).rfind(b"\n") + 1)
         view = memoryview(content)
         while view:
             written = os.write(fd, view)

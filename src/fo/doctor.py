@@ -92,6 +92,17 @@ def diagnose(root):
     try:
         state = project(root)
         checks.append(check("store.integrity", "pass", "Canonical records are valid."))
+        from fo.store.jsonl import torn
+
+        if torn(root):
+            checks.append(
+                check(
+                    "store.tail",
+                    "warn",
+                    "Interrupted append ignored; the next write removes the fragment: "
+                    + ", ".join(torn(root)),
+                )
+            )
         if not state["providers"]:
             checks.append(check("sync.age", "warn", "No completed account sync yet."))
         cadence = config.get("schedule", {}).get("sync_hours", 24)
