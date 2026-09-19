@@ -211,3 +211,52 @@ def test_simplefin_dates_use_office_timezone():
     tx = client.accounts([{"id": "a", "provider_ref": "bridge-a", "last4": ""}])[0]["transactions"]
     # 2026-09-01T00:30Z is still 31 August in New York.
     assert tx[0]["posted_date"] == "2026-08-31"
+
+
+def test_schwab_accounts_with_fake_client_maps_hashes_and_hides_failures(tmp_path):
+    from fo.providers.schwab import Schwab
+
+    root = tmp_path / "office"
+    initialize(root)
+    secrets = root / "secrets"
+    secrets.mkdir(mode=0o700, exist_ok=True)
+    (secrets / "keys.toml").write_text('[schwab.account_hashes]\na = "HASH-A"\n')
+
+    class Response:
+        def __init__(self, body, fail=False):
+            self.body, self.fail = body, fail
+
+        def raise_for_status(self):
+            if self.fail:
+                raise RuntimeError("SECRET 123456789")
+
+        def json(self):
+            return self.body
+
+    class Client:
+        fail = False
+
+        def get_accounts(self, fields=None):
+            account = {
+                "accountNumber": "123456789",
+                "currentBalances": {"liquidationValue": 100, "cashBalance": 100},
+            }
+            return Response([{"securitiesAccount": account}])
+
+        def get_transactions(self, account_hash, start_date=None, end_date=None):
+            assert account_hash == "HASH-A"
+            body = [{"activityId": 7, "type": "ACH_RECEIPT", "netAmount": 50, "time": "2026-09-02"}]
+            return Response(body, self.fail)
+
+    registry = [{"id": "a", "last4": "6789", "provider": "schwab"}]
+    rows = Schwab(root, client=Client()).accounts(registry)
+    assert rows[0]["transactions"][0]["kind"] == "transfer"
+    assert rows[0]["transaction_window"]["start"] < rows[0]["transaction_window"]["end"]
+    assert "HASH-A" not in json.dumps(rows) and "123456789" not in json.dumps(rows)
+    broken = Client()
+    broken.fail = True
+    with pytest.raises(OfficeError) as caught:
+        Schwab(root, client=broken).accounts(registry)
+    assert "SECRET" not in str(caught.value)
+    with pytest.raises(OfficeError, match="hash mapping"):
+        Schwab(root, client=Client()).accounts([{**registry[0], "id": "b"}])

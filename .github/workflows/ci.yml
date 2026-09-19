@@ -15,7 +15,7 @@ jobs:
       - run: uv sync --locked
       - run: uv run ruff check .
       - run: uv run ruff format --check .
-      - run: uv run pytest
+      - run: uv run pytest --cov=fo --cov-report=term-missing:skip-covered --cov-fail-under=78
       - run: uv run python scripts/lint_office_paths.py
       - run: uv run python scripts/lint_skills.py skills/ AGENTS.md
       - run: uv build

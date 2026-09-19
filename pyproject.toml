@@ -22,7 +22,12 @@ dependencies = [
 fo = "fo.cli:app"
 
 [dependency-groups]
-dev = ["pytest>=8.3,<10", "ruff>=0.12,<1", "build>=1.2,<2"]
+dev = [
+    "pytest>=8.3,<10",
+    "ruff>=0.12,<1",
+    "build>=1.2,<2",
+    "pytest-cov>=6,<8",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/fo"]
