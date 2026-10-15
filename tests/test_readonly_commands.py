@@ -99,6 +99,7 @@ RESTRICTED = [
     ["schedule", "install", "--json"],
     ["notify", "hello", "--json"],
     ["migrate-v1", "elsewhere", "--dry-run", "--json"],
+    ["serve", "--port", "0", "--json"],
 ]
 
 

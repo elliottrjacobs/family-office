@@ -1,6 +1,3 @@
-import json
-import sqlite3
-import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
@@ -10,6 +7,7 @@ from fo import __version__
 from fo.commands import register
 from fo.config import public_config
 from fo.doctor import diagnose
+from fo.envelope import SAFE_FAILURES, encode, failure
 from fo.errors import OfficeError
 from fo.init import initialize
 from fo.lock import office_lock
@@ -58,7 +56,7 @@ def emit(ctx, result):
     if "full" in ctx.obj and not ctx.obj["full"]:
         result = summary(result)
     if ctx.obj["json"]:
-        typer.echo(json.dumps(result, ensure_ascii=False, default=str))
+        typer.echo(encode(result))
     elif isinstance(result, str):
         typer.echo(result)
     else:
@@ -70,26 +68,9 @@ def run(ctx, operation: Callable):
         result = operation()
         emit(ctx, result)
         return result
-    except OfficeError as exc:
-        emit(ctx, {"reason": exc.reason, "message": exc.message})
-        raise typer.Exit(1) from exc
-    except (
-        OSError,
-        ValueError,
-        KeyError,
-        TypeError,
-        ArithmeticError,
-        sqlite3.Error,
-        subprocess.TimeoutExpired,
-    ) as exc:
-        # Do not expose paths, input snippets, provider bodies, or credentials.
-        emit(
-            ctx,
-            {
-                "reason": "operation_failed",
-                "message": "Operation failed; check configuration and file permissions.",
-            },
-        )
+    except (OfficeError, *SAFE_FAILURES) as exc:
+        # The envelope never exposes paths, input snippets, provider bodies, or credentials.
+        emit(ctx, failure(exc))
         raise typer.Exit(1) from exc
 
 
@@ -119,7 +100,7 @@ def main(
     try:
         ctx.obj["office"] = run_office(office, ctx.meta.get("fo.args", []))
     except OfficeError as exc:
-        emit(ctx, {"reason": exc.reason, "message": exc.message})
+        emit(ctx, failure(exc))
         raise typer.Exit(1) from exc
 
 
@@ -280,6 +261,25 @@ def positions(
     from fo.compute import positions as compute_positions
 
     run(ctx, lambda: compute_positions(root(ctx), account, symbol, ctx.obj["read_only"]))
+
+
+@app.command("serve")
+def serve_command(
+    ctx: typer.Context,
+    port: int | None = typer.Option(None, help="Default 4790, or port under serve in office.toml."),
+    host: str | None = typer.Option(None, help="Bind address; anything but loopback warns."),
+    remote: bool = typer.Option(
+        False, "--remote", help="Also accept the tailnet name configured for tailscale serve."
+    ),
+    open_browser: bool = typer.Option(False, "--open", help="Open the app in a browser."),
+):
+    """Start the companion web app for this office on 127.0.0.1."""
+    from fo.serve import serve
+
+    run(
+        ctx,
+        lambda: serve(ctx.obj["office"], port, host, remote, open_browser, ctx.obj["read_only"]),
+    )
 
 
 @app.command("commit")

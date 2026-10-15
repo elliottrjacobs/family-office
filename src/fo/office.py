@@ -9,7 +9,7 @@ from fo.errors import OfficeError
 # Set by fo serve for a headless advisor run: the value is the office the run belongs to.
 RUN_MARKER = "FO_SERVE_RUN"
 # Commands an advisor run may never invoke: setup, credentials, account sync, publishing,
-# scheduling, notifications, and rewriting derived or rendered files.
+# scheduling, notifications, rewriting derived or rendered files, and starting a server.
 RUN_RESTRICTED = (
     "setup",
     "auth",
@@ -21,6 +21,7 @@ RUN_RESTRICTED = (
     "migrate-v1",
     "reindex",
     "skills sync",
+    "serve",
 )
 
 
