@@ -1,6 +1,7 @@
 """The fo serve HTTP server: gating, JSON routes, static files, and streaming responses."""
 
 import html
+import json
 import mimetypes
 import sys
 import threading
@@ -15,6 +16,7 @@ from urllib.parse import parse_qsl, unquote, urlsplit
 from fo import __version__
 from fo.envelope import FAILED, encode, failure
 from fo.errors import OfficeError
+from fo.serve import onboarding
 from fo.serve.auth import Access, Denial
 from fo.serve.cache import ResponseCache
 from fo.serve.routes_read import DOCTOR_TTL, resolve
@@ -26,7 +28,9 @@ STATUS = {
     "unknown_route": 404,
     "office_locked": 409,
     "invalid_transition": 409,
+    "office_already_open": 409,
 }
+MAX_BODY = 64 * 1024
 SECURITY_HEADERS = {
     "Content-Security-Policy": (
         "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
@@ -195,11 +199,35 @@ class Handler(BaseHTTPRequestHandler):
             {"Set-Cookie": self.app.access.cookie_header()},
         )
 
+    def body(self):
+        """A JSON object from a same-origin request; anything else is refused unread."""
+        if self.headers.get_content_type() != "application/json":
+            raise OfficeError("invalid_request", "Send a JSON object.")
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            length = 0
+        if not 0 < length <= MAX_BODY:
+            raise OfficeError("invalid_request", "Send a JSON object under 64 KiB.")
+        try:
+            value = json.loads(self.rfile.read(length))
+        except ValueError as exc:
+            raise OfficeError("invalid_request", "Send a JSON object.") from exc
+        if not isinstance(value, dict):
+            raise OfficeError("invalid_request", "Send a JSON object.")
+        return value
+
     def api(self, method, path, query):
+        if method == "POST":
+            if path not in POSTS:
+                raise OfficeError("unknown_route", "No such route.")
+            return self.send_json(200, POSTS[path](self.app, self.body()))
         if method != "GET":
             raise OfficeError("unknown_route", "No such route.")
         if path == "/api/status":
             return self.send_json(200, self.app.status(self.headers))
+        if path == "/api/onboarding":
+            return self.send_json(200, onboarding.derive(self.app.locator))
         if path == "/api/heartbeat":
             return self.stream(self.heartbeat())
         route, params = resolve(path)
@@ -261,6 +289,14 @@ class Handler(BaseHTTPRequestHandler):
         if content_type.startswith("text/") or content_type.endswith("javascript"):
             content_type += "; charset=utf-8"
         self.send(200, target.read_bytes(), content_type)
+
+
+def choose_office(app, body):
+    onboarding.choose(app.locator, body.get("path"))
+    return onboarding.derive(app.locator)
+
+
+POSTS = {"/api/onboarding/path": choose_office}
 
 
 class Server(ThreadingHTTPServer):

@@ -56,6 +56,21 @@ class Client:
         connection.close()
         return response.status, {k.lower(): v for k, v in response.getheaders()}, data
 
+    def raw_post(self, path, payload):
+        """POST bytes that are not JSON-encoded by this client."""
+        connection = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+        headers = {
+            "Host": self.host,
+            "Cookie": f"fo_session={self.cookie}",
+            "Origin": f"http://{self.host}",
+            "Content-Type": "application/json",
+        }
+        connection.request("POST", path, body=payload, headers=headers)
+        response = connection.getresponse()
+        data = response.read()
+        connection.close()
+        return response.status, dict(response.getheaders()), data
+
     def raw(self, data):
         """Send bytes as-is, for request lines http.client refuses to build."""
         with socket.create_connection(("127.0.0.1", self.port), timeout=10) as connection:

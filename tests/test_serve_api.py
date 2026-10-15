@@ -59,6 +59,7 @@ def test_every_read_route_answers_and_leaves_the_office_unchanged(office, tmp_pa
         "/api/config",
         "/api/profile",
         "/api/status",
+        "/api/onboarding",
         *(f"/api/profile/{name}" for name in PROFILE_FILES),
     ]
     before = tree(office)
