@@ -3,6 +3,7 @@ name: marks
 description: "Score an idea or the market with the marks playbook. Use for 'marks score', 'where are we in the cycle', or 'second-level thinking and risk check in the style of Howard Marks'. Gives an evidence scorecard, never a mechanical buy or sell verdict."
 metadata:
   tier: balanced
+  group: playbooks
   default-context: none
   allowed-context:
   - none

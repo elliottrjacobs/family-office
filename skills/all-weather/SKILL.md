@@ -3,6 +3,7 @@ name: all-weather
 description: "Test the whole portfolio against the all-weather playbook: balance across growth, inflation, and deflation regimes. Use for 'is my portfolio all-weather', 'regime balance', or 'how would we hold up in stagflation'."
 metadata:
   tier: balanced
+  group: playbooks
   default-context: household
   allowed-context:
   - none

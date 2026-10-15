@@ -3,6 +3,7 @@ name: fisher
 description: "Score a company with the fisher playbook. Use for 'fisher score', 'Fisher fifteen points', or 'scuttlebutt quality check on a growth company'. Gives an evidence scorecard, never a mechanical buy or sell verdict."
 metadata:
   tier: balanced
+  group: playbooks
   default-context: none
   allowed-context:
   - none

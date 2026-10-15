@@ -3,6 +3,7 @@ name: estate
 description: "Find gaps in estate and continuity readiness: wills, trusts, beneficiaries, account titling, insurance, and document locations. Use for 'are we prepared if something happens', 'beneficiary check', or preparing questions for counsel."
 metadata:
   tier: balanced
+  group: specialists
   default-context: full
   allowed-context:
   - none

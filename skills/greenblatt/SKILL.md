@@ -3,6 +3,7 @@ name: greenblatt
 description: "Score a company with the greenblatt playbook. Use for 'greenblatt score', 'magic formula', or 'is it cheap and good on earnings yield and return on capital'. Gives an evidence scorecard, never a mechanical buy or sell verdict."
 metadata:
   tier: balanced
+  group: playbooks
   default-context: none
   allowed-context:
   - none

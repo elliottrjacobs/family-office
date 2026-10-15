@@ -98,6 +98,9 @@ the session model; worker models and Claude skill tiers come from `office.toml`.
 | Specialists | `options`, `technicals`, `risk`, `realestate`, `ventures`, `estate` |
 | Playbooks | `lead-edge-eight`, `piotroski`, `greenblatt`, `compounder`, `lynch`, `fisher`, `powers`, `marks`, `all-weather` |
 
+Each skill declares its area as `metadata.group`; `fo skills list --json` prints the
+registry with tiers, context levels, and commands.
+
 Research, diligence, and CIO support explicit `--deep` evidence work. The parent
 prefetches inputs, five workers return bounded blocks, and the parent writes the
 report. `fo report parts` identifies missing blocks for resumption. Workers have

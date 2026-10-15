@@ -178,6 +178,13 @@ def sync_skills(ctx: typer.Context):
     run(ctx, execute)
 
 
+@skills_app.command("list")
+def list_skills(ctx: typer.Context):
+    from fo.skills import registry
+
+    run(ctx, registry)
+
+
 @app.command("skill")
 def print_skill(ctx: typer.Context, name: str, path: Path | None = None):
     from fo.skills import skill_body

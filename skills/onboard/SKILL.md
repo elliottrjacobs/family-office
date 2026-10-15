@@ -3,6 +3,7 @@ name: onboard
 description: "Guided first-time setup interview that fills in household, account roles, investment policy, goals, tax context, spending categories, and watch universes. Use for 'set up my office', 'get started', or after adding accounts."
 metadata:
   tier: balanced
+  group: routine
   default-context: full
   allowed-context:
   - none

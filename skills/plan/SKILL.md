@@ -3,6 +3,7 @@ name: plan
 description: "Turn household goals into an ordered plan with scenarios, dependencies, and checkpoints: retirement, college, a home purchase, a sabbatical. Use for 'are we on track', 'when can we retire', 'plan for X'."
 metadata:
   tier: balanced
+  group: household
   default-context: full
   allowed-context:
   - none

@@ -3,6 +3,7 @@ name: options
 description: "Explain an options position or strategy: payoff, assignment, expiry, liquidity, and tax effects, from sourced chain data only. Use for 'covered call on X', 'should I sell puts', 'what happens at expiry'. Never trades."
 metadata:
   tier: balanced
+  group: specialists
   default-context: household
   allowed-context:
   - none

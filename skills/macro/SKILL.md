@@ -3,6 +3,7 @@ name: macro
 description: "Read economic conditions from dated data series: growth, inflation, labor, rates, and liquidity, with scenarios and portfolio transmission. Use for 'what is the economy doing', 'recession risk', 'rates outlook'."
 metadata:
   tier: balanced
+  group: research
   default-context: none
   allowed-context:
   - none

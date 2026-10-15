@@ -13,6 +13,8 @@ from fo.errors import OfficeError
 from fo.office import atomic_write, contained, write_json
 
 START, END = "<!-- fo:rules:start -->", "<!-- fo:rules:end -->"
+# Sidebar order for the advisor directory; scripts/lint_skills.py enforces membership.
+GROUPS = ("household", "research", "specialists", "routine", "playbooks")
 
 
 def assets(kind):
@@ -36,6 +38,41 @@ def skill_body(name):
         valid = ", ".join(p.parent.name for p in assets("skills").glob("*/SKILL.md"))
         raise OfficeError("unknown_skill", "Available skills: " + (valid or "none installed"))
     return parse_skill(path)[1]
+
+
+def registry():
+    """Advisor directory and worker roster from canonical frontmatter; needs no office."""
+    skills = []
+    for path in sorted(assets("skills").glob("*/SKILL.md")):
+        meta, _ = parse_skill(path)
+        settings = meta.get("metadata", {})
+        args = settings.get("args", "")
+        skills.append(
+            {
+                "name": path.parent.name,
+                "description": meta["description"],
+                "group": settings.get("group"),
+                "tier": settings.get("tier", "balanced"),
+                "default_context": settings.get("default-context"),
+                "allowed_context": settings.get("allowed-context", []),
+                "invocation": settings.get("invocation", "implicit"),
+                "args": args,
+                "deep": "--deep" in args,
+                "commands": settings.get("commands", []),
+                "report_kind": settings.get("report-kind", path.parent.name),
+            }
+        )
+    agents = []
+    for path in sorted(assets("agents").glob("*.md")):
+        meta, _ = parse_skill(path)
+        agents.append(
+            {
+                "name": path.stem,
+                "description": meta["description"],
+                "tier": meta.get("metadata", {}).get("tier", "balanced"),
+            }
+        )
+    return {"skills": skills, "agents": agents}
 
 
 def rules():

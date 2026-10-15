@@ -3,6 +3,7 @@ name: technicals
 description: "Price-action read on a ticker from dated price history only: trend, volatility, support, resistance, and invalidation levels. Use for 'chart check on X', 'is this a good entry', 'where is support'."
 metadata:
   tier: balanced
+  group: specialists
   default-context: none
   allowed-context:
   - none

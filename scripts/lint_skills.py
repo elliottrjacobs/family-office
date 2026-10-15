@@ -4,7 +4,7 @@ import re
 import sys
 from pathlib import Path
 
-from fo.skills import parse_skill
+from fo.skills import GROUPS, parse_skill
 
 ALLOWED = {"name", "description", "license", "compatibility", "metadata", "allowed-tools"}
 FORBIDDEN = re.compile(
@@ -27,6 +27,8 @@ def lint(source, instructions):
             errors.append(f"{path}: description must be 1-250 characters")
         if not meta.get("metadata", {}).get("commands"):
             errors.append(f"{path}: commands metadata required")
+        if meta.get("metadata", {}).get("group") not in GROUPS:
+            errors.append(f"{path}: group must be one of " + ", ".join(GROUPS))
         if FORBIDDEN.search(body):
             errors.append(f"{path}: provider, host tool, or model name in body")
         for host in (".claude", ".agents"):

@@ -3,6 +3,7 @@ name: cio
 description: "Whole-portfolio investment decisions against the policy statement: allocation drift, rebalancing, concentration, performance, and where new money goes. Use for 'should we rebalance', 'how are we invested', 'where to put new cash'."
 metadata:
   tier: strong
+  group: household
   default-context: full
   allowed-context:
   - none

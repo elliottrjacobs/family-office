@@ -3,6 +3,7 @@ name: tax
 description: "Tax-aware choices from sourced lots and account types: harvesting, holding periods, asset location, Roth conversions, and estimated payments. Use for 'tax impact of selling X', 'harvest losses', 'year-end tax planning'."
 metadata:
   tier: strong
+  group: household
   default-context: full
   allowed-context:
   - none

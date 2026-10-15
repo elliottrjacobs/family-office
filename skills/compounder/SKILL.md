@@ -3,6 +3,7 @@ name: compounder
 description: "Score a company with the compounder playbook. Use for 'compounder score', 'is this a long-term compounder', or 'can it reinvest at high returns'. Gives an evidence scorecard, never a mechanical buy or sell verdict."
 metadata:
   tier: balanced
+  group: playbooks
   default-context: none
   allowed-context:
   - none

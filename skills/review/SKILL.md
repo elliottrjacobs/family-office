@@ -3,6 +3,7 @@ name: review
 description: "Periodic review of open journal decisions: check invalidation breaches, give verdicts that are due, close or reopen, and inspect calibration. Use for 'review my decisions', 'weekly review', 'which theses broke'."
 metadata:
   tier: balanced
+  group: routine
   default-context: household
   allowed-context:
   - none

@@ -3,6 +3,7 @@ name: eli5
 description: "Re-explain the previous report or answer in plain language with a concrete example, keeping the numbers, uncertainty, and action unchanged. Use for 'eli5', 'explain that simply', 'what does this mean for us'."
 metadata:
   tier: fast
+  group: routine
   default-context: none
   allowed-context:
   - none

@@ -3,6 +3,7 @@ name: cfo
 description: "Household cash flow and liquidity: spending trends, savings rate, debt service, emergency runway, and goal funding. Use for 'where is the money going', 'can we afford X', 'monthly budget review'."
 metadata:
   tier: balanced
+  group: household
   default-context: full
   allowed-context:
   - none
