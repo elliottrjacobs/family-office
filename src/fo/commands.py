@@ -138,24 +138,32 @@ def register(app):
     report_app = typer.Typer()
     app.add_typer(report_app, name="report")
 
+    pin = typer.Option(None, "--report", help="Reuse this report path when resuming a run.")
+
     @report_app.command("parts")
     def report_parts(
         ctx: typer.Context,
-        kind: str = typer.Option(...),
-        subject: str = typer.Option(...),
+        kind: str | None = None,
+        subject: str | None = None,
         slug: str = "report",
+        report: str | None = pin,
     ):
-        run(ctx, lambda: reports.parts(root(ctx), kind, subject, slug))
+        run(ctx, lambda: reports.parts(root(ctx), kind, subject, slug, report))
 
     @report_app.command("path")
     def report_path(
         ctx: typer.Context,
-        kind: str = typer.Option(...),
-        subject: str = typer.Option(...),
+        kind: str | None = None,
+        subject: str | None = None,
         slug: str = "report",
         part: str | None = None,
+        report: str | None = pin,
     ):
-        run(ctx, lambda: reports.report_path(root(ctx), kind, subject, slug, part))
+        run(ctx, lambda: reports.report_path(root(ctx), kind, subject, slug, part, report))
+
+    @report_app.command("show")
+    def report_show(ctx: typer.Context, path: str):
+        run(ctx, lambda: reports.show(root(ctx), path))
 
     reports_app = typer.Typer()
     app.add_typer(reports_app, name="reports")
@@ -172,6 +180,10 @@ def register(app):
         result = run(ctx, execute)
         if result["parse_errors"]:
             raise typer.Exit(1)
+
+    @reports_app.command("list")
+    def reports_list(ctx: typer.Context):
+        run(ctx, lambda: reports.scan(root(ctx)))
 
     journal_app = typer.Typer()
     app.add_typer(journal_app, name="journal")
@@ -253,8 +265,12 @@ def register(app):
         run(ctx, execute)
 
     @app.command()
-    def review(ctx: typer.Context, notify: bool = False):
+    def review(ctx: typer.Context, notify: bool = False, dry_run: bool = False):
         def execute():
+            if dry_run:
+                payload = notebook.evaluate(root(ctx))
+                breaches = sum(r["breached"] for r in payload["decisions"])
+                return {**payload, "breaches": breaches, "dry_run": True}
             writable(ctx)
             result = notebook.review(root(ctx))
             if notify and result["breaches"]:
@@ -312,10 +328,11 @@ def register(app):
         skill: str,
         subject: str = typer.Argument("household"),
         level: str | None = None,
+        report: str | None = pin,
     ):
         from fo.brief import start
 
-        result = run(ctx, lambda: start(root(ctx), skill, subject, level))
+        result = run(ctx, lambda: start(root(ctx), skill, subject, level, report))
         if any(r["status"] == "failed" for r in result.values()):
             raise typer.Exit(1)
 

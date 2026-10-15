@@ -4,7 +4,8 @@ import re
 from collections import defaultdict
 from datetime import date
 
-from fo.clauses import evaluate, parse
+from fo.clauses import evaluate as evaluate_clause
+from fo.clauses import parse
 from fo.config import read_config
 from fo.errors import OfficeError
 from fo.lock import office_lock
@@ -154,79 +155,86 @@ def correct(root, text=None, scope="global", retire=None):
     return row
 
 
-def review(root):
+def evaluate(root):
+    """Decision states and calibration with no lock, no market request, and no write."""
     from fo.compute import allocation
     from fo.market import metric_observations
 
-    with office_lock(root):
-        items = decisions(root)
-        allocation_result = allocation(root, read_only=True)
-        weights = allocation_result["weights"]
-        results = []
-        for decision in items:
-            if decision["status"] != "open":
-                continue
-            values, results_for_clauses = {}, []
-            for clause in decision["when"]:
-                metric = clause["metric"]
-                if metric == "days_open":
-                    observations = [
+    items = decisions(root)
+    allocation_result = allocation(root, read_only=True)
+    weights = allocation_result["weights"]
+    results = []
+    for decision in items:
+        if decision["status"] != "open":
+            continue
+        values, results_for_clauses = {}, []
+        for clause in decision["when"]:
+            metric = clause["metric"]
+            if metric == "days_open":
+                observations = [
+                    {
+                        "value": (date.today() - date.fromisoformat(decision["date"])).days,
+                        "as_of": date.today().isoformat(),
+                        "source": "decision.date",
+                    }
+                ]
+            elif metric == "weight":
+                observations = (
+                    [
                         {
-                            "value": (date.today() - date.fromisoformat(decision["date"])).days,
-                            "as_of": date.today().isoformat(),
-                            "source": "decision.date",
+                            "value": str(weights[decision["subject"]]),
+                            "as_of": allocation_result["as_of"],
+                            "source": "positions",
                         }
                     ]
-                elif metric == "weight":
-                    observations = (
-                        [
-                            {
-                                "value": str(weights[decision["subject"]]),
-                                "as_of": allocation_result["as_of"],
-                                "source": "positions",
-                            }
-                        ]
-                        if weights.get(decision["subject"]) is not None
-                        else []
-                    )
-                else:
-                    observations = metric_observations(root, decision["subject"], metric, decision)
-                values[metric] = observations
-                results_for_clauses.append(evaluate(clause, observations))
-            breached = any(value is True for value in results_for_clauses)
-            needs = not decision["when"] or any(value is None for value in results_for_clauses)
-            suppressed = decision.get("judged_until", "") >= date.today().isoformat()
-            results.append(
-                {
-                    "id": decision["id"],
-                    "subject": decision["subject"],
-                    "breached": breached,
-                    "needs_judgment": needs and not suppressed,
-                    "values": values,
-                    "due_for_verdict": breached
-                    or (date.today() - date.fromisoformat(decision["date"])).days
-                    >= read_config(root).get("notebook", {}).get("verdict_days", 180),
-                }
-            )
-        calibration = defaultdict(lambda: {"hit": 0, "miss": 0, "neutral": 0})
-        for decision in items:
-            if decision["status"] == "closed" and decision.get("outcome") in {
-                "hit",
-                "miss",
-                "neutral",
-            }:
-                for group in (
-                    "conviction:" + decision["conviction"],
-                    "source:" + decision["source"],
-                ):
-                    calibration[group][decision["outcome"]] += 1
-        for counts in calibration.values():
-            counts["hit_rate"] = counts["hit"] / sum(counts.values())
-        payload = {
-            "date": date.today().isoformat(),
-            "decisions": results,
-            "calibration": dict(calibration),
-        }
+                    if weights.get(decision["subject"]) is not None
+                    else []
+                )
+            else:
+                observations = metric_observations(root, decision["subject"], metric, decision)
+            values[metric] = observations
+            results_for_clauses.append(evaluate_clause(clause, observations))
+        breached = any(value is True for value in results_for_clauses)
+        needs = not decision["when"] or any(value is None for value in results_for_clauses)
+        suppressed = decision.get("judged_until", "") >= date.today().isoformat()
+        results.append(
+            {
+                "id": decision["id"],
+                "subject": decision["subject"],
+                "breached": breached,
+                "needs_judgment": needs and not suppressed,
+                "values": values,
+                "due_for_verdict": breached
+                or (date.today() - date.fromisoformat(decision["date"])).days
+                >= read_config(root).get("notebook", {}).get("verdict_days", 180),
+            }
+        )
+    calibration = defaultdict(lambda: {"hit": 0, "miss": 0, "neutral": 0})
+    for decision in items:
+        if decision["status"] == "closed" and decision.get("outcome") in {
+            "hit",
+            "miss",
+            "neutral",
+        }:
+            for group in (
+                "conviction:" + decision["conviction"],
+                "source:" + decision["source"],
+            ):
+                calibration[group][decision["outcome"]] += 1
+    for counts in calibration.values():
+        counts["hit_rate"] = counts["hit"] / sum(counts.values())
+    return {
+        "date": date.today().isoformat(),
+        "decisions": results,
+        "calibration": dict(calibration),
+    }
+
+
+def review(root):
+    with office_lock(root):
+        payload = evaluate(root)
+        results = payload["decisions"]
+        calibration = payload["calibration"]
         digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
         previous = read_rows(root, "notebook/reviews.jsonl")
         repeated = bool(previous and previous[-1].get("digest") == digest)
@@ -244,7 +252,7 @@ def review(root):
             + "\n\n## Due for verdict\n"
             + "\n".join(f"- {r['subject']} ({r['id']})" for r in results if r["due_for_verdict"])
             + "\n\n## Calibration\n\n"
-            + json.dumps(dict(calibration), indent=2)
+            + json.dumps(calibration, indent=2)
             + "\n"
         )
         atomic_write(contained(root, f"notebook/reviews/{payload['date']}.md"), text)

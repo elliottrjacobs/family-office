@@ -75,7 +75,8 @@ def brief(root, level="household", subject=None, skill=None, full=False):
     return result
 
 
-def start(root, skill, subject, level=None):
+def start(root, skill, subject, level=None, report=None):
+    """Brief, prior report, and report path for a skill run; report pins a resumed run."""
     reports.component(skill)
     path = assets("skills") / skill / "SKILL.md"
     if not path.is_file():
@@ -89,7 +90,9 @@ def start(root, skill, subject, level=None):
     for key, operation in {
         "brief": lambda: brief(root, level, subject, skill),
         "prior": lambda: reports.prior(root, subject, settings.get("report-kind", skill)),
-        "report": lambda: reports.report_path(root, settings.get("report-kind", skill), subject),
+        "report": lambda: reports.report_path(
+            root, settings.get("report-kind", skill), subject, report=report
+        ),
     }.items():
         try:
             result[key] = {"status": "ok", "data": operation()}

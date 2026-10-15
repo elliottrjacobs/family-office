@@ -187,6 +187,21 @@ def allocation(root, read_only=False):
     )
 
 
+def positions(root, account=None, symbol=None, read_only=False):
+    state = context(root, read_only)
+    rows = [
+        p
+        for p in state["positions"]
+        if (not account or p["account_id"] == account) and (not symbol or p["symbol"] == symbol)
+    ]
+    return {
+        "positions": rows,
+        "as_of": min((p["as_of"] for p in rows), default=None),
+        "stale_accounts": state["stale_accounts"],
+        "stale_providers": state["stale_providers"],
+    }
+
+
 def categorized(root, state=None):
     state = state or context(root, True)
     rules = load(root, "categories")["rules"]

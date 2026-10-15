@@ -13,7 +13,7 @@ from fo.doctor import diagnose
 from fo.errors import OfficeError
 from fo.init import initialize
 from fo.lock import office_lock
-from fo.office import discover
+from fo.office import discover, run_office
 
 
 class OfficeGroup(typer.core.TyperGroup):
@@ -35,6 +35,8 @@ class OfficeGroup(typer.core.TyperGroup):
             else:
                 rest.append(arg)
             index += 1
+        # The advisor-run guard in main() needs the command words without global flags.
+        ctx.meta["fo.args"] = rest
         return super().parse_args(ctx, global_args + rest)
 
 
@@ -114,6 +116,11 @@ def main(
     if version:
         typer.echo("family-office " + __version__)
         raise typer.Exit()
+    try:
+        ctx.obj["office"] = run_office(office, ctx.meta.get("fo.args", []))
+    except OfficeError as exc:
+        emit(ctx, {"reason": exc.reason, "message": exc.message})
+        raise typer.Exit(1) from exc
 
 
 @app.command("init")
@@ -163,6 +170,18 @@ def doctor(ctx: typer.Context, notify: bool = False):
 @app.command("config")
 def config_command(ctx: typer.Context):
     run(ctx, lambda: public_config(root(ctx)))
+
+
+@app.command("status")
+def status_command(
+    ctx: typer.Context,
+    lock: bool = typer.Option(
+        False, "--lock", help="Probe the office lock; a writer starting meanwhile fails."
+    ),
+):
+    from fo.operations import status
+
+    run(ctx, lambda: status(root(ctx), ctx.obj["read_only"], lock))
 
 
 @skills_app.command("sync")
@@ -258,19 +277,9 @@ def positions(
     full: bool = False,
 ):
     ctx.obj["full"] = full
-    from fo.compute import context
+    from fo.compute import positions as compute_positions
 
-    def execute():
-        state = context(root(ctx), ctx.obj["read_only"])
-        state["positions"] = [
-            p
-            for p in state["positions"]
-            if (not account or p["account_id"] == account) and (not symbol or p["symbol"] == symbol)
-        ]
-        state["as_of"] = min((p["as_of"] for p in state["positions"]), default=None)
-        return {k: state[k] for k in ("positions", "as_of", "stale_accounts", "stale_providers")}
-
-    run(ctx, execute)
+    run(ctx, lambda: compute_positions(root(ctx), account, symbol, ctx.obj["read_only"]))
 
 
 @app.command("commit")

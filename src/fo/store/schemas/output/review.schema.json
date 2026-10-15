@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "date",
+    "decisions",
+    "calibration",
+    "breaches"
+  ],
+  "properties": {
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "subject",
+          "breached",
+          "needs_judgment",
+          "due_for_verdict",
+          "values"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "breached": {
+            "type": "boolean"
+          },
+          "needs_judgment": {
+            "type": "boolean"
+          },
+          "due_for_verdict": {
+            "type": "boolean"
+          },
+          "values": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "calibration": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "hit",
+          "miss",
+          "neutral",
+          "hit_rate"
+        ]
+      }
+    },
+    "breaches": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "unchanged": {
+      "type": "boolean"
+    },
+    "dry_run": {
+      "const": true
+    }
+  }
+}
