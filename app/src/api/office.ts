@@ -25,6 +25,7 @@ export interface Status {
   version: string
   mode: "office" | "onboarding"
   read_only: boolean
+  chat: boolean
   remote: boolean
   identity: { login: string; name: string | null } | null
   office: {

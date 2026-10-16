@@ -27,6 +27,13 @@ def test_every_route_requires_the_cookie(office, tmp_path):
         assert client.get("/api/networth")[0] == 200
 
 
+def test_the_favicon_needs_no_cookie_and_reveals_nothing(office, tmp_path):
+    with serving(office, tmp_path) as (_, client):
+        status, _, body = client.request("GET", "/favicon.ico", cookie=False)
+        assert (status, body) == (204, b"")
+        assert client.get("/favicon.ico", host="evil.example")[0] == 421
+
+
 def test_foreign_host_is_misdirected(office, tmp_path):
     with serving(office, tmp_path) as (_, client):
         for host in ("evil.example:80", f"evil.example:{client.port}", TAILNET, ""):

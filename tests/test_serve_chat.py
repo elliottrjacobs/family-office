@@ -8,7 +8,7 @@ from fo import notebook
 from fo.lock import office_lock
 from fo.serve.runs import RunManager
 from tests.offices import synthetic
-from tests.serving import serving, tree
+from tests.serving import assert_unchanged, serving, tree
 from tests.test_serve_runs import COMPLETE, runner_for, settle
 
 
@@ -69,7 +69,7 @@ def test_preview_shows_what_the_run_reads_without_side_effects(office, tmp_path)
         assert (
             client.get("/api/advisors/research/preview?subject=../x")[1]["reason"] == "invalid_path"
         )
-    assert tree(office) == before
+    assert_unchanged(before, tree(office))
 
 
 def test_runner_status_is_reported_and_cached(office, tmp_path):

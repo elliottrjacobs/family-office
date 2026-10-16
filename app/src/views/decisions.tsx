@@ -1,8 +1,10 @@
+import * as React from "react"
 import { BookOpen, FileText, NotebookPen, Scale } from "lucide-react"
 
 import { corrections, type Decision, decisions, type ReviewItem } from "@/api/office"
 import { useApi } from "@/api/use-api"
 import { needsVerdict, useAppData } from "@/app-data"
+import { AddCorrection, Defer, RecordDecision, Reopen, Retire, Verdict } from "@/components/decision-actions"
 import { Empty, ErrorNotice, Loading, Page, PageTitle, SectionTitle } from "@/components/page"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -21,7 +23,15 @@ function clause(c: Decision["when"][number]) {
   return `${c.metric} ${c.op} ${c.threshold}${c.quarters ? ` for ${c.quarters}q` : ""}`
 }
 
-function DecisionCard({ decision, state }: { decision: Decision; state?: ReviewItem }) {
+function DecisionCard({
+  decision,
+  state,
+  onChange,
+}: {
+  decision: Decision
+  state?: ReviewItem
+  onChange?: () => void
+}) {
   return (
     <article className="rounded-xl border bg-card">
       <div className="space-y-3 p-4 sm:p-5">
@@ -80,26 +90,57 @@ function DecisionCard({ decision, state }: { decision: Decision; state?: ReviewI
             <FileText className="size-3" /> Report
           </Link>
         )}
+        {onChange && (
+          <span className="ml-auto flex flex-wrap items-center gap-1">
+            {decision.status === "open" ? (
+              <>
+                <Defer decision={decision} onDone={onChange} />
+                <Verdict decision={decision} onDone={onChange} />
+              </>
+            ) : (
+              <Reopen decision={decision} onDone={onChange} />
+            )}
+          </span>
+        )}
       </footer>
     </article>
   )
 }
 
-function List({ rows, states, empty }: { rows: Decision[]; states: Map<string, ReviewItem>; empty: string }) {
+function List({
+  rows,
+  states,
+  empty,
+  onChange,
+}: {
+  rows: Decision[]
+  states: Map<string, ReviewItem>
+  empty: string
+  onChange?: () => void
+}) {
   if (!rows.length) return <Empty icon={Scale} title={empty} />
   return (
     <div className="space-y-3">
       {rows.map((decision) => (
-        <DecisionCard key={decision.id} decision={decision} state={states.get(decision.id)} />
+        <DecisionCard key={decision.id} decision={decision} state={states.get(decision.id)} onChange={onChange} />
       ))}
     </div>
   )
 }
 
 export function Decisions() {
-  const { review } = useAppData()
+  const { review, status, refresh } = useAppData()
   const journal = useApi("decisions", decisions, 30_000)
   const notes = useApi("corrections", corrections, 30_000)
+  const writable = Boolean(status?.chat)
+  const reloadJournal = journal.reload
+  const reloadNotes = notes.reload
+  const changed = React.useCallback(() => {
+    reloadJournal()
+    reloadNotes()
+    refresh()
+  }, [reloadJournal, reloadNotes, refresh])
+  const onChange = writable ? changed : undefined
   const states = new Map((review?.decisions ?? []).map((d) => [d.id, d]))
   const due = new Set(needsVerdict(review).map((d) => d.id))
   const all = [...(journal.data ?? [])].sort((a, b) => (a.date < b.date ? 1 : -1))
@@ -111,6 +152,7 @@ export function Decisions() {
       <PageTitle
         title="Decision journal"
         description="Each accepted recommendation is recorded with its thesis and the condition that proves it wrong. Review checks them and asks for a verdict only when judgment is needed."
+        actions={writable ? <RecordDecision onDone={changed} /> : undefined}
       />
       {journal.loading ? (
         <Loading />
@@ -127,22 +169,26 @@ export function Decisions() {
             <TabsTrigger value="closed">Closed ({closed.length})</TabsTrigger>
           </TabsList>
           <TabsContent value="verdict">
-            <List rows={verdict} states={states} empty="No decision needs a verdict" />
+            <List rows={verdict} states={states} empty="No decision needs a verdict" onChange={onChange} />
           </TabsContent>
           <TabsContent value="open">
-            <List rows={open} states={states} empty="No open decisions" />
+            <List rows={open} states={states} empty="No open decisions" onChange={onChange} />
           </TabsContent>
           <TabsContent value="closed">
-            <List rows={closed} states={states} empty="No closed decisions yet" />
+            <List rows={closed} states={states} empty="No closed decisions yet" onChange={onChange} />
           </TabsContent>
         </Tabs>
       )}
-      <p className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
-        <NotebookPen className="mt-0.5 size-3.5 shrink-0" />
-        Verdicts and new decisions are recorded with fo journal in a terminal for now; buttons
-        for them arrive with advisor chat.
-      </p>
-      <SectionTitle>Standing corrections</SectionTitle>
+      {!writable && (
+        <p className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
+          <NotebookPen className="mt-0.5 size-3.5 shrink-0" />
+          fo serve was started with --read-only, so verdicts and new decisions are recorded with
+          fo journal in a terminal.
+        </p>
+      )}
+      <SectionTitle aside={writable ? <AddCorrection onDone={changed} /> : undefined}>
+        Standing corrections
+      </SectionTitle>
       {notes.error ? (
         <ErrorNotice error={notes.error} retry={notes.reload} />
       ) : notes.data?.length ? (
@@ -156,6 +202,7 @@ export function Decisions() {
               <span className="shrink-0 text-xs text-muted-foreground">
                 #{note.id}, {day(note.date)}
               </span>
+              {writable && <Retire correction={note} onDone={changed} />}
             </li>
           ))}
         </ul>

@@ -19,7 +19,7 @@ from fo.serve.server import Locator
 from fo.store.authored import PROFILE_FILES
 from fo.sync import ingest
 from tests.offices import synthetic
-from tests.serving import serving, tree
+from tests.serving import assert_unchanged, serving, tree
 
 SCHEMAS = Path("src/fo/store/schemas/output")
 DECIMAL = r"^-?\d+(\.\d+)?([Ee][+-]?\d+)?$"
@@ -81,7 +81,7 @@ def test_every_read_route_answers_and_leaves_the_office_unchanged(office, tmp_pa
         assert ips["file"] == "profile/ips.json" and ips["data"]["bands"][0]["name"] == "Equity"
         config = client.get("/api/config")[1]
         assert config["secrets"] == {}
-    assert tree(office) == before
+    assert_unchanged(before, tree(office))
 
 
 def test_lists_are_not_truncated(tmp_path):

@@ -191,6 +191,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.deny(denial, api)
         if method == "GET" and url.path == "/" and "t" in query:
             return self.landing(query["t"])
+        if method == "GET" and url.path == "/favicon.ico":
+            # Browsers ask for it without the cookie; an empty answer reveals nothing.
+            self.send_response(204)
+            self.send_header("Cache-Control", "max-age=86400")
+            self.end_headers()
+            return None
         denial = self.app.access.check(method, self.headers)
         if denial:
             return self.deny(denial, api)

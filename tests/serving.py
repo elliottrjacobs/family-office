@@ -21,6 +21,11 @@ def tree(root):
     return result
 
 
+def assert_unchanged(before, after):
+    changed = sorted(k for k in set(before) | set(after) if before.get(k) != after.get(k))
+    assert not changed, f"office files changed: {changed}"
+
+
 def static_app(directory):
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "index.html").write_text("<!doctype html><title>Family Office</title>")
