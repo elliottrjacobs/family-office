@@ -1,0 +1,10 @@
+title = "family-office"
+
+[extend]
+useDefault = true
+
+# The committed companion-app bundle is minified, so entropy rules misfire on it.
+# Its sources under app/ are scanned normally.
+[allowlist]
+description = "Generated companion-app assets"
+paths = ['''^src/fo/data/app/assets/''']

@@ -24,3 +24,4 @@ build/
 **/cache/
 **/store.sqlite*
 **/.fo.lock
+node_modules/
