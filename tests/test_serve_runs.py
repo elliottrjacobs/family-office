@@ -307,8 +307,11 @@ def test_follow_ups_need_a_session_and_an_idle_run(office, tmp_path):
     assert raised.value.reason == "invalid_request"
     manager.message(office, record["id"], "BETA, please.")
     assert settle(manager, office, record["id"])["status"] == "awaiting_input"
-    texts = [e["text"] for e in manager.events(office, record["id"]) if e["kind"] == "user"]
+    logged = manager.events(office, record["id"])
+    texts = [e["text"] for e in logged if e["kind"] == "user"]
     assert texts[-1] == "BETA, please."
+    seqs = [e["seq"] for e in logged]
+    assert seqs == sorted(set(seqs)), "a follow-up must not reuse a sequence number"
     with pytest.raises(OfficeError):
         manager.get(office, "../../secrets")
 

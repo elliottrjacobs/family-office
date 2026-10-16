@@ -276,6 +276,9 @@ class RunManager:
                 stop(self.process.pid, self.grace)
 
     def begin(self, root, record, prompt, session, config):
+        # Never reuse a sequence number already in the log, whatever the record says.
+        logged = self.events(root, record["id"], record["seq"])
+        record["seq"] = max([record["seq"], *(e["seq"] for e in logged)])
         self.live[record["id"]] = []
         self.emit(root, record, {"kind": "user", "text": prompt})
         thread = threading.Thread(
@@ -396,8 +399,9 @@ class RunManager:
             exit_code=exit_code,
             error={"reason": error[0], "message": error[1]} if error else None,
         )
-        self.save(root, record)
+        # Emit before saving so the stored sequence counter includes this last event.
         self.emit(root, record, {"kind": "status", "status": status})
+        self.save(root, record)
         with self.mutex:
             if self.running(record["id"]):
                 self.active = None
