@@ -27,7 +27,7 @@ from fo.errors import OfficeError
 from fo.lock import probe
 from fo.notebook import decisions
 from fo.office import atomic_write, contained
-from fo.serve.runner import scrub
+from fo.serve.runner import Runner, scrub
 from fo.skills import registry
 from fo.store.jsonl import identifier, now
 
@@ -86,7 +86,7 @@ def stop(pid, grace):
 
 
 class RunManager:
-    def __init__(self, runner, grace=5.0, deep=False):
+    def __init__(self, runner: Runner, grace=5.0, deep=False):
         self.runner = runner
         self.grace = grace
         self.deep = deep

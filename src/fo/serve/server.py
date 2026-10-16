@@ -5,7 +5,6 @@ import json
 import mimetypes
 import re
 import sys
-import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -362,11 +361,3 @@ class Server(ThreadingHTTPServer):
 
 def make_server(app, host="127.0.0.1", port=0):
     return Server((host, port), app)
-
-
-def start_in_thread(app, host="127.0.0.1", port=0):
-    """For tests and embedding: a running server and its thread."""
-    server = make_server(app, host, port)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    return server, thread

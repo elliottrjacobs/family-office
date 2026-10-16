@@ -72,7 +72,6 @@ export const status = () => get<Status>("/api/status")
 export const onboarding = () => get<Onboarding>("/api/onboarding")
 export const chooseOffice = (path: string) => post<Onboarding>("/api/onboarding/path", { path })
 export const doctor = () => get<DoctorCheck[]>("/api/doctor")
-export const syncLog = () => get<SyncRow[]>("/api/sync")
 
 // --- finances ----------------------------------------------------------------------
 
@@ -329,13 +328,6 @@ export interface ProfileFile {
 
 export const profileFiles = () => get<{ name: string; file: string }[]>("/api/profile")
 export const profile = (name: string) => get<ProfileFile>(`/api/profile/${encodeURIComponent(name)}`)
-
-export interface PublicConfig {
-  settings: Record<string, unknown>
-  secrets: Record<string, unknown>
-}
-
-export const config = () => get<PublicConfig>("/api/config")
 
 // --- advisors ----------------------------------------------------------------------
 

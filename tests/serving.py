@@ -4,9 +4,10 @@ import hashlib
 import http.client
 import json
 import socket
+import threading
 from contextlib import contextmanager
 
-from fo.serve.server import App, Locator, start_in_thread
+from fo.serve.server import App, Locator, make_server
 
 
 def tree(root):
@@ -101,7 +102,8 @@ def serving(root, tmp_path, **options):
         heartbeat_limit=3,
         **options,
     )
-    server, _ = start_in_thread(app)
+    server = make_server(app)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
         yield app, Client(server)
     finally:
