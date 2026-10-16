@@ -165,7 +165,8 @@ keep_runs = 50             # run logs kept under cache/serve/runs/
 ```
 
 A run that recorded decisions but stopped before its report verified shows as
-partial; Resume continues the same report. Onboarding stays an interview in the
+partial; Resume continues the same report. Stopping `fo serve` stops a run in
+progress and keeps what it recorded. Onboarding stays an interview in the
 terminal, and the journal skill is replaced by the record-decision form.
 
 ### Reach it from your phone

@@ -17,7 +17,7 @@ from fo.lock import office_lock
 from fo.office import RUN_RESTRICTED
 from fo.serve.runner import profile, scrub
 from fo.serve.runner_claude import MODE, TOOLS, ClaudeRunner
-from fo.serve.runs import ACTIVE, RunManager
+from fo.serve.runs import ACTIVE, RunManager, start_time
 from tests.offices import synthetic
 
 FAKE = Path(__file__).parent / "fake_claude.py"
@@ -327,6 +327,71 @@ def test_a_run_left_running_is_reconciled(office, tmp_path):
     assert done["error"]["reason"] == "server_restarted"
     seqs = [e["seq"] for e in restarted.events(office, record["id"])]
     assert seqs == sorted(set(seqs))
+
+
+def test_reconcile_stops_only_the_process_it_recorded(office, tmp_path):
+    manager = RunManager(runner_for(tmp_path, COMPLETE)[0])
+    record = settle(manager, office, manager.launch(office, "research", "BETA")["id"])
+    sleeper = [sys.executable, "-c", "import time; time.sleep(30)"]
+    stranger = subprocess.Popen(sleeper, start_new_session=True)
+    try:
+        # The recorded pid now belongs to another process: it is left alone.
+        record.update(status="running", pid=stranger.pid, pid_started="Thu Jan  1 00:00:00 1970")
+        manager.save(office, record)
+        RunManager(runner_for(tmp_path, COMPLETE, "again")[0], grace=0.5).get(office, record["id"])
+        time.sleep(0.3)
+        assert stranger.poll() is None
+        # The same pid and start time are the run's own process: it is stopped.
+        record.update(status="running", pid_started=start_time(stranger.pid))
+        manager.save(office, record)
+        RunManager(runner_for(tmp_path, COMPLETE, "third")[0], grace=0.5).get(office, record["id"])
+        stranger.wait(timeout=10)
+    finally:
+        if stranger.poll() is None:
+            stranger.kill()
+
+
+def test_shutdown_stops_the_active_run_and_records_why(office, tmp_path):
+    lines = [{"fake": "init"}, {"fake": "sleep", "seconds": 30}, {"fake": "result"}]
+    manager = RunManager(runner_for(tmp_path, lines)[0], grace=0.5)
+    manager.shutdown()
+    record = manager.launch(office, "research", "BETA")
+    deadline = time.monotonic() + 10
+    while manager.get(office, record["id"])["session_id"] is None and time.monotonic() < deadline:
+        time.sleep(0.05)
+    pid = manager.get(office, record["id"])["pid"]
+    manager.shutdown()
+    done = manager.get(office, record["id"])
+    assert done["status"] == "failed" and done["error"]["reason"] == "server_stopped"
+    assert not manager.running(record["id"])
+    time.sleep(0.2)
+    with pytest.raises(OSError):
+        os.kill(pid, 0)
+
+
+def test_a_runner_that_breaks_mid_run_is_still_judged(office, tmp_path):
+    lines = [
+        {"fake": "init"},
+        {"fake": "text", "text": "unexpected shape"},
+        {"fake": "sleep", "seconds": 30},
+        {"fake": "result"},
+    ]
+    runner = runner_for(tmp_path, lines)[0]
+    parse = runner.parse
+
+    def broken(line, root):
+        events = parse(line, root)
+        if any(e.get("text") == "unexpected shape" for e in events):
+            raise KeyError("text")
+        return events
+
+    runner.parse = broken
+    manager = RunManager(runner, grace=0.5)
+    first = settle(manager, office, manager.launch(office, "research", "BETA")["id"])
+    assert first["status"] == "failed" and first["error"]["reason"] == "runner_failed"
+    # The manager is free again; a stuck run would refuse this launch as run_active.
+    second = settle(manager, office, manager.launch(office, "research", "BETA")["id"])
+    assert second["status"] == "failed"
 
 
 def test_wait_streams_live_events_then_replays_from_the_log(office, tmp_path):

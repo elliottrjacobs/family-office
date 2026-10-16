@@ -5,6 +5,7 @@ Never import fo.cli here: importing it builds the Typer app as a side effect.
 
 import ipaddress
 import os
+import signal
 import sys
 import threading
 import webbrowser
@@ -97,8 +98,15 @@ def prepare(office=None, port=None, host=None, remote=False, read_only=False):
     return server, lines
 
 
+def interrupt(signum, frame):
+    raise KeyboardInterrupt
+
+
 def serve(office=None, port=None, host=None, remote=False, open_browser=False, read_only=False):
     server, lines = prepare(office, port, host, remote, read_only)
+    if threading.current_thread() is threading.main_thread():
+        # A service manager stops the server with SIGTERM; it ends runs like Ctrl-C does.
+        signal.signal(signal.SIGTERM, interrupt)
     for line in lines:
         print(line, flush=True)
     link = server.app.access.landing_url()
@@ -116,5 +124,8 @@ def serve(office=None, port=None, host=None, remote=False, open_browser=False, r
     except KeyboardInterrupt:
         pass
     finally:
+        # An advisor run outliving the server would keep spending its budget unwatched.
+        if server.app.runs is not None:
+            server.app.runs.shutdown()
         server.server_close()
     return "Stopped."

@@ -60,12 +60,15 @@ def run_settings(root):
     return result
 
 
-def alive(pid):
+def start_time(pid):
+    """When a process began, as ps prints it; a reused pid never matches a recorded one."""
     try:
-        os.kill(pid, 0)
-    except (OSError, TypeError):
-        return False
-    return True
+        result = subprocess.run(
+            ["ps", "-o", "lstart=", "-p", str(pid)], capture_output=True, text=True, timeout=5
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return result.stdout.strip() or None
 
 
 def stop(pid, grace):
@@ -94,9 +97,11 @@ class RunManager:
         self.changed = threading.Condition()
         self.active = None
         self.process = None
+        self.thread = None
         self.live = {}
         self.cancelled = set()
-        self.expired = set()
+        # Runs stopped for a reason the record keeps: the time limit or the server stopping.
+        self.halted = {}
         self.reconciled = set()
 
     # Storage -----------------------------------------------------------------------
@@ -270,10 +275,24 @@ class RunManager:
         return self.get(root, run_id)
 
     def expire(self, run_id):
+        self.halt(run_id, ("run_timeout", "The run reached its time limit."))
+
+    def halt(self, run_id, error):
         with self.mutex:
-            if self.running(run_id) and self.process is not None:
-                self.expired.add(run_id)
-                stop(self.process.pid, self.grace)
+            if self.running(run_id):
+                self.halted[run_id] = error
+                # A queued run has no process yet; run() stops it as soon as it starts.
+                if self.process is not None:
+                    stop(self.process.pid, self.grace)
+
+    def shutdown(self):
+        """Stop the active run as the server stops, and wait for its record to settle."""
+        active, thread = self.active, self.thread
+        if active is None:
+            return
+        self.halt(active[1], ("server_stopped", "fo serve stopped mid-run."))
+        if thread is not None:
+            thread.join(self.grace + 5)
 
     def begin(self, root, record, prompt, session, config):
         # Never reuse a sequence number already in the log, whatever the record says.
@@ -281,16 +300,16 @@ class RunManager:
         record["seq"] = max([record["seq"], *(e["seq"] for e in logged)])
         self.live[record["id"]] = []
         self.emit(root, record, {"kind": "user", "text": prompt})
-        thread = threading.Thread(
+        self.thread = threading.Thread(
             target=self.run, args=(root, record, prompt, session, config), daemon=True
         )
-        thread.start()
+        self.thread.start()
 
     def run(self, root, record, prompt, session, config):
-        argv = self.runner.command(
-            root, self.runner.settings(root), config["max_budget_usd"], session
-        )
         try:
+            argv = self.runner.command(
+                root, self.runner.settings(root), config["max_budget_usd"], session
+            )
             process = subprocess.Popen(
                 argv,
                 stdin=subprocess.PIPE,
@@ -302,29 +321,29 @@ class RunManager:
                 bufsize=1,
                 start_new_session=True,
             )
-        except OSError:
+        except Exception:  # noqa: BLE001 - a run that cannot start is still recorded
             self.finish(root, record, None, None, ("runner_missing", "The runner could not start."))
             return
         with self.mutex:
             self.process = process
-            if record["id"] in self.cancelled:
+            if record["id"] in self.cancelled or record["id"] in self.halted:
                 stop(process.pid, self.grace)
-        record.update(status="running", pid=process.pid)
-        self.save(root, record)
-        self.emit(root, record, {"kind": "status", "status": "running"})
-        # Drain stderr so a chatty runner cannot block; its text is never stored.
-        drained = deque(maxlen=20)
-        threading.Thread(target=lambda: drained.extend(process.stderr), daemon=True).start()
-        try:
-            process.stdin.write(prompt)
-            process.stdin.close()
-        except OSError:
-            pass
         timer = threading.Timer(config["run_timeout_minutes"] * 60, self.expire, [record["id"]])
         timer.daemon = True
         timer.start()
         pending, result, error = {}, None, None
         try:
+            record.update(status="running", pid=process.pid, pid_started=start_time(process.pid))
+            self.save(root, record)
+            self.emit(root, record, {"kind": "status", "status": "running"})
+            # Drain stderr so a chatty runner cannot block; its text is never stored.
+            drained = deque(maxlen=20)
+            threading.Thread(target=lambda: drained.extend(process.stderr), daemon=True).start()
+            try:
+                process.stdin.write(prompt)
+                process.stdin.close()
+            except OSError:
+                pass
             for line in process.stdout:
                 for event in self.runner.parse(line, root):
                     kind = event["kind"]
@@ -349,6 +368,9 @@ class RunManager:
                         record["turns"] += event.get("turns") or 0
                         result = event
                     self.emit(root, record, event)
+        except Exception:  # noqa: BLE001 - whatever breaks, the run is stopped and judged
+            error = error or ("runner_failed", "The run stopped unexpectedly.")
+            stop(process.pid, self.grace)
         finally:
             process.wait()
             timer.cancel()
@@ -367,50 +389,52 @@ class RunManager:
                 self.emit(root, record, {"kind": "decision", "id": candidate})
 
     def finish(self, root, record, exit_code, result, error):
-        record["status"] = "verifying"
-        self.emit(root, record, {"kind": "status", "status": "verifying"})
         try:
-            reports.verify(root, record["report"])
-            record["verify"] = {"valid": True, "reason": None}
-        except OfficeError as exc:
-            record["verify"] = {"valid": False, "reason": exc.reason}
-        except (OSError, ValueError, KeyError, TypeError):
-            record["verify"] = {"valid": False, "reason": "report_unreadable"}
-        if record["id"] in self.expired and error is None:
-            error = ("run_timeout", "The run reached its time limit.")
-        if error is None and result is not None and not result["ok"]:
-            error = (result.get("subtype") or "runner_failed", "The run stopped with an error.")
-        if error is None and exit_code not in (0, None):
-            error = ("runner_failed", "The run ended with an error.")
-        if record["id"] in self.cancelled:
-            status = "cancelled"
-        elif record["verify"]["valid"]:
-            status = "completed"
-        elif record["decisions"]:
-            status = "partial"
-        elif error or result is None or not result.get("text"):
-            status = "failed"
-        else:
-            status = "awaiting_input"
-        if status == "failed" and error is None:
-            error = ("runner_failed", "The run ended without a report or an answer.")
-        record.update(
-            status=status,
-            exit_code=exit_code,
-            error={"reason": error[0], "message": error[1]} if error else None,
-        )
-        # Emit before saving so the stored sequence counter includes this last event.
-        self.emit(root, record, {"kind": "status", "status": status})
-        self.save(root, record)
-        with self.mutex:
-            if self.running(record["id"]):
-                self.active = None
-                self.process = None
-            self.cancelled.discard(record["id"])
-            self.expired.discard(record["id"])
-        with self.changed:
-            self.live.pop(record["id"], None)
-            self.changed.notify_all()
+            record["status"] = "verifying"
+            self.emit(root, record, {"kind": "status", "status": "verifying"})
+            try:
+                reports.verify(root, record["report"])
+                record["verify"] = {"valid": True, "reason": None}
+            except OfficeError as exc:
+                record["verify"] = {"valid": False, "reason": exc.reason}
+            except (OSError, ValueError, KeyError, TypeError):
+                record["verify"] = {"valid": False, "reason": "report_unreadable"}
+            if record["id"] in self.halted and error is None:
+                error = self.halted[record["id"]]
+            if error is None and result is not None and not result["ok"]:
+                error = (result.get("subtype") or "runner_failed", "The run stopped with an error.")
+            if error is None and exit_code not in (0, None):
+                error = ("runner_failed", "The run ended with an error.")
+            if record["id"] in self.cancelled:
+                status = "cancelled"
+            elif record["verify"]["valid"]:
+                status = "completed"
+            elif record["decisions"]:
+                status = "partial"
+            elif error or result is None or not result.get("text"):
+                status = "failed"
+            else:
+                status = "awaiting_input"
+            if status == "failed" and error is None:
+                error = ("runner_failed", "The run ended without a report or an answer.")
+            record.update(
+                status=status,
+                exit_code=exit_code,
+                error={"reason": error[0], "message": error[1]} if error else None,
+            )
+            # Emit before saving so the stored sequence counter includes this last event.
+            self.emit(root, record, {"kind": "status", "status": status})
+            self.save(root, record)
+        finally:
+            with self.mutex:
+                if self.running(record["id"]):
+                    self.active = None
+                    self.process = None
+                self.cancelled.discard(record["id"])
+                self.halted.pop(record["id"], None)
+            with self.changed:
+                self.live.pop(record["id"], None)
+                self.changed.notify_all()
         self.prune(root)
 
     def reconcile(self, root):
@@ -422,7 +446,7 @@ class RunManager:
             record = json.loads(path.read_text())
             if record["status"] not in ACTIVE or self.running(record["id"]):
                 continue
-            if record.get("pid") and alive(record["pid"]):
+            if record.get("pid_started") and start_time(record["pid"]) == record["pid_started"]:
                 stop(record["pid"], self.grace)
             logged = self.events(root, record["id"])
             record["seq"] = max([record["seq"], *(e["seq"] for e in logged)])
