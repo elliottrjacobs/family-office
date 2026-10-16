@@ -3,6 +3,7 @@
 import html
 import json
 import mimetypes
+import re
 import sys
 import threading
 import time
@@ -26,9 +27,19 @@ STATUS = {
     "unknown_report": 404,
     "unknown_profile": 404,
     "unknown_route": 404,
+    "unknown_run": 404,
+    "unknown_skill": 404,
+    "unknown_decision": 404,
+    "unknown_correction": 404,
     "office_locked": 409,
     "invalid_transition": 409,
     "office_already_open": 409,
+    "run_active": 409,
+    "not_running": 409,
+    "not_resumable": 409,
+    "runner_missing": 503,
+    "runner_outdated": 503,
+    "runner_unsupported": 503,
 }
 MAX_BODY = 64 * 1024
 SECURITY_HEADERS = {
@@ -84,6 +95,19 @@ class App:
     heartbeat_interval: float = 15.0
     heartbeat_limit: int | None = None
     log_lines: list | None = None
+    # Advisor chat and write actions; None in --read-only mode, where those routes do not exist.
+    runs: object | None = None
+    runner_status: tuple | None = None
+
+    def routes(self):
+        if self.runs is None:
+            return []
+        from fo.serve import routes_runs, routes_write
+
+        return [
+            (method, re.compile(pattern), handler)
+            for method, pattern, handler in routes_runs.ROUTES + routes_write.ROUTES
+        ]
 
     def log(self, line):
         stamp = datetime.now().strftime("%H:%M:%S")
@@ -103,6 +127,7 @@ class App:
             "version": __version__,
             "mode": "office" if office else "onboarding",
             "read_only": self.read_only,
+            "chat": self.runs is not None,
             "remote": self.access.remote,
             "identity": self.access.identity(headers),
             "office": office,
@@ -218,6 +243,13 @@ class Handler(BaseHTTPRequestHandler):
         return value
 
     def api(self, method, path, query):
+        for route_method, pattern, function in self.app.routes():
+            match = pattern.fullmatch(path)
+            if match and route_method == method:
+                result = function(self, match.groupdict(), query)
+                if result is not None:
+                    self.send_json(200, result)
+                return None
         if method == "POST":
             if path not in POSTS:
                 raise OfficeError("unknown_route", "No such route.")
@@ -252,8 +284,13 @@ class Handler(BaseHTTPRequestHandler):
             yield {"event": "heartbeat", "sequence": count}
             time.sleep(self.app.heartbeat_interval)
 
-    def stream(self, events):
-        """Server-sent events written as they happen; closing the connection ends the stream."""
+    def stream(self, events, end=False):
+        """Server-sent events written as they happen; closing the connection ends the stream.
+
+        An event with a seq carries it as the SSE id, so a reconnecting browser resumes
+        after it. None writes a keepalive comment. With end, a final "end" event tells the
+        browser not to reconnect.
+        """
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
@@ -263,7 +300,16 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.close_connection = True
         for event in events:
-            self.wfile.write(f"data: {encode(event)}\n\n".encode())
+            if event is None:
+                chunk = ": keepalive\n\n"
+            elif "seq" in event:
+                chunk = f"id: {event['seq']}\ndata: {encode(event)}\n\n"
+            else:
+                chunk = f"data: {encode(event)}\n\n"
+            self.wfile.write(chunk.encode())
+            self.wfile.flush()
+        if end:
+            self.wfile.write(b"event: end\ndata: {}\n\n")
             self.wfile.flush()
 
     def static(self, path):

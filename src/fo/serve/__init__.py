@@ -44,6 +44,8 @@ def prepare(office=None, port=None, host=None, remote=False, read_only=False):
     """Validate options and bind; returns the server and the lines to print."""
     # Imported here so the run guard hook, also in this package, starts quickly.
     from fo.serve.auth import Access
+    from fo.serve.runner_claude import DEEP, ClaudeRunner
+    from fo.serve.runs import RunManager
     from fo.serve.server import App, Locator, make_server
 
     explicit = office or os.environ.get("FO_OFFICE")
@@ -74,7 +76,8 @@ def prepare(office=None, port=None, host=None, remote=False, read_only=False):
         tailnet_name=tailnet,
         allowed_logins=list(config.get("allowed_logins", [])),
     )
-    app = App(locator, access, read_only)
+    runs = None if read_only else RunManager(ClaudeRunner(), deep=DEEP)
+    app = App(locator, access, read_only, runs=runs)
     try:
         server = make_server(app, bind, port)
     except OSError as exc:
