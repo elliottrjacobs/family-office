@@ -17,7 +17,7 @@ def lint(source, instructions):
     errors = []
     if len(instructions.read_bytes()) > 32768:
         errors.append("AGENTS.md exceeds 32 KiB")
-    for path in source.glob("*/SKILL.md"):
+    for path in sorted(source.glob("*/SKILL.md")):
         meta, body = parse_skill(path)
         if len(path.read_bytes()) > 3000:
             errors.append(f"{path}: exceeds 3000 bytes")
