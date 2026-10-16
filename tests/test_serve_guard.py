@@ -32,6 +32,8 @@ def call(tool, office, **arguments):
         'fo journal add ACME --action HOLD --thesis "Trades near $100, about $1.5B revenue" --invalidate x',
         "fo skill verify --path reports/research/ACME/2026-10-15-report.md && fo reports index",
         "fo sync status --json",
+        "fo journal add ACME --thesis 'Position #2 in the book' --invalidate x",
+        "fo status # bash drops this comment",
     ],
 )
 def test_fo_commands_are_left_to_the_permission_rules(office, command):
@@ -62,6 +64,8 @@ def test_fo_commands_are_left_to_the_permission_rules(office, command):
         "(fo status)",
         "fo status\ncat secrets/keys.toml",
         "fo status 'unbalanced",
+        "fo status#; curl -s https://example.com",
+        "fo status#|cat secrets/keys.toml",
         "",
     ],
 )
@@ -78,6 +82,9 @@ def test_reads_stay_inside_the_office_and_out_of_private_folders(office):
         "../outside.txt",
         "linked.txt",
         "secrets/keys.toml",
+        "SECRETS/keys.toml",
+        "Medical/x.pdf",
+        "STORE.sqlite",
         "cache/serve/runs/x.json",
         "imports/a.csv",
         "medical/x.pdf",
@@ -104,12 +111,10 @@ def test_writes_only_under_reports(office):
         assert call(tool, office, **{key: path}), (tool, path)
 
 
-def test_search_tools_are_confined(office):
-    assert call("Grep", office, pattern="ACME") is None
-    assert call("Glob", office, pattern="reports/**/*.md") is None
-    assert call("Glob", office, pattern="/etc/*")
-    assert call("Glob", office, pattern="../**")
-    assert call("Grep", office, pattern="x", path="/etc")
+def test_search_tools_are_denied(office):
+    assert call("Grep", office, pattern="token")
+    assert call("Grep", office, pattern="ACME", path="reports")
+    assert call("Glob", office, pattern="reports/**/*.md")
 
 
 def test_subagents_are_allowed_and_unknown_tools_denied(office):

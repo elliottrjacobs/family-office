@@ -17,13 +17,13 @@ import shlex
 import sys
 
 PRIVATE = ("secrets", "cache", "imports", "medical", ".git", ".fo.lock")
+# Grep and Glob are not offered to runs, and a search from the office root would reach
+# its private folders, so they fall through to the denial below.
 PATH_KEYS = {
     "Read": "file_path",
     "Write": "file_path",
     "Edit": "file_path",
     "MultiEdit": "file_path",
-    "Grep": "path",
-    "Glob": "path",
 }
 WRITES = {"Write", "Edit", "MultiEdit"}
 OPERATOR = set("|;&<>()")
@@ -37,6 +37,9 @@ def command_denial(command):
     try:
         lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
         lexer.whitespace_split = True
+        # shlex ends a word at "#", but bash does not (`fo status#; curl ...` runs curl), so
+        # "#" stays an ordinary character and any operator after it is still seen.
+        lexer.commenters = ""
         tokens = list(lexer)
     except ValueError:
         return "Advisor runs may run only plain fo commands."
@@ -55,21 +58,15 @@ def command_denial(command):
 
 def path_denial(office, cwd, tool, arguments):
     raw = arguments.get(PATH_KEYS[tool])
-    if tool == "Glob":
-        pattern = arguments.get("pattern", "")
-        if pattern.startswith(("/", "~")) or ".." in pattern.split("/"):
-            return "Searches stay inside the office."
     if not raw:
-        if tool in ("Grep", "Glob"):
-            raw = "."
-        else:
-            return "The tool call names no file."
+        return "The tool call names no file."
     full = os.path.realpath(os.path.join(cwd or office, os.path.expanduser(raw)))
     relative = os.path.relpath(full, office)
     if relative == ".." or relative.startswith(".." + os.sep) or os.path.isabs(relative):
         return "Advisor runs read and write only inside the office."
     first = relative.split(os.sep)[0]
-    if first in PRIVATE or first.startswith("store.sqlite"):
+    # macOS volumes usually ignore case, so SECRETS/ opens secrets/.
+    if first.casefold() in PRIVATE or first.casefold().startswith("store.sqlite"):
         return "That part of the office is private to fo."
     if tool in WRITES and first != "reports":
         return "Advisor runs write only under reports/."
