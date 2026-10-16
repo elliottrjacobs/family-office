@@ -8,10 +8,16 @@
   per-launch token cookie on every route, Host and Origin checks, and optional
   `tailscale serve` access with an allowed-login list. The built app ships in the
   package; Node is needed only to change it.
+- Companion app chat: each advisor page runs its skill headlessly in Claude Code,
+  isolated to the office by a run profile and a guard hook, with streaming,
+  follow-ups, cancel, resume, and verification by the report verifier. Verdicts,
+  reopen, deferral, new decisions, and corrections can be recorded from the
+  Decisions page through `fo journal` and `fo corrections`.
 - New read-only commands: `fo skills list`, `fo reports list`, `fo report show`,
   `fo status [--lock]`, and `fo review --dry-run`. `fo start`, `fo report path`,
   and `fo report parts` accept `--report PATH` to resume a run on its original
-  report. Skills declare `metadata.group`.
+  report. Skills declare `metadata.group`. Under `FO_SERVE_RUN`, `fo` refuses other
+  offices and setup, credential, sync, commit, and similar commands.
 - Account `role` in the registry: allocation weights use investable assets, the
   cash band and `cash_months` count bank balances, and `fo doctor` flags accounts
   without a role.

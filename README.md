@@ -140,11 +140,33 @@ to stop. Every start issues a new link. Run it before an office exists and the
 page walks you through `fo setup`, connecting accounts, and the first sync, one
 exact command at a time. Credentials and provider consent stay in the terminal.
 
-The app reads the office in read-only mode: no provider calls, no cache or index
-writes, and no lock. It reads only `profile/`, `reports/`, `notebook/`, and the
-canonical data files, never `secrets/`, `imports/`, `cache/`, or `medical/`.
-Verdicts, new decisions, and corrections are recorded with `fo journal` and
-`fo corrections` for now.
+The dashboard reads the office in read-only mode: no provider calls, no cache or
+index writes, and no lock. It reads only `profile/`, `reports/`, `notebook/`, and
+the canonical data files, never `secrets/`, `imports/`, `cache/`, or `medical/`.
+Verdicts, new decisions, and corrections can be recorded from the Decisions page;
+each asks first, names its undo, and runs the matching `fo journal` or
+`fo corrections` command. `fo serve --read-only` leaves out chat and every write.
+
+### Chat with an advisor
+
+Each advisor page can start that skill on a subject and stream its work: commands
+it ran, its answer, decisions it recorded, and the verified report. Chat runs
+Claude Code on this machine, so install it and sign in once in a terminal. A run
+reads at the context level you pick (the page shows what that includes first),
+loads only the office's settings, and may run only `fo` commands, read inside the
+office, and write under `reports/`; a refused call is listed in the run, never
+asked about. Runs are capped in `office.toml`:
+
+```toml
+[serve]
+max_budget_usd = 2.0       # per run, in Claude usage
+run_timeout_minutes = 30
+keep_runs = 50             # run logs kept under cache/serve/runs/
+```
+
+A run that recorded decisions but stopped before its report verified shows as
+partial; Resume continues the same report. Onboarding stays an interview in the
+terminal, and the journal skill is replaced by the record-decision form.
 
 ### Reach it from your phone
 

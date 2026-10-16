@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from fo import notebook
+from fo import notebook, serve
 from fo.brief import start
 from fo.errors import OfficeError
 from fo.init import initialize
@@ -457,9 +457,11 @@ def test_profile_covers_office_settings_and_restricted_commands(tmp_path):
         for rule in rules["allow"]
     )
     assert not any(rule.startswith(("Bash(fo sync", "Bash(fo auth")) for rule in rules["allow"])
-    for path in Path("src/fo/serve").rglob("*"):
-        if path.is_file() and path.name != "permission_profile.json":
-            assert "bypass" not in path.read_text(errors="ignore").lower(), path
+    package = Path(serve.__file__).parent
+    sources = [*package.glob("*.py"), *package.glob("*.json")]
+    assert len(sources) > 5
+    for path in sources:
+        assert "bypass" not in path.read_text().lower(), path
 
 
 def test_parser_reads_a_recorded_run():

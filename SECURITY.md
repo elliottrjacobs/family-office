@@ -40,11 +40,42 @@ errors return a fixed `operation_failed` envelope without text or paths. Report
 markdown renders as page elements, never as HTML. The browser never receives a
 credential, and the page never asks for one.
 
+Writes from the page (verdicts, reopen, deferral, new decisions, corrections) are
+thin calls to `fo journal` and `fo corrections` in the server's own interpreter,
+so the office lock and the notebook's validation apply as in a terminal. They need
+the token and a same-origin `Origin`, and none exist with `--read-only`.
+
+### Advisor runs
+
+Chat starts one headless Claude Code run at a time in the office directory. A run
+loads only the office's project settings plus a run profile: no user settings or
+hooks, an empty strict MCP configuration, only the Bash, Read, Write, Edit, and
+Task tools, `--permission-mode dontAsk` with every permission prompt denied, and a
+budget cap and time limit. Its environment carries only what login needs, with
+`FO_SERVE_RUN` set so `fo` refuses other offices and the setup, credential, sync,
+commit, schedule, notify, migrate, reindex, and serve commands whatever the flag
+order. A PreToolUse hook (`fo.serve.guard`) is the last word on every tool call,
+worker agents included: only plain `fo` commands with no pipes, redirects, or
+substitution; reads inside the office outside `secrets/`, `cache/`, `imports/`,
+`medical/`, `.git/`, the store, and the lock; and writes only under `reports/`.
+It exists because a skill's own `Read` permission and read-only shell commands
+otherwise reach files outside the office. The runner never passes
+`bypassPermissions`. Run records and event logs live in `cache/serve/runs/` at
+0600 in a 0700 directory and never hold environment, cookie, or token values.
+
+Accepted risk: reports, corrections, and decisions are fed back into later briefs,
+so text planted in provider data or an earlier report can steer later advice. The
+run boundary removes the exfiltration channels (MCP servers, web tools, network
+commands, reads outside the office), and the page renders report text as elements,
+never HTML, so stored text cannot run in the browser. Market commands reach only
+their fixed provider hosts.
+
 ## Third parties
 
 | Service | Data received when used |
 |---|---|
 | Anthropic or OpenAI | Office content included in an advisor session's context |
+| Anthropic (companion app chat) | The brief, reports, and command output a run reads, per run |
 | OpenAI cloud agents | The entire tracked office checkout when connected |
 | Schwab | Authentication information and account or market-data requests |
 | SimpleFIN | Access credentials and requested account time windows |

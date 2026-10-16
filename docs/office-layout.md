@@ -22,9 +22,13 @@ refund lowers its category. Mark an income rule with `income: true` in
 
 `fo serve` reads an optional `[serve]` table in `office.toml`: `port` (default
 4790), `tailnet_name` (the name `tailscale serve` answers on, required for
-`--remote`), and `allowed_logins` (Tailscale logins allowed with `--remote`). The
-server never writes to the office; it reads profiles, reports, notebook events,
-and canonical data in read-only mode.
+`--remote`), `allowed_logins` (Tailscale logins allowed with `--remote`), and for
+chat `max_budget_usd`, `run_timeout_minutes`, and `keep_runs`. The dashboard reads
+profiles, reports, notebook events, and canonical data in read-only mode. Writes
+from the page go through `fo journal` and `fo corrections`. Advisor runs write
+reports under `reports/` and notebook events through `fo`, and keep their records
+and event logs in the ignored `cache/serve/runs/`, which is disposable; durable
+results stay in `reports/` and `notebook/`.
 
 ## Agent-owned setup and cutover
 
