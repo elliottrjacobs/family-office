@@ -13,8 +13,6 @@ from pathlib import Path
 from fo.config import read_config
 from fo.errors import OfficeError
 from fo.office import discover
-from fo.serve.auth import Access
-from fo.serve.server import App, Locator, make_server
 
 DEFAULT_PORT = 4790
 # The Schwab OAuth callback listens on 8182.
@@ -44,6 +42,10 @@ def loopback(host):
 
 def prepare(office=None, port=None, host=None, remote=False, read_only=False):
     """Validate options and bind; returns the server and the lines to print."""
+    # Imported here so the run guard hook, also in this package, starts quickly.
+    from fo.serve.auth import Access
+    from fo.serve.server import App, Locator, make_server
+
     explicit = office or os.environ.get("FO_OFFICE")
     if explicit:
         candidate = Path(explicit)

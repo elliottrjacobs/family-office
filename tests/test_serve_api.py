@@ -247,7 +247,11 @@ def test_prepare_validates_ports_and_remote_settings(office, tmp_path):
     with pytest.raises(OfficeError, match="tailnet_name"):
         prepare(office, port=0, remote=True)
     config = office / "office.toml"
-    config.write_text(config.read_text() + '\n[serve]\nport = 0\nallowed_logins = "me"\n')
+    config.write_text(
+        config.read_text().replace(
+            "[serve]\nport = 4790", '[serve]\nport = 0\nallowed_logins = "me"'
+        )
+    )
     with pytest.raises(OfficeError, match="allowed_logins"):
         prepare(office)
     server, lines = prepare(tmp_path / "empty", port=0)

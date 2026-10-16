@@ -100,6 +100,12 @@ strong = {{model = "gpt-6-astra", effort = "high"}}
 
 [providers.alphavantage]
 daily_limit = 25
+
+[serve]
+port = 4790
+max_budget_usd = 2.0
+run_timeout_minutes = 30
+keep_runs = 50
 """,
     )
     examples = {
