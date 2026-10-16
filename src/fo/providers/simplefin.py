@@ -5,11 +5,11 @@ from urllib.parse import unquote, urlsplit, urlunsplit
 import httpx
 
 from fo.errors import OfficeError
-from fo.providers.text import untrusted_text
+from fo.providers.text import local_date, untrusted_text
 
 
 class SimpleFIN:
-    def __init__(self, access_url, transport=None):
+    def __init__(self, access_url, transport=None, timezone=UTC):
         parts = urlsplit(access_url)
         if (
             parts.scheme != "https"
@@ -24,6 +24,8 @@ class SimpleFIN:
         host = parts.hostname + (f":{parts.port}" if parts.port else "")
         self._base = urlunsplit(("https", host, parts.path.rstrip("/"), "", ""))
         self._transport = transport
+        self.error_count = 0
+        self._timezone = timezone
 
     def accounts(self, registry, full=False):
         params = {"start-date": int(time.time()) - (90 if full else 30) * 86400, "pending": 1}
@@ -44,14 +46,8 @@ class SimpleFIN:
                         {
                             "provider_id": str(tx["id"]),
                             "amount": tx["amount"],
-                            "transacted_at": datetime.fromtimestamp(stamp, UTC).date().isoformat()
-                            if stamp
-                            else None,
-                            "posted_date": datetime.fromtimestamp(tx["posted"], UTC)
-                            .date()
-                            .isoformat()
-                            if tx.get("posted")
-                            else None,
+                            "transacted_at": local_date(stamp or None, self._timezone),
+                            "posted_date": local_date(tx.get("posted") or None, self._timezone),
                             "description": untrusted_text(tx.get("description", "")),
                             "payee": untrusted_text(tx.get("payee")),
                             "memo": untrusted_text(tx.get("memo")),
@@ -92,12 +88,14 @@ class SimpleFIN:
                 response = client.get(self._base + "/accounts", auth=self._auth, params=params)
                 response.raise_for_status()
                 body = response.json()
-            if (
-                not isinstance(body, dict)
-                or body.get("errors")
-                or not isinstance(body.get("accounts"), list)
-            ):
+            if not isinstance(body, dict) or not isinstance(body.get("accounts"), list):
                 raise ValueError("incomplete response")
+            errors = body.get("errors") or []
+            if errors and not body["accounts"]:
+                raise ValueError("incomplete response")
+            # One broken institution must not block the rest; its accounts surface as stale.
+            # Error text is provider-authored and is counted, never stored.
+            self.error_count = len(errors)
             return body
         except (httpx.HTTPError, ValueError, TypeError) as exc:
             raise OfficeError(

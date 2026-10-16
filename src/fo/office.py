@@ -6,6 +6,52 @@ from pathlib import Path
 
 from fo.errors import OfficeError
 
+# Set by fo serve for a headless advisor run: the value is the office the run belongs to.
+RUN_MARKER = "FO_SERVE_RUN"
+# Commands an advisor run may never invoke: setup, credentials, account sync, publishing,
+# scheduling, notifications, rewriting derived or rendered files, and starting a server.
+RUN_RESTRICTED = (
+    "setup",
+    "auth",
+    "sync",
+    "commit",
+    "schedule",
+    "notify",
+    "init",
+    "migrate-v1",
+    "reindex",
+    "skills sync",
+    "serve",
+)
+
+
+def run_office(explicit: Path | None, args: list[str]) -> Path | None:
+    """Pin a marked advisor run to its office and refuse restricted commands.
+
+    args are the command words and options left after the global flags, read before
+    dispatch so that flag order cannot move a command past this check. Only `sync status`
+    survives the sync restriction, because it reads the sync log.
+    """
+    marked = os.environ.get(RUN_MARKER)
+    if not marked:
+        return explicit
+    office = Path(marked).resolve()
+    for value in (explicit, os.environ.get("FO_OFFICE")):
+        if value and Path(value).expanduser().resolve() != office:
+            raise OfficeError(
+                "serve_run_restricted", "An advisor run may use only the office it started in."
+            )
+    for command in RUN_RESTRICTED:
+        first, *second = command.split()
+        if args[:1] == [first] and all(word in args[1:] for word in second):
+            if args != ["sync", "status"]:
+                raise OfficeError(
+                    "serve_run_restricted",
+                    "Advisor runs cannot set up, authenticate, sync, commit, schedule, "
+                    "notify, migrate, or reindex.",
+                )
+    return office
+
 
 def discover(explicit: Path | None = None) -> Path:
     value = explicit or os.environ.get("FO_OFFICE")

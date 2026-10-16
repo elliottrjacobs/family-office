@@ -1,5 +1,7 @@
 """Canonical row contracts, shared by append and read validation."""
 
+from functools import cache
+
 from jsonschema import Draft202012Validator, FormatChecker, ValidationError
 
 from fo.errors import OfficeError
@@ -24,11 +26,14 @@ FIELDS = {
     ),
     "transactions": (
         {
-            "amount": NUMBER,
+            **dict.fromkeys(("amount", "qty", "price", "fees"), NUMBER),
             "transaction_id": TEXT,
             "revision": {"type": "integer", "minimum": 1},
             "provider_ids": {"type": "array", "items": TEXT, "minItems": 1},
             "pending": {"type": "boolean"},
+            "kind": {
+                "enum": ["trade", "dividend", "transfer", "corporate_action", "fee", "other", None]
+            },
         },
         ["run_id", "account_id", "transaction_id", "revision", "amount", "provider_ids"],
     ),
@@ -59,8 +64,8 @@ FIELDS = {
 }
 
 
-def validate(table, row):
-    name = table.rsplit("/", 1)[-1].removesuffix(".jsonl")
+@cache
+def validator(name):
     properties, required = FIELDS[name]
     schema = {
         "type": "object",
@@ -99,8 +104,13 @@ def validate(table, row):
                 "then": {"required": ["outcome"]},
             },
         ]
+    return Draft202012Validator(schema, format_checker=FormatChecker())
+
+
+def validate(table, row):
+    name = table.rsplit("/", 1)[-1].removesuffix(".jsonl")
     try:
-        Draft202012Validator(schema, format_checker=FormatChecker()).validate(row)
+        validator(name).validate(row)
     except ValidationError as exc:
         raise OfficeError(
             "invalid_record", f"Invalid canonical record in {name}; check its schema."

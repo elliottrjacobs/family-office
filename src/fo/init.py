@@ -33,13 +33,14 @@ if shutil.which("gitleaks"):
 """
 
 
-def initialize(path: Path):
+def target(path: Path):
+    """The resolved root for an office and whether one already exists there; never writes."""
     original = path.expanduser().absolute()
     if original.is_symlink():
         raise OfficeError("unsafe_path", "Choose a local directory without symlink components.")
     root = original.resolve()
     if (root / "office.toml").is_file():
-        return {"office": str(root), "created": False, "reason": "already_initialized"}
+        return root, True
     for parent in [root, *root.parents]:
         if (parent / ".git").exists():
             raise OfficeError(
@@ -48,6 +49,13 @@ def initialize(path: Path):
             )
     if root.exists() and any(root.iterdir()):
         raise OfficeError("target_not_empty", "Initialize an empty directory.")
+    return root, False
+
+
+def initialize(path: Path):
+    root, exists = target(path)
+    if exists:
+        return {"office": str(root), "created": False, "reason": "already_initialized"}
     root.mkdir(parents=True, exist_ok=True)
     for directory in (
         "profile",
@@ -92,6 +100,12 @@ strong = {{model = "gpt-6-astra", effort = "high"}}
 
 [providers.alphavantage]
 daily_limit = 25
+
+[serve]
+port = 4790
+max_budget_usd = 2.0
+run_timeout_minutes = 30
+keep_runs = 50
 """,
     )
     examples = {

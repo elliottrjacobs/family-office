@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 from fo.errors import OfficeError
 from fo.lock import office_lock
 from fo.store.index import project
-from fo.store.jsonl import append, check_safe, identifier, now, read_rows
+from fo.store.jsonl import append, append_many, check_safe, identifier, now, read_rows
 from fo.store.records import validate
 
 
@@ -68,15 +68,25 @@ def synchronize(root, provider=None, dry_run=False, full=False, commit=False, be
                         )
                     )
                     continue
+                zone = ZoneInfo(config.get("office", {}).get("timezone", "UTC"))
                 if name == "schwab":
-                    adapter = Schwab(root)
+                    adapter = Schwab(root, timezone=zone)
                 else:
                     access = read_secrets(root).get("simplefin", {}).get("access_url")
                     if not access:
                         raise OfficeError("missing_credentials", "Run fo auth simplefin locally.")
-                    adapter = SimpleFIN(access)
+                    adapter = SimpleFIN(access, timezone=zone)
                 response = adapter.accounts(accounts, full=full)
-                results.append(ingest(root, name, response, dry_run=dry_run, locked=True))
+                results.append(
+                    ingest(
+                        root,
+                        name,
+                        response,
+                        dry_run=dry_run,
+                        locked=True,
+                        provider_errors=getattr(adapter, "error_count", 0),
+                    )
+                )
             except (OfficeError, ValueError, TypeError, KeyError, OSError) as exc:
                 failure = {
                     "run_id": identifier(),
@@ -99,10 +109,18 @@ def synchronize(root, provider=None, dry_run=False, full=False, commit=False, be
     return results
 
 
-def ingest(root, provider, accounts, dry_run=False, locked=False, import_hashes=None):
+def ingest(
+    root,
+    provider,
+    accounts,
+    dry_run=False,
+    locked=False,
+    import_hashes=None,
+    provider_errors=0,
+):
     if not locked:
         with office_lock(root):
-            return ingest(root, provider, accounts, dry_run, True, import_hashes)
+            return ingest(root, provider, accounts, dry_run, True, import_hashes, provider_errors)
     state = project(root)
     from fo.config import read_config
 
@@ -126,10 +144,31 @@ def ingest(root, provider, accounts, dry_run=False, locked=False, import_hashes=
         "ambiguous_transactions": [],
         "pending_missing_counts": {},
         "import_hashes": import_hashes or [],
+        "provider_errors": provider_errors,
     }
     pending = []
     latest = state["providers"].get(provider, {})
-    previous_tx = list(state["transactions"])
+    # Indexed lookups keep a multi-year import linear instead of quadratic.
+    known, by_provider_id, by_amount = {}, {}, {}
+
+    def remember(tx):
+        known[tx["transaction_id"]] = tx
+        for provider_id in tx["provider_ids"]:
+            by_provider_id.setdefault((tx["account_id"], provider_id), {})[tx["transaction_id"]] = (
+                tx
+            )
+        by_amount.setdefault((tx["account_id"], Decimal(tx["amount"])), {})[
+            tx["transaction_id"]
+        ] = tx
+
+    def forget(tx):
+        del known[tx["transaction_id"]]
+        for provider_id in tx["provider_ids"]:
+            by_provider_id[(tx["account_id"], provider_id)].pop(tx["transaction_id"], None)
+        by_amount[(tx["account_id"], Decimal(tx["amount"]))].pop(tx["transaction_id"], None)
+
+    for tx in state["transactions"]:
+        remember(tx)
     discoveries = read_rows(root, "data/accounts.jsonl")
     for account in accounts:
         account_id = account["account_id"]
@@ -208,25 +247,27 @@ def ingest(root, provider, accounts, dry_run=False, locked=False, import_hashes=
                     "payee",
                     "memo",
                     "symbol",
+                    "kind",
+                    "asset_type",
+                    "qty",
+                    "price",
+                    "fees",
                 )
             }
             if not row["provider_id"]:
                 raise OfficeError("invalid_transaction", "Transaction is missing its provider id.")
+            for key in ("qty", "price", "fees"):
+                if row[key] is not None:
+                    row[key] = decimal_text(row[key])
             row["amount"] = decimal_text(incoming["amount"])
             row["pending"] = bool(incoming.get("pending"))
             row["untrusted_fields"] = ["description", "payee", "memo"]
-            candidates = [
-                t
-                for t in previous_tx
-                if t["account_id"] == account_id and row["provider_id"] in t["provider_ids"]
-            ]
+            candidates = list(by_provider_id.get((account_id, row["provider_id"]), {}).values())
             if not candidates:
                 candidates = [
                     t
-                    for t in previous_tx
-                    if t["account_id"] == account_id
-                    and Decimal(t["amount"]) == Decimal(row["amount"])
-                    and t.get("transacted_at")
+                    for t in by_amount.get((account_id, Decimal(row["amount"])), {}).values()
+                    if t.get("transacted_at")
                     and row["transacted_at"]
                     and abs(
                         (
@@ -262,13 +303,13 @@ def ingest(root, provider, accounts, dry_run=False, locked=False, import_hashes=
             )
             pending.append(("data/transactions.jsonl", row))
             if prior:
-                previous_tx.remove(prior)
-            previous_tx.append(row)
+                forget(prior)
+            remember(row)
             seen_transactions.add(row["transaction_id"])
             log["transaction_rows"] += 1
         window = account.get("transaction_window")
         if window:
-            for prior in list(previous_tx):
+            for prior in list(known.values()):
                 tx_id = prior["transaction_id"]
                 if (
                     prior["account_id"] != account_id
@@ -293,14 +334,18 @@ def ingest(root, provider, accounts, dry_run=False, locked=False, import_hashes=
                         "status": "expired",
                     }
                     pending.append(("data/transactions.jsonl", expired))
-                    previous_tx.remove(prior)
-                    previous_tx.append(expired)
+                    forget(prior)
+                    remember(expired)
                     log["transaction_rows"] += 1
     for table, row in [*pending, ("data/sync_log.jsonl", log)]:
         check_safe(row)
         validate(table, row)
     if not dry_run:
+        batches = {}
         for table, row in pending:
-            append(root, table, row)
+            batches.setdefault(table, []).append(row)
+        # One durable append per table; the log row commits the run last.
+        for table, rows in batches.items():
+            append_many(root, table, rows)
         append(root, "data/sync_log.jsonl", log)
     return {**log, "dry_run": dry_run}

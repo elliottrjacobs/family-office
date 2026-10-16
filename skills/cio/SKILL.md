@@ -1,9 +1,9 @@
 ---
 name: cio
-description: Use for cio questions and reports; review evidence, assumptions, and
-  prior decisions.
+description: "Whole-portfolio investment decisions against the policy statement: allocation drift, rebalancing, concentration, performance, and where new money goes. Use for 'should we rebalance', 'how are we invested', 'where to put new cash'."
 metadata:
   tier: strong
+  group: household
   default-context: full
   allowed-context:
   - none
@@ -12,6 +12,7 @@ metadata:
   invocation: implicit
   args: <subject> [--deep]
   commands:
+  - performance
   - allocation
   - networth
   - cashflow

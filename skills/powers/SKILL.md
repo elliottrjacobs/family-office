@@ -1,9 +1,9 @@
 ---
 name: powers
-description: Use for powers questions and reports; review evidence, assumptions, and
-  prior decisions.
+description: "Score a company's moat with the powers playbook. Use for 'powers score', '7 Powers', or 'what durable competitive advantage does this business have'. Gives an evidence scorecard, never a mechanical buy or sell verdict."
 metadata:
   tier: balanced
+  group: playbooks
   default-context: none
   allowed-context:
   - none

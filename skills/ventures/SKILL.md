@@ -1,9 +1,9 @@
 ---
 name: ventures
-description: Use for ventures questions and reports; review evidence, assumptions,
-  and prior decisions.
+description: "Evaluate a private business or startup stake the household owns or may fund: unit economics, runway, governance, and household exposure. Use for 'my company', 'angel investment', 'should I put more into the business'."
 metadata:
   tier: balanced
+  group: specialists
   default-context: full
   allowed-context:
   - none

@@ -2,8 +2,10 @@ import json
 from pathlib import Path
 
 import jsonschema
+import yaml
 from typer.testing import CliRunner
 
+from fo import reports
 from fo.cli import app
 from fo.init import initialize
 from fo.providers.cache import Cache
@@ -52,28 +54,43 @@ def test_compute_json_contracts_and_golden_facts(tmp_path):
     }
     for key, value in payloads.items():
         cache.get(key, 86400, lambda value=value: value)
-    args = {
-        "networth": [],
-        "positions": [],
-        "allocation": [],
-        "spend": ["--month", "2026-08"],
-        "cashflow": [],
-        "goals": [],
-        "lots": ["ACME"],
-        "quote": ["ACME"],
-        "fundamentals": ["ACME"],
-        "filings": ["ACME", "--form", "10-K"],
-        "macro": ["CPIAUCSL"],
-        "screen": ["--concept", "Revenues", "--period", "CY2025", "--min", "1e9"],
-    }
+    report = reports.report_path(root, "research", "ACME")
+    report["frontmatter"].update(model="fixture", summary="Synthetic")
+    (root / report["path"]).parent.mkdir(parents=True)
+    (root / report["path"]).write_text(
+        "---\n" + yaml.safe_dump(report["frontmatter"]) + "---\nBody\n" + reports.CLOSING
+    )
+    # (command words, options, schema name); single-word commands name their own schema.
+    args = [
+        ("networth", [], None),
+        ("positions", [], None),
+        ("allocation", [], None),
+        ("spend", ["--month", "2026-08"], None),
+        ("cashflow", [], None),
+        ("goals", [], None),
+        ("lots", ["ACME"], None),
+        ("performance", ["--since", "2026-01-01"], None),
+        ("quote", ["ACME"], None),
+        ("fundamentals", ["ACME"], None),
+        ("filings", ["ACME", "--form", "10-K"], None),
+        ("macro", ["CPIAUCSL"], None),
+        ("screen", ["--concept", "Revenues", "--period", "CY2025", "--min", "1e9"], None),
+        ("skills list", [], "skills-list"),
+        ("reports list", [], "reports-list"),
+        ("report show", [report["path"]], "report-show"),
+        ("status", ["--lock"], None),
+        ("review", ["--dry-run"], None),
+    ]
     golden = json.loads(Path("tests/golden/command-facts.json").read_text())
-    for command, options in args.items():
+    for command, options, schema_name in args:
         response = CliRunner().invoke(
-            app, [command, *options, "--json", "--read-only", "--office", str(root)]
+            app, [*command.split(), *options, "--json", "--read-only", "--office", str(root)]
         )
-        assert response.exit_code == 0, response.output
+        assert response.exit_code == 0, (command, response.output)
         data = json.loads(response.output)
-        schema = json.loads(Path(f"src/fo/store/schemas/output/{command}.schema.json").read_text())
+        schema = json.loads(
+            Path(f"src/fo/store/schemas/output/{schema_name or command}.schema.json").read_text()
+        )
         jsonschema.validate(data, schema)
         observed = data
         if command == "quote":
@@ -82,7 +99,7 @@ def test_compute_json_contracts_and_golden_facts(tmp_path):
             observed = data["data"]["normalized"]
         if command == "macro":
             observed = data["data"]
-        for key, expected in golden[command].items():
+        for key, expected in golden.get(command, {}).items():
             actual = (
                 len(observed[key])
                 if isinstance(expected, int) and isinstance(observed[key], list)

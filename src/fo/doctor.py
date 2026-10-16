@@ -24,6 +24,21 @@ def diagnose(root):
             checks.append(check("profile." + name, "pass", "Schema valid."))
         except OfficeError as exc:
             checks.append(check("profile." + name, "fail", exc.message))
+    try:
+        from fo.compute import account_role
+
+        unknown = [a["id"] for a in load(root, "accounts")["accounts"] if not account_role(a)]
+        if unknown:
+            checks.append(
+                check(
+                    "accounts.roles",
+                    "warn",
+                    "Set role in profile/accounts.json so cash, allocation, and spend are exact: "
+                    + ", ".join(unknown),
+                )
+            )
+    except OfficeError:
+        pass
     secret_dir = contained(root, "secrets")
     bad = secret_dir.exists() and (secret_dir.stat().st_mode & 0o777 != 0o700)
     if secret_dir.exists():
@@ -77,6 +92,17 @@ def diagnose(root):
     try:
         state = project(root)
         checks.append(check("store.integrity", "pass", "Canonical records are valid."))
+        from fo.store.jsonl import torn
+
+        if torn(root):
+            checks.append(
+                check(
+                    "store.tail",
+                    "warn",
+                    "Interrupted append ignored; the next write removes the fragment: "
+                    + ", ".join(torn(root)),
+                )
+            )
         if not state["providers"]:
             checks.append(check("sync.age", "warn", "No completed account sync yet."))
         cadence = config.get("schedule", {}).get("sync_hours", 24)
@@ -91,6 +117,15 @@ def diagnose(root):
                     f"Last complete coverage check {max(0, age):.1f} hours ago.",
                 )
             )
+            if log.get("provider_errors"):
+                checks.append(
+                    check(
+                        "sync.errors." + provider,
+                        "warn",
+                        f"{log['provider_errors']} institution connection(s) reported errors; "
+                        "repair them at the provider.",
+                    )
+                )
         if state["stale_accounts"]:
             checks.append(
                 check(

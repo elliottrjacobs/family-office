@@ -20,6 +20,40 @@ def total(values):
     return None if any(v is None for v in items) else sum(items, Decimal(0))
 
 
+ROLES = ("investment", "cash", "credit", "loan", "property", "other")
+INVESTMENT_KINDS = {"trade", "dividend", "transfer", "corporate_action"}
+ROLE_WORDS = {
+    "investment": ("broker", "ira", "roth", "401", "403", "529", "hsa", "retire", "invest"),
+    "cash": ("checking", "saving", "cash", "money market", "money-market", "deposit"),
+    "credit": ("credit", "card"),
+    "loan": ("mortgage", "loan", "debt", "heloc"),
+    "property": ("property", "real estate", "real-estate", "vehicle"),
+}
+
+
+def account_role(account):
+    """Explicit registry role, else one inferred from the free-text type; None when unknown."""
+    if account.get("role"):
+        return account["role"]
+    label = (account.get("type") or "").casefold()
+    for role, words in ROLE_WORDS.items():
+        if any(word in label for word in words):
+            return role
+    return "investment" if account.get("provider") == "schwab" else None
+
+
+def cash_holdings(state, registry):
+    """Cash is the whole balance of cash accounts and the cash field of investment accounts."""
+    values = []
+    for row in state["balances"]:
+        role = account_role(registry.get(row["account_id"], {}))
+        if role == "cash":
+            values.append(number(row.get("net_value")))
+        elif role == "investment" or (role is None and row.get("cash") is not None):
+            values.append(number(row.get("cash")))
+    return total(values) if values else None
+
+
 def context(root, read_only=False, as_of=None):
     if as_of:
         date.fromisoformat(as_of)
@@ -88,7 +122,19 @@ def networth(root, by="account", as_of=None, read_only=False):
 
 def allocation(root, read_only=False):
     state = context(root, read_only)
-    worth = networth(root, read_only=read_only)["total"]
+    registry = {a["id"]: a for a in load(root, "accounts")["accounts"]}
+    # Weights are shares of investable assets; debts and property would distort policy bands.
+    investable, excluded, unknown_roles = [], [], []
+    for row in state["balances"]:
+        role = account_role(registry.get(row["account_id"], {}))
+        value = number(row.get("net_value"))
+        if role is None:
+            unknown_roles.append(row["account_id"])
+        if role in {"investment", "cash"} or (role is None and (value is None or value >= 0)):
+            investable.append(value)
+        else:
+            excluded.append(row["account_id"])
+    worth = total(investable) if investable else None
     policy = load(root, "ips")
     symbols = defaultdict(lambda: Decimal(0))
     unknown = set()
@@ -107,7 +153,7 @@ def allocation(root, read_only=False):
         members = [s for s in symbols if classes.get(s, s) == band["name"]]
         weight = total(weights[s] for s in members) if worth else None
         if band["name"].lower() == "cash":
-            cash = total(number(r.get("cash")) for r in state["balances"])
+            cash = cash_holdings(state, registry)
             weight = cash / worth if cash is not None and worth else None
         low, high = number(band["min"]), number(band["max"])
         drift = (
@@ -135,7 +181,25 @@ def allocation(root, read_only=False):
         bands=bands,
         unclassified=sorted(s for s in symbols if s not in classes),
         total=worth,
+        basis="investable_assets",
+        excluded_accounts=sorted(excluded),
+        unclassified_accounts=sorted(unknown_roles),
     )
+
+
+def positions(root, account=None, symbol=None, read_only=False):
+    state = context(root, read_only)
+    rows = [
+        p
+        for p in state["positions"]
+        if (not account or p["account_id"] == account) and (not symbol or p["symbol"] == symbol)
+    ]
+    return {
+        "positions": rows,
+        "as_of": min((p["as_of"] for p in rows), default=None),
+        "stale_accounts": state["stale_accounts"],
+        "stale_providers": state["stale_providers"],
+    }
 
 
 def categorized(root, state=None):
@@ -178,7 +242,10 @@ def spend(root, month, category=None, read_only=False):
     except ValueError as exc:
         raise OfficeError("invalid_month", "Use YYYY-MM.") from exc
     state = context(root, read_only)
-    rows = [
+    income_categories = {
+        r["category"].casefold() for r in load(root, "categories")["rules"] if r.get("income")
+    }
+    dated = [
         t
         for t in categorized(root, state)
         if (t.get("posted_date") or t.get("transacted_at") or "").startswith(month)
@@ -187,17 +254,27 @@ def spend(root, month, category=None, read_only=False):
         and not t["transfer"]
         and (not category or t["category"] == category)
     ]
-    expense = [t for t in rows if number(t["amount"]) < 0]
+    # Trades, dividends, and funding transfers are portfolio activity, not household spending.
+    rows = [t for t in dated if t.get("kind") not in INVESTMENT_KINDS]
     groups = defaultdict(lambda: Decimal(0))
-    for tx in expense:
-        groups[tx["category"]] -= number(tx["amount"])
+    income = Decimal(0)
+    for tx in rows:
+        value, name = number(tx["amount"]), tx["category"].casefold()
+        if value > 0 and (
+            name in income_categories or name.startswith("income") or name == "needs-review"
+        ):
+            income += value
+        else:
+            # A refund lowers its category instead of inflating income.
+            groups[tx["category"]] -= value
     return envelope(
         state,
         month=month,
         spend=sum(groups.values(), Decimal(0)),
-        income=sum((number(t["amount"]) for t in rows if number(t["amount"]) > 0), Decimal(0)),
+        income=income,
         categories=dict(groups),
         transaction_count=len(rows),
+        excluded_investment_transactions=len(dated) - len(rows),
     )
 
 
@@ -262,6 +339,15 @@ def goals(root, read_only=False):
     return envelope(state, goals=rows)
 
 
+def held_long(acquired, today):
+    """Long-term means disposed after the one-year anniversary, not after 365 days."""
+    try:
+        anniversary = acquired.replace(year=acquired.year + 1)
+    except ValueError:
+        anniversary = acquired.replace(year=acquired.year + 1, day=28)
+    return today > anniversary
+
+
 def lots(root, symbol, read_only=False):
     state = context(root, read_only)
     rows = []
@@ -281,7 +367,7 @@ def lots(root, symbol, read_only=False):
                 "gain": number(p["value"]) - basis
                 if basis is not None and p.get("value") is not None
                 else None,
-                "holding_period": ("long" if (date.today() - acquired).days > 365 else "short")
+                "holding_period": ("long" if held_long(acquired, date.today()) else "short")
                 if sourced
                 else None,
                 "reason": None if sourced and basis is not None else "missing_lot_evidence",

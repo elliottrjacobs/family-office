@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "skills",
+    "agents"
+  ],
+  "properties": {
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "group",
+          "tier",
+          "default_context",
+          "allowed_context",
+          "invocation",
+          "args",
+          "deep",
+          "commands",
+          "report_kind"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "group": {
+            "enum": [
+              "household",
+              "research",
+              "specialists",
+              "routine",
+              "playbooks"
+            ]
+          },
+          "tier": {
+            "enum": [
+              "fast",
+              "balanced",
+              "strong"
+            ]
+          },
+          "default_context": {
+            "enum": [
+              "none",
+              "household",
+              "full"
+            ]
+          },
+          "allowed_context": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "none",
+                "household",
+                "full"
+              ]
+            }
+          },
+          "invocation": {
+            "enum": [
+              "implicit",
+              "explicit"
+            ]
+          },
+          "args": {
+            "type": "string"
+          },
+          "deep": {
+            "type": "boolean"
+          },
+          "commands": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "report_kind": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "agents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "tier"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "tier": {
+            "enum": [
+              "fast",
+              "balanced",
+              "strong"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

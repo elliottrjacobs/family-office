@@ -175,3 +175,29 @@ def test_separate_identical_purchases_are_not_collapsed(office):
     ]
     ingest(office, "fixture", data)
     assert len(project(office)["transactions"]) == 2
+
+
+def test_interrupted_append_is_ignored_then_removed(office):
+    ingest(office, "fixture", snapshot({"ACME": 100}))
+    path = office / "data/positions.jsonl"
+    whole = path.read_bytes()
+    with path.open("ab") as stream:
+        stream.write('{"account_id":"a","symbol":"BÉ'.encode()[:-1])
+    assert [p["symbol"] for p in project(office)["positions"]] == ["ACME"]
+    from fo.doctor import diagnose
+
+    assert any(c["name"] == "store.tail" and c["status"] == "warn" for c in diagnose(office))
+    ingest(office, "fixture", snapshot({"BETA": 5}))
+    assert path.read_bytes().startswith(whole)
+    assert len(read_rows(office, "data/positions.jsonl")) == 2
+    assert [p["symbol"] for p in project(office)["positions"]] == ["BETA"]
+
+
+def test_provider_errors_are_counted_and_missing_account_goes_stale(office):
+    both = snapshot({"ACME": 100}) + [{**snapshot({"BETA": 1})[0], "account_id": "b"}]
+    ingest(office, "fixture", both)
+    ingest(office, "fixture", snapshot({"ACME": 101}), provider_errors=1)
+    assert project(office)["stale_accounts"] == ["b"]
+    from fo.doctor import diagnose
+
+    assert any(c["name"] == "sync.errors.fixture" for c in diagnose(office))

@@ -15,7 +15,7 @@ jobs:
       - run: uv sync --locked
       - run: uv run ruff check .
       - run: uv run ruff format --check .
-      - run: uv run pytest
+      - run: uv run pytest --cov=fo --cov-report=term-missing:skip-covered --cov-fail-under=78
       - run: uv run python scripts/lint_office_paths.py
       - run: uv run python scripts/lint_skills.py skills/ AGENTS.md
       - run: uv build
@@ -23,3 +23,28 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  app:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: app/.nvmrc
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: Committed build matches app/
+        working-directory: .
+        run: |
+          changes="$(git status --porcelain -- src/fo/data/app)"
+          if [ -n "$changes" ]; then
+            echo "$changes"
+            echo "Run npm run build in app/ and commit src/fo/data/app."
+            exit 1
+          fi

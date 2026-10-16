@@ -7,6 +7,29 @@ and reviews; correction retirement appends an event instead of deleting history.
 Reports retain their original text. `store.sqlite` is a disposable projection;
 `cache/cache.sqlite` holds expendable market responses and daily request budgets.
 
+## Account roles
+
+Each entry in `profile/accounts.json` may carry a `role`: `investment`, `cash`,
+`credit`, `loan`, `property`, or `other`. Without one, the role is inferred from
+the free-text `type` (Schwab accounts default to `investment`). Allocation weights
+divide by investable assets (investment and cash accounts), the cash band counts
+bank balances plus brokerage cash, and `fo doctor` warns about accounts whose role
+is unknown. `fo spend` ignores trades, dividends, and funding transfers, and a
+refund lowers its category. Mark an income rule with `income: true` in
+`profile/categories.yaml`.
+
+## Companion app settings
+
+`fo serve` reads an optional `[serve]` table in `office.toml`: `port` (default
+4790), `tailnet_name` (the name `tailscale serve` answers on, required for
+`--remote`), `allowed_logins` (Tailscale logins allowed with `--remote`), and for
+chat `max_budget_usd`, `run_timeout_minutes`, and `keep_runs`. The dashboard reads
+profiles, reports, notebook events, and canonical data in read-only mode. Writes
+from the page go through `fo journal` and `fo corrections`. Advisor runs write
+reports under `reports/` and notebook events through `fo`, and keep their records
+and event logs in the ignored `cache/serve/runs/`, which is disposable; durable
+results stay in `reports/` and `notebook/`.
+
 ## Agent-owned setup and cutover
 
 The agent runs setup and diagnostics, handles account discovery, and reconciles

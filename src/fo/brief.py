@@ -5,6 +5,62 @@ from fo.errors import OfficeError
 from fo.skills import assets, parse_skill
 from fo.store.authored import load
 
+# What an advisor reads at each context level, shown in the companion app. Keep it beside
+# brief(): tests/test_brief_levels.py traces the files brief() opens and fails on drift.
+_NOTEBOOK = ["notebook/corrections.md", "notebook/decisions.jsonl"]
+_STATE = [
+    "office.toml",
+    "profile/accounts.json",
+    "profile/ips.json",
+    "data/balances.jsonl",
+    "data/positions.jsonl",
+    "data/sync_log.jsonl",
+    "data/transactions.jsonl",
+    "data/voids.jsonl",
+]
+LEVELS = {
+    "none": {
+        "summary": "No household data",
+        "reads": [
+            "Standing corrections for this advisor and subject",
+            "Open decisions on the subject",
+        ],
+        "files": _NOTEBOOK,
+    },
+    "household": {
+        "summary": "A short brief, about 500 tokens",
+        "reads": [
+            "Standing corrections for this advisor and subject",
+            "Open decisions on the subject, plus up to five others",
+            "Holdings weights and the investment policy",
+            "Total cash and stale accounts",
+            "A lot summary for the subject",
+        ],
+        "files": _NOTEBOOK + _STATE,
+    },
+    "full": {
+        "summary": "The whole profile",
+        "reads": [
+            "Every standing correction",
+            "Open decisions on the subject, plus up to five others",
+            "Holdings weights and the investment policy",
+            "Total cash and stale accounts",
+            "Household members and businesses",
+            "Goals and tax notes",
+            "Three months of cash flow",
+            "A lot summary for the subject",
+        ],
+        "files": _NOTEBOOK
+        + _STATE
+        + [
+            "profile/household.md",
+            "profile/goals.json",
+            "profile/tax.json",
+            "profile/categories.yaml",
+        ],
+    },
+}
+
 
 def estimate(value):
     return (len(json.dumps(value, default=str, separators=(",", ":"))) + 3) // 4
@@ -75,7 +131,8 @@ def brief(root, level="household", subject=None, skill=None, full=False):
     return result
 
 
-def start(root, skill, subject, level=None):
+def start(root, skill, subject, level=None, report=None):
+    """Brief, prior report, and report path for a skill run; report pins a resumed run."""
     reports.component(skill)
     path = assets("skills") / skill / "SKILL.md"
     if not path.is_file():
@@ -89,7 +146,9 @@ def start(root, skill, subject, level=None):
     for key, operation in {
         "brief": lambda: brief(root, level, subject, skill),
         "prior": lambda: reports.prior(root, subject, settings.get("report-kind", skill)),
-        "report": lambda: reports.report_path(root, settings.get("report-kind", skill), subject),
+        "report": lambda: reports.report_path(
+            root, settings.get("report-kind", skill), subject, report=report
+        ),
     }.items():
         try:
             result[key] = {"status": "ok", "data": operation()}

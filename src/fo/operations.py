@@ -8,7 +8,7 @@ from pathlib import Path
 
 from fo.config import read_config
 from fo.errors import OfficeError
-from fo.lock import office_lock
+from fo.lock import office_lock, probe
 from fo.office import atomic_write, contained
 
 
@@ -82,4 +82,18 @@ def schedule(root):
         "jobs": created,
         "installed": False,
         "note": "Definitions prepared; load only after the office runtime is pinned and cutover is approved.",
+    }
+
+
+def status(root, read_only=False, lock=False):
+    """Office path, last sync row, and writer-host match; the lock state only on request."""
+    from fo.store.jsonl import read_rows
+
+    rows = read_rows(root, "data/sync_log.jsonl")
+    return {
+        "office": str(root),
+        "read_only": read_only,
+        "writer_host": read_config(root).get("hosts", {}).get("writer") == platform.node(),
+        "last_sync": rows[-1] if rows else None,
+        "lock": {"held": probe(root)} if lock else None,
     }

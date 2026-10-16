@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "reports",
+    "parse_errors"
+  ],
+  "properties": {
+    "reports": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "frontmatter",
+          "summary"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^reports/(?!.*\\.parts/).+\\.md$"
+          },
+          "frontmatter": {
+            "type": "object",
+            "required": [
+              "kind",
+              "subject",
+              "date"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string"
+              },
+              "subject": {
+                "type": "string"
+              },
+              "date": {
+                "type": "string"
+              }
+            }
+          },
+          "summary": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "parse_errors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

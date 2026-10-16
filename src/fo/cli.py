@@ -1,6 +1,3 @@
-import json
-import sqlite3
-import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
@@ -10,10 +7,11 @@ from fo import __version__
 from fo.commands import register
 from fo.config import public_config
 from fo.doctor import diagnose
+from fo.envelope import SAFE_FAILURES, encode, failure
 from fo.errors import OfficeError
 from fo.init import initialize
 from fo.lock import office_lock
-from fo.office import discover
+from fo.office import discover, run_office
 
 
 class OfficeGroup(typer.core.TyperGroup):
@@ -35,6 +33,8 @@ class OfficeGroup(typer.core.TyperGroup):
             else:
                 rest.append(arg)
             index += 1
+        # The advisor-run guard in main() needs the command words without global flags.
+        ctx.meta["fo.args"] = rest
         return super().parse_args(ctx, global_args + rest)
 
 
@@ -56,7 +56,7 @@ def emit(ctx, result):
     if "full" in ctx.obj and not ctx.obj["full"]:
         result = summary(result)
     if ctx.obj["json"]:
-        typer.echo(json.dumps(result, ensure_ascii=False, default=str))
+        typer.echo(encode(result))
     elif isinstance(result, str):
         typer.echo(result)
     else:
@@ -68,26 +68,9 @@ def run(ctx, operation: Callable):
         result = operation()
         emit(ctx, result)
         return result
-    except OfficeError as exc:
-        emit(ctx, {"reason": exc.reason, "message": exc.message})
-        raise typer.Exit(1) from exc
-    except (
-        OSError,
-        ValueError,
-        KeyError,
-        TypeError,
-        ArithmeticError,
-        sqlite3.Error,
-        subprocess.TimeoutExpired,
-    ) as exc:
-        # Do not expose paths, input snippets, provider bodies, or credentials.
-        emit(
-            ctx,
-            {
-                "reason": "operation_failed",
-                "message": "Operation failed; check configuration and file permissions.",
-            },
-        )
+    except (OfficeError, *SAFE_FAILURES) as exc:
+        # The envelope never exposes paths, input snippets, provider bodies, or credentials.
+        emit(ctx, failure(exc))
         raise typer.Exit(1) from exc
 
 
@@ -114,6 +97,11 @@ def main(
     if version:
         typer.echo("family-office " + __version__)
         raise typer.Exit()
+    try:
+        ctx.obj["office"] = run_office(office, ctx.meta.get("fo.args", []))
+    except OfficeError as exc:
+        emit(ctx, failure(exc))
+        raise typer.Exit(1) from exc
 
 
 @app.command("init")
@@ -165,6 +153,18 @@ def config_command(ctx: typer.Context):
     run(ctx, lambda: public_config(root(ctx)))
 
 
+@app.command("status")
+def status_command(
+    ctx: typer.Context,
+    lock: bool = typer.Option(
+        False, "--lock", help="Probe the office lock; a writer starting meanwhile fails."
+    ),
+):
+    from fo.operations import status
+
+    run(ctx, lambda: status(root(ctx), ctx.obj["read_only"], lock))
+
+
 @skills_app.command("sync")
 def sync_skills(ctx: typer.Context):
     from fo.skills import sync
@@ -176,6 +176,13 @@ def sync_skills(ctx: typer.Context):
             return sync(office)
 
     run(ctx, execute)
+
+
+@skills_app.command("list")
+def list_skills(ctx: typer.Context):
+    from fo.skills import registry
+
+    run(ctx, registry)
 
 
 @app.command("skill")
@@ -251,19 +258,28 @@ def positions(
     full: bool = False,
 ):
     ctx.obj["full"] = full
-    from fo.compute import context
+    from fo.compute import positions as compute_positions
 
-    def execute():
-        state = context(root(ctx), ctx.obj["read_only"])
-        state["positions"] = [
-            p
-            for p in state["positions"]
-            if (not account or p["account_id"] == account) and (not symbol or p["symbol"] == symbol)
-        ]
-        state["as_of"] = min((p["as_of"] for p in state["positions"]), default=None)
-        return {k: state[k] for k in ("positions", "as_of", "stale_accounts", "stale_providers")}
+    run(ctx, lambda: compute_positions(root(ctx), account, symbol, ctx.obj["read_only"]))
 
-    run(ctx, execute)
+
+@app.command("serve")
+def serve_command(
+    ctx: typer.Context,
+    port: int | None = typer.Option(None, help="Default 4790, or port under serve in office.toml."),
+    host: str | None = typer.Option(None, help="Bind address; anything but loopback warns."),
+    remote: bool = typer.Option(
+        False, "--remote", help="Also accept the tailnet name configured for tailscale serve."
+    ),
+    open_browser: bool = typer.Option(False, "--open", help="Open the app in a browser."),
+):
+    """Start the companion web app for this office on 127.0.0.1."""
+    from fo.serve import serve
+
+    run(
+        ctx,
+        lambda: serve(ctx.obj["office"], port, host, remote, open_browser, ctx.obj["read_only"]),
+    )
 
 
 @app.command("commit")

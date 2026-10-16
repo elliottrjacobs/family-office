@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "office",
+    "read_only",
+    "writer_host",
+    "last_sync",
+    "lock"
+  ],
+  "properties": {
+    "office": {
+      "type": "string"
+    },
+    "read_only": {
+      "type": "boolean"
+    },
+    "writer_host": {
+      "type": "boolean"
+    },
+    "last_sync": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "as_of": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        }
+      }
+    },
+    "lock": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "held"
+      ],
+      "properties": {
+        "held": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

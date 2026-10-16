@@ -1,9 +1,9 @@
 ---
 name: piotroski
-description: Use for piotroski questions and reports; review evidence, assumptions,
-  and prior decisions.
+description: "Score a company with the piotroski playbook. Use for 'piotroski score', 'F-score', or 'is the balance sheet and profitability improving or deteriorating'. Gives an evidence scorecard, never a mechanical buy or sell verdict."
 metadata:
   tier: balanced
+  group: playbooks
   default-context: none
   allowed-context:
   - none

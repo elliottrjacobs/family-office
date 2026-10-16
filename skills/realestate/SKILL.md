@@ -1,9 +1,9 @@
 ---
 name: realestate
-description: Use for realestate questions and reports; review evidence, assumptions,
-  and prior decisions.
+description: "Evaluate a property purchase, rental, or sale: cash flows, vacancy, maintenance, financing, liquidity, and exit. Use for 'should we buy this house', 'rent versus buy', 'is this rental worth it', 'refinance'."
 metadata:
   tier: balanced
+  group: specialists
   default-context: household
   allowed-context:
   - none

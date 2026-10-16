@@ -1,9 +1,9 @@
 ---
 name: lead-edge-eight
-description: Use for lead edge eight questions and reports; review evidence, assumptions,
-  and prior decisions.
+description: "Score a growth company with the lead-edge-eight playbook. Use for 'lead-edge-eight score', 'Lead Edge eight criteria', or 'does this growth business pass the checklist'. Gives an evidence scorecard, never a mechanical buy or sell verdict."
 metadata:
   tier: balanced
+  group: playbooks
   default-context: none
   allowed-context:
   - none

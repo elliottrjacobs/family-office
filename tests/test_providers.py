@@ -105,3 +105,158 @@ def test_sync_wrong_writer_and_offline_failure(tmp_path):
     assert result.returncode != 0
     assert json.loads(result.stdout)["reason"] == "not_writer"
     assert (root / "data/sync_log.jsonl").read_text() == ""
+
+
+def test_simplefin_institution_error_keeps_healthy_accounts():
+    body = {
+        "accounts": [
+            {"id": "bridge-a", "balance": "15.20", "balance-date": 1789200000, "transactions": []}
+        ],
+        "errors": ["Connection to Example Bank needs attention SECRET"],
+    }
+    client = SimpleFIN(
+        "https://user:SECRET@bridge.example/base",
+        transport=httpx.MockTransport(lambda req: httpx.Response(200, json=body)),
+    )
+    rows = client.accounts([{"id": "a", "provider_ref": "bridge-a", "last4": ""}])
+    assert [r["account_id"] for r in rows] == ["a"]
+    assert client.error_count == 1
+    empty = SimpleFIN(
+        "https://user:SECRET@bridge.example/base",
+        transport=httpx.MockTransport(
+            lambda req: httpx.Response(200, json={"accounts": [], "errors": ["down"]})
+        ),
+    )
+    with pytest.raises(OfficeError):
+        empty.accounts([])
+
+
+def test_schwab_transaction_keeps_trade_detail_in_office_time():
+    from zoneinfo import ZoneInfo
+
+    from fo.providers.schwab import normalize_transaction
+
+    row = normalize_transaction(
+        {
+            "activityId": 42,
+            "accountNumber": "123456789",
+            "type": "TRADE",
+            "status": "VALID",
+            "tradeDate": "2026-09-02T01:30:00+0000",
+            "settlementDate": "2026-09-03T04:00:00+0000",
+            "netAmount": -1001.5,
+            "transferItems": [
+                {"instrument": {"assetType": "CURRENCY"}, "amount": -1001.5},
+                {"feeType": "COMMISSION", "cost": -1.5, "instrument": {"assetType": "CURRENCY"}},
+                {
+                    "instrument": {"symbol": "ACME", "assetType": "EQUITY"},
+                    "amount": 10,
+                    "price": 100,
+                },
+            ],
+        },
+        ZoneInfo("America/New_York"),
+    )
+    assert row["transacted_at"] == "2026-09-01"
+    assert (row["kind"], row["symbol"], row["qty"], row["price"], row["fees"]) == (
+        "trade",
+        "ACME",
+        "10",
+        "100",
+        "1.5",
+    )
+    assert "123456789" not in json.dumps(row)
+
+
+def test_schwab_option_price_is_per_share():
+    raw = [
+        {
+            "securitiesAccount": {
+                "accountNumber": "123456789",
+                "currentBalances": {"liquidationValue": 500, "cashBalance": 0},
+                "positions": [
+                    {
+                        "instrument": {"symbol": "ACME 270115C00100000", "assetType": "OPTION"},
+                        "longQuantity": 2,
+                        "marketValue": 500,
+                    }
+                ],
+            }
+        }
+    ]
+    result = normalize_accounts(raw, [{"id": "a", "last4": "6789", "provider": "schwab"}])
+    assert result[0]["positions"][0]["price"] == "2.5"
+
+
+def test_simplefin_dates_use_office_timezone():
+    from zoneinfo import ZoneInfo
+
+    body = {
+        "accounts": [
+            {
+                "id": "bridge-a",
+                "balance": "1",
+                "balance-date": 1789200000,
+                "transactions": [
+                    {"id": "t", "amount": "-5", "posted": 1788222600, "description": "Cafe"}
+                ],
+            }
+        ]
+    }
+    client = SimpleFIN(
+        "https://user:SECRET@bridge.example/base",
+        transport=httpx.MockTransport(lambda req: httpx.Response(200, json=body)),
+        timezone=ZoneInfo("America/New_York"),
+    )
+    tx = client.accounts([{"id": "a", "provider_ref": "bridge-a", "last4": ""}])[0]["transactions"]
+    # 2026-09-01T00:30Z is still 31 August in New York.
+    assert tx[0]["posted_date"] == "2026-08-31"
+
+
+def test_schwab_accounts_with_fake_client_maps_hashes_and_hides_failures(tmp_path):
+    from fo.providers.schwab import Schwab
+
+    root = tmp_path / "office"
+    initialize(root)
+    secrets = root / "secrets"
+    secrets.mkdir(mode=0o700, exist_ok=True)
+    (secrets / "keys.toml").write_text('[schwab.account_hashes]\na = "HASH-A"\n')
+
+    class Response:
+        def __init__(self, body, fail=False):
+            self.body, self.fail = body, fail
+
+        def raise_for_status(self):
+            if self.fail:
+                raise RuntimeError("SECRET 123456789")
+
+        def json(self):
+            return self.body
+
+    class Client:
+        fail = False
+
+        def get_accounts(self, fields=None):
+            account = {
+                "accountNumber": "123456789",
+                "currentBalances": {"liquidationValue": 100, "cashBalance": 100},
+            }
+            return Response([{"securitiesAccount": account}])
+
+        def get_transactions(self, account_hash, start_date=None, end_date=None):
+            assert account_hash == "HASH-A"
+            body = [{"activityId": 7, "type": "ACH_RECEIPT", "netAmount": 50, "time": "2026-09-02"}]
+            return Response(body, self.fail)
+
+    registry = [{"id": "a", "last4": "6789", "provider": "schwab"}]
+    rows = Schwab(root, client=Client()).accounts(registry)
+    assert rows[0]["transactions"][0]["kind"] == "transfer"
+    assert rows[0]["transaction_window"]["start"] < rows[0]["transaction_window"]["end"]
+    assert "HASH-A" not in json.dumps(rows) and "123456789" not in json.dumps(rows)
+    broken = Client()
+    broken.fail = True
+    with pytest.raises(OfficeError) as caught:
+        Schwab(root, client=broken).accounts(registry)
+    assert "SECRET" not in str(caught.value)
+    with pytest.raises(OfficeError, match="hash mapping"):
+        Schwab(root, client=Client()).accounts([{**registry[0], "id": "b"}])

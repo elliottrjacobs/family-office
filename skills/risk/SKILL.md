@@ -1,9 +1,9 @@
 ---
 name: risk
-description: Use for risk questions and reports; review evidence, assumptions, and
-  prior decisions.
+description: "Stress-test the household portfolio: concentration, liquidity, leverage, correlation assumptions, policy violations, and downside scenarios. Use for 'what is my biggest risk', 'too concentrated in X', 'what if markets fall 30%'."
 metadata:
   tier: balanced
+  group: specialists
   default-context: full
   allowed-context:
   - none
@@ -12,6 +12,7 @@ metadata:
   invocation: implicit
   args: <subject>
   commands:
+  - performance
   - allocation
   - concentration
   - networth

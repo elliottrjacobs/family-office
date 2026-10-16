@@ -1,9 +1,9 @@
 ---
 name: briefing
-description: Use for briefing questions and reports; review evidence, assumptions,
-  and prior decisions.
+description: "Quick read-only status from cached data: holdings, sync coverage, last review, and quotes. Use for 'brief me', 'morning briefing', 'where do things stand'. No web search and no new analysis."
 metadata:
   tier: balanced
+  group: routine
   default-context: household
   allowed-context:
   - none

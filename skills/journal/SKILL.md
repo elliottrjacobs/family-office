@@ -1,9 +1,9 @@
 ---
 name: journal
-description: Use for journal questions and reports; review evidence, assumptions,
-  and prior decisions.
+description: "Record an investment decision with its thesis, invalidation conditions, and conviction so it can be reviewed later. Use for 'log this decision', 'journal that I bought X', 'write down my thesis'."
 metadata:
   tier: fast
+  group: routine
   default-context: none
   allowed-context:
   - none

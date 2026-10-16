@@ -59,7 +59,9 @@ def read_rows(root, table):
         return []
     rows = []
     try:
-        for line in path.read_text().splitlines():
+        # An unterminated tail is an interrupted append, never a committed record.
+        raw = path.read_bytes()
+        for line in raw[: raw.rfind(b"\n") + 1].decode().splitlines():
             if line.strip():
                 item = json.loads(line)
                 if not isinstance(item, dict):
@@ -75,26 +77,53 @@ def read_rows(root, table):
     return rows
 
 
+def torn(root):
+    """Tables whose last append was interrupted before its newline."""
+    result = []
+    for table in sorted(TABLES):
+        path = contained(root, table)
+        if path.exists() and path.stat().st_size:
+            with path.open("rb") as stream:
+                stream.seek(-1, os.SEEK_END)
+                if stream.read(1) != b"\n":
+                    result.append(table)
+    return result
+
+
 def append(root, table, row):
+    append_many(root, table, [row])
+
+
+def append_many(root, table, rows):
+    """Validate every row, then write them with one durable append."""
     if table not in TABLES:
         raise OfficeError("unknown_table", "Unknown canonical table.")
-    check_safe(row)
-    validate(table, row)
-    try:
-        timestamp = datetime.fromisoformat(row["as_of"].replace("Z", "+00:00"))
-        if timestamp.tzinfo is None:
-            raise ValueError("timezone required")
-    except (KeyError, ValueError, TypeError, AttributeError) as exc:
-        raise OfficeError(
-            "invalid_record", "Every canonical row requires an RFC3339 timestamp with a timezone."
-        ) from exc
-    content = (
-        json.dumps(row, ensure_ascii=False, allow_nan=False, separators=(",", ":")) + "\n"
-    ).encode()
+    content = b""
+    for row in rows:
+        check_safe(row)
+        validate(table, row)
+        try:
+            timestamp = datetime.fromisoformat(row["as_of"].replace("Z", "+00:00"))
+            if timestamp.tzinfo is None:
+                raise ValueError("timezone required")
+        except (KeyError, ValueError, TypeError, AttributeError) as exc:
+            raise OfficeError(
+                "invalid_record",
+                "Every canonical row requires an RFC3339 timestamp with a timezone.",
+            ) from exc
+        content += (
+            json.dumps(row, ensure_ascii=False, allow_nan=False, separators=(",", ":")) + "\n"
+        ).encode()
+    if not content:
+        return
     path = contained(root, table)
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+    fd = os.open(path, os.O_RDWR | os.O_APPEND | os.O_CREAT, 0o600)
     try:
+        size = os.fstat(fd).st_size
+        if size and os.pread(fd, 1, size - 1) != b"\n":
+            # Drop the fragment so the new record cannot fuse with it.
+            os.ftruncate(fd, os.pread(fd, size, 0).rfind(b"\n") + 1)
         view = memoryview(content)
         while view:
             written = os.write(fd, view)

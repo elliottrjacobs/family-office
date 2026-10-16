@@ -1,9 +1,9 @@
 ---
 name: scout
-description: Use for scout questions and reports; review evidence, assumptions, and
-  prior decisions.
+description: "Find new investment candidates by turning an idea into an explicit screen over SEC data and a universe. Use for 'find me stocks like X', 'screen for Y', 'what should I look at next'. Produces candidates, not recommendations."
 metadata:
   tier: balanced
+  group: research
   default-context: household
   allowed-context:
   - none

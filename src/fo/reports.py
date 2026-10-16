@@ -1,3 +1,4 @@
+import os
 import re
 from datetime import date
 from pathlib import Path
@@ -18,7 +19,8 @@ def component(value):
     return value
 
 
-def parse(path, root):
+def split(path, root):
+    """Relative path, frontmatter, and body; legacy files take identity from their path."""
     text = path.read_text()
     relative = path.relative_to(root).as_posix()
     if text.startswith("---\n"):
@@ -43,11 +45,47 @@ def parse(path, root):
         raise ValueError("missing identity")
     meta["date"] = str(meta["date"])
     date.fromisoformat(meta["date"][:10])
+    return relative, meta, body
+
+
+def parse(path, root):
+    relative, meta, body = split(path, root)
     return {
         "path": relative,
         "frontmatter": meta,
         "summary": str(meta.get("summary", body.strip()[:240])),
     }
+
+
+def report_file(root, path):
+    """A main report under reports/, never a part, a symlink, or anything that escapes."""
+    target = Path(path)
+    if target.is_absolute():
+        try:
+            target = target.relative_to(root)
+        except ValueError as exc:
+            raise OfficeError("unsafe_path", "Report is outside the office.") from exc
+    relative = os.path.normpath(target.as_posix())
+    if (
+        not relative.startswith("reports/")
+        or not relative.endswith(".md")
+        or ".parts" in relative
+        or not contained(root, relative).resolve().is_relative_to((root / "reports").resolve())
+    ):
+        raise OfficeError("unsafe_path", "Choose a report file under reports/.")
+    return relative
+
+
+def show(root, path):
+    relative = report_file(root, path)
+    file = contained(root, relative)
+    if not file.is_file():
+        raise OfficeError("unknown_report", "Report does not exist.")
+    try:
+        _, meta, body = split(file, root)
+    except (ValueError, TypeError, yaml.YAMLError) as exc:
+        raise OfficeError("invalid_report", "Report frontmatter is unreadable.") from exc
+    return {"path": relative, "frontmatter": meta, "body": body.lstrip("\n")}
 
 
 def scan(root):
@@ -75,18 +113,36 @@ def prior(root, subject, kind=None, exclude=None, before=None):
     return max(rows, key=lambda r: (r["frontmatter"]["date"], r["path"]), default=None)
 
 
-def report_path(root, kind, subject, slug="report", part=None):
-    kind, subject, slug = map(component, (kind, subject, slug))
-    base = f"reports/{kind}/{subject}/{date.today().isoformat()}-{slug}"
-    path, counter = base + ".md", 1
-    while contained(root, path).exists():
-        counter += 1
-        path = f"{base}_{counter:03}.md"
-    previous = prior(root, subject, kind)
+def pinned(root, report, kind=None, subject=None):
+    """A previously allocated report path that a resumed run keeps writing to."""
+    relative = report_file(root, report)
+    match = re.fullmatch(r"reports/([^/]+)/([^/]+)/(\d{4}-\d{2}-\d{2})-[^/]+\.md", relative)
+    if not match:
+        raise OfficeError("report_path", "Report path does not follow the convention.")
+    if (kind and component(kind) != match[1]) or (subject and component(subject) != match[2]):
+        raise OfficeError("report_path", "The pinned report belongs to another kind or subject.")
+    return relative, match[1], match[2], match[3]
+
+
+def report_path(root, kind=None, subject=None, slug="report", part=None, report=None):
+    if report:
+        path, kind, subject, day = pinned(root, report, kind, subject)
+        previous = prior(root, subject, kind, path, (day, path))
+    elif kind and subject:
+        kind, subject, slug = map(component, (kind, subject, slug))
+        day = date.today().isoformat()
+        base = f"reports/{kind}/{subject}/{day}-{slug}"
+        path, counter = base + ".md", 1
+        while contained(root, path).exists():
+            counter += 1
+            path = f"{base}_{counter:03}.md"
+        previous = prior(root, subject, kind)
+    else:
+        raise OfficeError("invalid_report", "Pass --kind and --subject, or --report PATH.")
     meta = {
         "kind": kind,
         "subject": subject,
-        "date": date.today().isoformat(),
+        "date": day,
         "model": "",
         "context_level": "none",
         "playbooks": [],
@@ -142,8 +198,12 @@ def verify(root, path):
     return {"valid": True, "path": row["path"]}
 
 
-def parts(root, kind, subject, slug="report"):
-    """Read-only resume manifest; workers never write their own output."""
+def parts(root, kind=None, subject=None, slug="report", report=None):
+    """Read-only resume manifest; workers never write their own output.
+
+    A pinned report keeps its own part directory, so a resume on a later day, or after the
+    main file exists, still finds the blocks already written.
+    """
     names = [
         "fundamentals-analyst",
         "competitive-analyst",
@@ -151,7 +211,7 @@ def parts(root, kind, subject, slug="report"):
         "risk-analyst",
         "sentiment-analyst",
     ]
-    result = {name: report_path(root, kind, subject, slug, name)["path"] for name in names}
+    result = {name: report_path(root, kind, subject, slug, name, report)["path"] for name in names}
     complete = [
         name
         for name, path in result.items()
