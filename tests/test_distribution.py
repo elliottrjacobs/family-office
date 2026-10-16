@@ -17,6 +17,12 @@ def test_built_distribution_contains_canonical_roster(tmp_path):
             assert "fo/data/" + source.as_posix() in contents
         assert "fo/store/schemas/output/networth.schema.json" in contents
         assert "fo/data/playbooks/piotroski.yaml" in contents
+        app = [name for name in contents if name.startswith("fo/data/app/")]
+        assert "fo/data/app/index.html" in app
+        assert any(name.endswith(".js") for name in app)
+        assert {
+            f"fo/data/app/licenses/{f}-OFL.txt" for f in ("CalSans", "Geist", "PaperMono")
+        } <= contents
     with tarfile.open(next(tmp_path.glob("*.tar.gz"))) as archive:
         assert not any(
             "/.agents/" in name or "/docs/plans/references/" in name for name in archive.getnames()

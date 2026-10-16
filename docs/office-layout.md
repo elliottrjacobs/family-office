@@ -18,6 +18,14 @@ is unknown. `fo spend` ignores trades, dividends, and funding transfers, and a
 refund lowers its category. Mark an income rule with `income: true` in
 `profile/categories.yaml`.
 
+## Companion app settings
+
+`fo serve` reads an optional `[serve]` table in `office.toml`: `port` (default
+4790), `tailnet_name` (the name `tailscale serve` answers on, required for
+`--remote`), and `allowed_logins` (Tailscale logins allowed with `--remote`). The
+server never writes to the office; it reads profiles, reports, notebook events,
+and canonical data in read-only mode.
+
 ## Agent-owned setup and cutover
 
 The agent runs setup and diagnostics, handles account discovery, and reconciles

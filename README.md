@@ -123,6 +123,50 @@ mechanical investment verdict. Library thresholds are editable through private
 income divided by net working capital plus net fixed assets; it is not a generic
 company-reported ROIC or a complete ranked Magic Formula portfolio.
 
+## Companion app (optional)
+
+`fo serve` opens a dashboard for your office in a browser on the same machine:
+Home, Finances, Reports, Decisions, Profile, and the advisor directory. It needs
+no extra install, no Node, and nothing running in the background.
+
+```sh
+fo serve --office ~/family-office --open
+```
+
+The server listens on 127.0.0.1:4790 (`--port`, or `port` under `[serve]` in
+`office.toml`) and prints a link carrying a one-time token. Opening the link signs
+that browser in until the server stops; press Enter to print it again and Ctrl-C
+to stop. Every start issues a new link. Run it before an office exists and the
+page walks you through `fo setup`, connecting accounts, and the first sync, one
+exact command at a time. Credentials and provider consent stay in the terminal.
+
+The app reads the office in read-only mode: no provider calls, no cache or index
+writes, and no lock. It reads only `profile/`, `reports/`, `notebook/`, and the
+canonical data files, never `secrets/`, `imports/`, `cache/`, or `medical/`.
+Verdicts, new decisions, and corrections are recorded with `fo journal` and
+`fo corrections` for now.
+
+### Reach it from your phone
+
+Run it on a machine in your tailnet and let Tailscale proxy it. In `office.toml`:
+
+```toml
+[serve]
+tailnet_name = "machine.your-tailnet.ts.net"
+allowed_logins = ["you@example.com"]
+```
+
+```sh
+fo serve --remote
+tailscale serve --bg 4790
+```
+
+Open the Tailnet link `fo serve` prints. With `allowed_logins`, a request without
+one of those Tailscale identities is refused, on loopback too. Tailscale Funnel is
+not supported, because it sends no identity. `--host` binds another address for a
+proxy of your own and prints a warning; do not expose the server to a network you
+do not control.
+
 ## Storage and migration
 
 The public repository contains code and skills. The private office contains
@@ -156,6 +200,9 @@ uv run python scripts/lint_skills.py
 uv run python scripts/lint_office_paths.py
 uv build
 ```
+
+The companion app's frontend lives in `app/`; [its README](app/README.md) covers
+rebuilding the committed bundle with Node. CI fails if the bundle and source differ.
 
 The [implementation plan](docs/plans/2026-09-12-001-feat-family-office-plan.md)
 records the contract. Real accounts are never test fixtures.

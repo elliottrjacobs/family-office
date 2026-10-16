@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- `fo serve`: an optional local web app with a read-only dashboard (home, finances
+  against policy bands, reports, decisions, profile, advisor directory) and guided
+  onboarding from an empty folder to a synced office. Loopback by default, a
+  per-launch token cookie on every route, Host and Origin checks, and optional
+  `tailscale serve` access with an allowed-login list. The built app ships in the
+  package; Node is needed only to change it.
+- New read-only commands: `fo skills list`, `fo reports list`, `fo report show`,
+  `fo status [--lock]`, and `fo review --dry-run`. `fo start`, `fo report path`,
+  and `fo report parts` accept `--report PATH` to resume a run on its original
+  report. Skills declare `metadata.group`.
 - Account `role` in the registry: allocation weights use investable assets, the
   cash band and `cash_months` count bank balances, and `fo doctor` flags accounts
   without a role.

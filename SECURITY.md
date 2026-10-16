@@ -19,6 +19,27 @@ Secrets are ignored by Git and stored at mode 0600 inside a 0700 directory.
 Atomic replacement avoids partially written credentials. Provider errors must be
 converted to safe errors before display. Raw payloads must not be logged.
 
+## Companion app
+
+`fo serve` binds 127.0.0.1 unless `--host` names another address, which prints a
+warning. A loopback port is still reachable by DNS-rebinding web pages and by
+other users of the machine, so every route, static files included, requires a
+per-launch token cookie (`HttpOnly`, `SameSite=Strict`, `Secure` with `--remote`).
+The token travels only in the link the terminal prints; it is accepted only on
+that landing route, compared in constant time, and kept out of the access log. A
+request whose `Host` is not the bound loopback name and port, or the configured
+tailnet name with `--remote`, gets 421. A non-GET request without the app's own
+`Origin` gets 403. Tailscale identity headers only narrow access: with
+`allowed_logins`, a missing or unlisted login is refused, and they never grant
+access without the token.
+
+The server reads the office with `read_only=True` and never takes the lock. Report
+paths must resolve under `reports/` outside part directories, and static files
+must resolve inside the packaged app directory with no symlinks. Unexpected
+errors return a fixed `operation_failed` envelope without text or paths. Report
+markdown renders as page elements, never as HTML. The browser never receives a
+credential, and the page never asks for one.
+
 ## Third parties
 
 | Service | Data received when used |
