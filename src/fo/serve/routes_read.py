@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from fo import compute, notebook, reports
+from fo.brief import LEVELS
 from fo.config import public_config
 from fo.doctor import diagnose
 from fo.errors import OfficeError
@@ -96,6 +97,7 @@ ROUTES = {
     "/api/config": Route(lambda root, q: public_config(root), cache="never"),
     "/api/profile": Route(profile_index),
     "/api/skills": Route(lambda root, q: registry(), office=False),
+    "/api/levels": Route(lambda root, q: LEVELS, office=False),
 }
 PREFIXES = {"/api/profile/": Route(lambda root, q: profile(root, q["name"]))}
 

@@ -361,3 +361,11 @@ export interface Registry {
 }
 
 export const skills = () => get<Registry>("/api/skills")
+
+export interface LevelInfo {
+  summary: string
+  reads: string[]
+  files: string[]
+}
+
+export const levels = () => get<Record<Level, LevelInfo>>("/api/levels")
