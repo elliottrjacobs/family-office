@@ -261,10 +261,12 @@ class RunManager:
 
     def cancel(self, root, run_id):
         with self.mutex:
-            if not self.running(run_id) or self.process is None:
+            if not self.running(run_id):
                 raise OfficeError("not_running", "That run is not in progress.")
             self.cancelled.add(run_id)
-            stop(self.process.pid, self.grace)
+            # A queued run has no process yet; run() stops it as soon as it starts.
+            if self.process is not None:
+                stop(self.process.pid, self.grace)
         return self.get(root, run_id)
 
     def expire(self, run_id):
@@ -302,6 +304,8 @@ class RunManager:
             return
         with self.mutex:
             self.process = process
+            if record["id"] in self.cancelled:
+                stop(process.pid, self.grace)
         record.update(status="running", pid=process.pid)
         self.save(root, record)
         self.emit(root, record, {"kind": "status", "status": "running"})

@@ -239,6 +239,19 @@ def test_cancel_stops_the_process_and_keeps_the_session(office, tmp_path):
         manager.cancel(office, record["id"])
 
 
+def test_a_queued_run_can_be_cancelled_before_its_process_starts(office, tmp_path, monkeypatch):
+    lines = [{"fake": "init"}, {"fake": "sleep", "seconds": 30}, {"fake": "result"}]
+    manager = RunManager(runner_for(tmp_path, lines)[0], grace=0.5)
+    started = []
+    monkeypatch.setattr(manager, "begin", lambda *args: started.append(args))
+    record = manager.launch(office, "research", "BETA")
+    manager.cancel(office, record["id"])
+    monkeypatch.undo()
+    manager.begin(*started[0])
+    done = settle(manager, office, record["id"])
+    assert done["status"] == "cancelled"
+
+
 def test_a_run_that_runs_too_long_is_stopped(office, tmp_path):
     config = office / "office.toml"
     config.write_text(
