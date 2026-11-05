@@ -48,6 +48,8 @@ skills_app = typer.Typer(no_args_is_help=True)
 app.add_typer(skills_app, name="skills")
 sync_app = typer.Typer(invoke_without_command=True)
 app.add_typer(sync_app, name="sync")
+research_app = typer.Typer(no_args_is_help=True)
+app.add_typer(research_app, name="research")
 
 
 def emit(ctx, result):
@@ -243,6 +245,24 @@ def read_key(provider):
     if sys.stdin.isatty():
         return typer.prompt(provider + " API key", hide_input=True, err=True)
     return sys.stdin.read(4096)
+
+
+@research_app.command("search")
+def research_search(
+    ctx: typer.Context, query: str, limit: int = typer.Option(10, help="Results, 1 to 25.")
+):
+    """Ranked web results from Exa, as untrusted text."""
+    from fo import research
+
+    run(ctx, lambda: research.search(root(ctx), query, limit, ctx.obj["read_only"]))
+
+
+@research_app.command("fetch")
+def research_fetch(ctx: typer.Context, url: str):
+    """One page as markdown through Firecrawl, or a direct fetch, as untrusted text."""
+    from fo import research
+
+    run(ctx, lambda: research.fetch(root(ctx), url, ctx.obj["read_only"]))
 
 
 @sync_app.callback()
