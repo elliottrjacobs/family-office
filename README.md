@@ -249,6 +249,11 @@ not supported, because it sends no identity. `--host` binds another address for 
 proxy of your own and prints a warning; do not expose the server to a network you
 do not control.
 
+The Family Office iPhone app pairs once by scanning the code in the Mac app's
+Settings > Devices, keeps a revocable device token in the Keychain, and shows this
+same web app over the tailnet. Building and trying it on a simulator is covered in
+[docs/development/apple.md](docs/development/apple.md#iphone-app).
+
 ### For the Mac app
 
 `fo serve --app` prints one JSON line on stdout before the usual lines, then runs

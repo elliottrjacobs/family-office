@@ -1,7 +1,9 @@
-# Mac app development
+# Mac and iPhone app development
 
 The Mac app lives under `apple/`. It is a SwiftUI shell that starts `fo serve` as a child
 process and shows the dashboard in a `WKWebView`; all office logic stays in the Python package.
+The iPhone app (see [iPhone app](#iphone-app)) pairs with it and shows the same dashboard over
+the tailnet.
 
 ```text
 apple/
@@ -15,10 +17,20 @@ apple/
     Terminal/                 FoTerminalView: the embedded terminal (SwiftTerm) for four fo commands
     Assets.xcassets           placeholder icon
     Info.plist                generated from project.yml, committed
+  FamilyOfficePhone/
+    App/                      @main app, RootView, OfficeScreen, PhoneModel
+    Pairing/                  PairingView, PairingInput (scanned or typed text to a payload)
+    Scanner/                  QRScannerView (DataScannerViewController, AVCaptureSession fallback)
+    Connection/               ConnectionView
+    Web/                      OfficeWebView
+    Assets.xcassets           placeholder icon
+    Info.plist                generated from project.yml, committed
+  FamilyOfficePhoneTests/     unit tests hosted in the iPhone app
   FOKit/                      Swift package shared with the iOS app: Handshake, APIClient, Reachability,
                               OfficeSummary, Tailscale, Pairing (payload and QR), Subprocess (macOS),
                               Engines (CLI resolver, version and sign-in parsers), Connectors,
-                              TerminalCommand (the terminal's allowed commands)
+                              TerminalCommand (the terminal's allowed commands), Keychain and
+                              DeviceSession (the phone's credential and pairing state)
   Scripts/bundle-python.sh    builds apple/Resources/fo (the bundled runtime)
   Resources/fo/               build product, git-ignored
 ```
@@ -29,7 +41,7 @@ project.
 
 ## Dependencies
 
-The app has one third-party Swift package:
+The Mac app has one third-party Swift package; the iPhone app has none:
 
 | Package | Version | License | Used for |
 | ------- | ------- | ------- | -------- |
@@ -51,8 +63,9 @@ cd apple
 xcodegen generate
 ```
 
-Commit `project.yml`, `FamilyOffice.xcodeproj` and `FamilyOffice/Info.plist` together. CI
-regenerates the project and fails when the committed files differ.
+Commit `project.yml`, `FamilyOffice.xcodeproj`, `FamilyOffice/Info.plist` and
+`FamilyOfficePhone/Info.plist` together. CI regenerates the project and fails when the
+committed files differ.
 
 ## Build and test
 
@@ -444,3 +457,97 @@ Use a synthetic office (`uv run fo setup /tmp/fo-dev-office --offline`),
       process remains), and quitting the app leaves no `fo serve` either.
 - [ ] The unified log (categories `settings` and `terminal`) and `ps` output never contain
       a key, token, account name, email or path.
+
+## iPhone app
+
+`FamilyOfficePhone` is a SwiftUI app for iPhone, iOS 17 or later, bundle id
+`com.familyoffice.phone`. It depends only on FOKit, has no entitlements, and asks for the
+camera only to scan the pairing code. It holds no office data: everything it shows is the
+Mac's own web app, loaded over the tailnet.
+
+### Build and run on a simulator
+
+```sh
+cd apple
+xcodebuild -project FamilyOffice.xcodeproj -scheme FamilyOfficePhone \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -derivedDataPath /tmp/fo-dd-ios build test
+xcrun simctl boot 'iPhone 17 Pro'      # if it is not booted yet
+xcrun simctl install booted /tmp/fo-dd-ios/Build/Products/Debug-iphonesimulator/FamilyOfficePhone.app
+xcrun simctl launch booted com.familyoffice.phone
+```
+
+CI builds with `CODE_SIGNING_ALLOWED=NO`, which is enough to compile and run the tests. An
+unsigned app cannot use the Keychain, though, and opens on pairing with "The Keychain could
+not be read"; to try it by hand keep Xcode's ad-hoc "Sign to Run Locally" signing (leave the
+flag out, as above). TestFlight builds come with the release unit (U17).
+
+### Screens
+
+- **Unpaired:** "Pair with your Mac" lists the steps on the Mac (open Family Office, Settings >
+  Devices, Pair a Phone), a name for the phone (the device name by default), Scan Code and
+  Enter Code Manually. Scan Code uses VisionKit's `DataScannerViewController`, falls back to an
+  `AVCaptureSession` QR reader, and offers manual entry when there is no camera or no camera
+  permission. A refusal or a revoke shows its reason above the steps.
+- **Paired and reachable:** the office web app fills the screen under a one-line status bar
+  (the Mac's name, Connected, Reload, and a button for the connection screen); pull down to
+  reload. Links to other sites open in Safari.
+- **Paired and not reachable:** the connection screen shows the Mac's name and tailnet host,
+  Reachable or Not reachable, when it last answered, the server's version, the sentence "Your
+  Mac must be awake and on your tailnet, with Family Office open.", Retry, and Unpair This
+  iPhone (after confirmation it forgets the token on the phone only; revoke it on the Mac to
+  remove it there). When the server is newer than this build knows (`DeviceSession`
+  `knownServerVersions`, now 2.0.x) a note advises updating the app.
+
+While the app is in front it probes `GET /api/status` every ten seconds, each probe giving up
+after five seconds; any HTTP answer counts as reachable. It moves to the web view when the Mac
+comes back and to the connection screen when it goes away.
+
+### Pairing without a camera
+
+The simulator has no camera, so Scan Code offers Enter Code Manually: type the address and the
+code the Mac shows under Pair a Phone. The address is the Mac's tailnet name
+(`example-mac.tail0000.ts.net`; `https://` is assumed). Plain `http://` is accepted only for
+`localhost` and `127.0.0.1`, which a simulator shares with the Mac. The code may be typed in
+either case, with or without its hyphen.
+
+To walk the flow on one Mac without a tailnet, use a synthetic office whose tailnet name is
+`localhost` and put a small proxy of your own in front of the server that does what
+`tailscale serve` would:
+
+```sh
+uv run fo setup /tmp/fo-phone-office --offline
+uv run fo --office /tmp/fo-phone-office config set serve.tailnet_name localhost
+uv run fo --office /tmp/fo-phone-office serve --remote --port 4799 --app
+```
+
+The proxy listens on another port (say 4800), forwards to 4799 with `Host: localhost` and
+`Tailscale-User-Login: tester@example.com`, and, because it is plain HTTP rather than HTTPS,
+drops `Secure` from `Set-Cookie` and sends `Origin: https://localhost`. Get a code over
+loopback with the launch cookie (the landing URL from the handshake line, then
+`POST /api/devices/pairing` with `Origin: http://127.0.0.1:4799`), and enter
+`http://localhost:4800` and the code on the phone. Pointing the phone at 4799 directly shows
+the refusal for a request that did not come over the tailnet. Revoke with
+`DELETE /api/devices/{id}` the same way. Delete the office afterwards.
+
+### What the phone keeps
+
+- **Keychain:** one generic password item, service `com.familyoffice.phone`, account `device`,
+  `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` (never in a backup restored to another
+  device). It holds the server URL, the device id and name, and the device token shown once in
+  the pairing response.
+- **UserDefaults:** `lastSeen`, when the Mac last answered.
+- **Nothing else.** The web view's store is non-persistent: the session cookie from
+  `POST /api/devices/login` is copied into it on each launch and dies with the app. Codes and
+  tokens are never logged or shown after pairing.
+
+### When the Mac says 401
+
+The token is sent only to `POST /api/devices/login`, as `Authorization: Bearer`; every other
+request uses the session cookie. A 401 from that login, from a page the web view loads, or
+from a status probe made with the session cookie means the Mac no longer knows this phone
+(usually a revoke in Settings > Devices). The phone deletes the Keychain item and opens
+pairing with "This iPhone is no longer paired with the Mac." Pairing again with a new code
+works at once. A Mac that does not answer is not a 401: the phone stays paired and shows the
+connection screen. A 403 `forbidden_login` while pairing means the request arrived without a
+Tailscale identity the office allows, and the phone says so.
