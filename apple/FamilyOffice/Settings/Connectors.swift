@@ -125,12 +125,25 @@ final class ConnectorsModel {
 }
 
 /// Settings > Connectors: account providers through the embedded terminal, API keys through
-/// native fields and `fo connect`, and the SEC EDGAR contact.
+/// native fields and `fo connect`, and the SEC EDGAR contact. The setup dialog shows the
+/// accounts part on its accounts step and the keys part on its research step.
 struct ConnectorsSettings: View {
+    enum Part: Hashable {
+        case accounts
+        case keys
+        case edgar
+    }
+
     @Environment(AppState.self) private var state
-    @State private var model = ConnectorsModel()
+    @State private var model: ConnectorsModel
     @State private var terminal: FoTerminalSession?
     @State private var removing: Connector?
+    private let parts: Set<Part>
+
+    init(model: ConnectorsModel = ConnectorsModel(), parts: Set<Part> = [.accounts, .keys, .edgar]) {
+        _model = State(initialValue: model)
+        self.parts = parts
+    }
 
     var body: some View {
         Form {
@@ -144,28 +157,20 @@ struct ConnectorsSettings: View {
                     Text(error).font(.caption).foregroundStyle(.secondary)
                 }
             }
-            Section("Accounts") {
-                ForEach(ConnectorCatalog.all.filter { $0.kind == .account }) { connector in
-                    accountRow(connector)
+            if parts.contains(.accounts) {
+                Section("Accounts") {
+                    ForEach(ConnectorCatalog.all.filter { $0.kind == .account }) { connector in
+                        accountRow(connector)
+                    }
                 }
             }
-            Section {
-                ForEach(ConnectorCatalog.all.filter { $0.kind == .key }) { connector in
-                    keyRow(connector)
-                }
-            } header: {
-                Text("Data and research keys")
-            } footer: {
-                Text(
-                    "Save checks the key with one call to the provider, then fo connect stores it in the "
-                        + "office's secrets folder. The key goes to fo on standard input; the app keeps no copy. "
-                        + "The server does not yet report keys saved this way, so a row shows the last Save here."
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            if parts.contains(.keys) {
+                keysSection
             }
-            Section("SEC EDGAR") {
-                edgarRow
+            if parts.contains(.edgar) {
+                Section("SEC EDGAR") {
+                    edgarRow
+                }
             }
         }
         .formStyle(.grouped)
@@ -176,7 +181,8 @@ struct ConnectorsSettings: View {
             // Development walkthroughs without clicking: `-debugSaveSyntheticKey alphavantage`
             // saves a fixed, made-up key through the same path as the Save button, so the
             // CLI's refusal shows in the row and the log.
-            if state.api != nil, let provider = UserDefaults.standard.string(forKey: "debugSaveSyntheticKey"),
+            if parts.contains(.keys), state.api != nil,
+                let provider = UserDefaults.standard.string(forKey: "debugSaveSyntheticKey"),
                 ConnectCommand.save(provider) != nil, model.outcome(provider) == nil
             {
                 model.keys[provider] = "synthetic-walkthrough-key-0000"
@@ -199,6 +205,24 @@ struct ConnectorsSettings: View {
             }
         } message: { connector in
             Text("fo connect --remove \(connector.id) deletes the stored key. Runs that need it stop working until you add one again.")
+        }
+    }
+
+    private var keysSection: some View {
+        Section {
+            ForEach(ConnectorCatalog.all.filter { $0.kind == .key }) { connector in
+                keyRow(connector)
+            }
+        } header: {
+            Text("Data and research keys")
+        } footer: {
+            Text(
+                "Save checks the key with one call to the provider, then fo connect stores it in the "
+                    + "office's secrets folder. The key goes to fo on standard input; the app keeps no copy. "
+                    + "The server reports which keys exist, never their values, so rows stay right after a restart."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
         }
     }
 

@@ -66,6 +66,14 @@ export interface Onboarding {
   providers: { provider: string; connected: boolean; accounts: number }[]
   doctor: DoctorItem[]
   last_sync: string | null
+  /** Home's getting-started items; empty until an office exists. */
+  checklist: ChecklistItem[]
+}
+
+export interface ChecklistItem {
+  id: "account_connected" | "first_sync" | "first_run" | "device_paired" | (string & {})
+  done: boolean
+  label: string
 }
 
 export const status = () => get<Status>("/api/status")

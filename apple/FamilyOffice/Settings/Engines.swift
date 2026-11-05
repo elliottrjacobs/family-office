@@ -58,6 +58,11 @@ final class EnginesModel {
         settingsLog.info("engines: detected \(summary, privacy: .public)")
     }
 
+    /// The engines found, for the server's environment.
+    var locations: [EngineKind: CLILocation] {
+        detections.compactMapValues(\.location)
+    }
+
     func loadServer(api: APIClient?) async {
         guard let api else {
             runner = nil
@@ -154,10 +159,16 @@ final class EnginesModel {
 }
 
 /// Settings > Engines: Claude Code and Codex as found on this Mac and as the server sees
-/// them, install and sign-in steps when missing, and the per-engine defaults.
+/// them, install and sign-in steps when missing, and the per-engine defaults. The setup
+/// dialog's engine step shows the same view with its own model, so it can summarize the
+/// choice.
 struct EnginesSettings: View {
     @Environment(AppState.self) private var state
-    @State private var model = EnginesModel()
+    @State private var model: EnginesModel
+
+    init(model: EnginesModel = EnginesModel()) {
+        _model = State(initialValue: model)
+    }
 
     var body: some View {
         Form {
@@ -173,8 +184,8 @@ struct EnginesSettings: View {
             }
             Section {
                 Text(
-                    "The server looks for claude and codex on its own PATH when it starts an advisor run; "
-                        + "the app cannot point it at the copy found here. The Server line is the server's own verdict."
+                    "The server runs the claude and codex found here: the app names them in its environment "
+                        + "and restarts it when they change. The Server line is the server's own verdict."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -185,6 +196,7 @@ struct EnginesSettings: View {
             async let detect: Void = model.detect()
             async let server: Void = model.loadServer(api: state.api)
             _ = await (detect, server)
+            state.applyEngineLocations(model.locations)
         }
     }
 
@@ -224,6 +236,7 @@ struct EnginesSettings: View {
                 Button("Check Again") {
                     Task {
                         await model.detect()
+                        state.applyEngineLocations(model.locations)
                         await model.loadServer(api: state.api)
                     }
                 }

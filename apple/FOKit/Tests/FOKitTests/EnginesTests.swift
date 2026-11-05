@@ -170,4 +170,16 @@ final class EnginesTests: XCTestCase {
             XCTAssertTrue(engine.billingNote.contains("your own"))
         }
     }
+
+    func testEngineExecutablesNameOnlyTheEnginesFound() {
+        let claude = CLILocation(path: "/opt/example/bin/claude", source: .homebrew)
+        XCTAssertEqual(
+            EngineExecutables.environment([.claude: claude]),
+            ["FO_CLAUDE_EXECUTABLE": "/opt/example/bin/claude"])
+        let codex = CLILocation(path: "/opt/example/bin/codex", source: .homebrew)
+        XCTAssertEqual(
+            EngineExecutables.environment([.claude: claude, .codex: codex]),
+            ["FO_CLAUDE_EXECUTABLE": "/opt/example/bin/claude", "FO_CODEX_EXECUTABLE": "/opt/example/bin/codex"])
+        XCTAssertEqual(EngineExecutables.environment([:]), [:])
+    }
 }

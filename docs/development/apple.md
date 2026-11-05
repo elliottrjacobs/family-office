@@ -9,16 +9,19 @@ apple/
   FamilyOffice.xcodeproj      generated from project.yml, committed
   FamilyOffice/
     App/                      @main app, AppState, ServerProcess, WebView, ContentView,
-                              Power, LoginItem, CommandLineTool, FoCommand, SessionPrimer
+                              Power, LoginItem, CommandLineTool, FoCommand, SessionPrimer,
+                              SetupVersion
     MenuBar/                  the menu bar item and the 30 s status poller
     Settings/                 the Settings window: General, Engines, Connectors, Devices, Advanced
+    Setup/                    the first-run setup dialog: SetupModel, SetupDialog, one view per step
     Terminal/                 FoTerminalView: the embedded terminal (SwiftTerm) for four fo commands
-    Assets.xcassets           placeholder icon
+    Assets.xcassets           placeholder icon, the welcome step's robot row
     Info.plist                generated from project.yml, committed
   FOKit/                      Swift package shared with the iOS app: Handshake, APIClient, Reachability,
                               OfficeSummary, Tailscale, Pairing (payload and QR), Subprocess (macOS),
                               Engines (CLI resolver, version and sign-in parsers), Connectors,
-                              TerminalCommand (the terminal's allowed commands)
+                              TerminalCommand (the terminal's allowed commands), Setup (the
+                              setup dialog's steps, profile, version and Return rules)
   Scripts/bundle-python.sh    builds apple/Resources/fo (the bundled runtime)
   Resources/fo/               build product, git-ignored
 ```
@@ -128,7 +131,8 @@ fo [--office PATH] serve --remote --app --parent-pid APP_PID   # with phone acce
 with stdin closed, the working directory set to the home folder, and a scrubbed environment:
 `PATH` is the runtime's `bin` plus `/usr/bin:/bin`; `HOME`, `USER`, `LANG`, `TMPDIR` and, when
 set, `ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, `CLAUDE_CONFIG_DIR` and `CODEX_HOME` pass
-through; `PYTHONUNBUFFERED=1` is added. Port 0 lets the system choose a free loopback port.
+through; `PYTHONUNBUFFERED=1` is added, and `FO_CLAUDE_EXECUTABLE` and `FO_CODEX_EXECUTABLE`
+name the CLIs the app found (see Engines). Port 0 lets the system choose a free loopback port.
 With phone access on, the app omits `--port` so the server takes `[serve] port` from
 `office.toml` (default 4790) and `tailscale serve --bg PORT` keeps pointing at it.
 
@@ -161,7 +165,8 @@ cookie dies with the app.
 
 | Key                    | Value                                                                  |
 | ---------------------- | ---------------------------------------------------------------------- |
-| `officePath`           | the office folder (first-launch sheet or General > Change…)            |
+| `officePath`           | the office folder (setup dialog, File > Choose Office Folder… or General > Change…) |
+| `setupVersion`         | the setup dialog version last finished (an integer, currently `1`)     |
 | `keepAwakeWhilePaired` | General > Keep Mac awake while a phone is paired                       |
 | `allowPhoneAccess`     | General > Allow phone access over Tailscale (`fo serve --remote`)      |
 | `settingsTab`          | the Settings tab shown last (`general`, `engines`, `connectors`, `devices`, `advanced`) |
@@ -180,10 +185,12 @@ accept `-openSettingsOnLaunch YES`, which opens Settings without clicking, and t
 walkthrough hooks: `-terminalCommand "WORDS"` opens the embedded terminal with those words
 (anything outside the allowed set is refused), and, with `-settingsTab connectors`,
 `-debugSaveSyntheticKey PROVIDER` saves the made-up key `synthetic-walkthrough-key-0000`
-through the Save path once the server is up. Neither exists in Release builds.
+through the Save path once the server is up. Neither exists in Release builds. The setup
+dialog has four more Debug-only hooks, described under Setup dialog: `-debugSetupWalk`,
+`-debugIgnoreSetupVersion`, `-debugSetupVersion` and `-debugNewSteps`.
 
 The app logs state changes to the unified log under subsystem `com.familyoffice.app`
-(categories `monitor`, `power`, `settings`, `terminal`): kinds and counts only, never names,
+(categories `monitor`, `power`, `settings`, `setup`, `terminal`): kinds and counts only, never names,
 paths, codes, keys or tokens. Read them with:
 
 ```sh
@@ -268,18 +275,21 @@ picker of the curated models plus Other… for any id, `serve.engines.<name>.mod
 refusal shows the CLI's message under the field, and `/api/runner` is read again after
 every write.
 
-The server resolves `claude` and `codex` from its own PATH (`shutil.which`); it has no
-executable override such as `FO_CLAUDE_EXECUTABLE`, so the app passes none. With the app's
-scrubbed PATH (the runtime's `bin`, `/usr/bin`, `/bin`) an nvm, Homebrew or `~/.local/bin`
-install is therefore found by the pane but reported `runner_missing` by the server. The
-pane shows both side by side and does no more.
+The server's scrubbed PATH (the runtime's `bin`, `/usr/bin`, `/bin`) would miss an nvm,
+Homebrew or `~/.local/bin` install, so the app names what it found in the server's
+environment: `FO_CLAUDE_EXECUTABLE` and `FO_CODEX_EXECUTABLE` (`FOKit.EngineExecutables`),
+set from the same resolver before the first server start and again whenever the Engines
+pane detects (on appear and Check Again). An engine not found sets nothing, and the server
+falls back to its own PATH. When the found paths change, the app restarts a running server
+so the next advisor run uses them. The server honors `FO_CLAUDE_EXECUTABLE` when the path is
+executable; `FO_CODEX_EXECUTABLE` is passed the same way for the Codex runner.
 
 ## Connectors
 
 | Provider | Kind | Connect | Remove | State from |
 | -------- | ---- | ------- | ------ | ---------- |
 | Schwab, SimpleFIN | account | Connect… opens the terminal with `fo auth schwab` or `fo auth simplefin` | (not in the app) | `/api/onboarding` `providers[].connected`, else a masked entry in `/api/config` `secrets` |
-| Alpha Vantage, FRED, Exa, Firecrawl, Gemini | API key | Save runs `fo --json --office PATH connect <provider>` with the key on stdin | Remove… runs `fo connect --remove <provider>` after confirmation | a masked `/api/config` `secrets` entry (a key `fo auth` stored), else the last Save or Remove in this session |
+| Alpha Vantage, FRED, Exa, Firecrawl, Gemini | API key | Save runs `fo --json --office PATH connect <provider>` with the key on stdin | Remove… runs `fo connect --remove <provider>` after confirmation | the last Save or Remove in this session, else a masked `/api/config` `secrets` entry |
 | SEC EDGAR | contact | Save runs `fo connect edgar --user-agent "Name email"` | Remove runs `fo connect --remove edgar` | `/api/config` `settings.providers.edgar.user_agent` |
 
 The key never appears in an argument list: `FOKit.Subprocess` writes it to stdin and closes
@@ -288,11 +298,108 @@ public result (`Saved. … accepted the key.` or, for example, `The provider rej
 key.`). A field that is empty, contains spaces or is longer than 512 characters is refused
 in the app without running `fo`. The app never reads `secrets/`.
 
-`fo connect` writes keys to `secrets/<provider>.json`, and no server route reports those
-files yet (`/api/config` masks only `secrets/keys.toml`), so a key saved in an earlier
-session shows "Not reported by the server" until it is saved again. Alpha Vantage answers
+`fo connect` writes keys to `secrets/<provider>.json`, and `GET /api/config` lists each such
+file in `secrets` as `{"<provider>": {"api_key": "***"}}` beside the masked
+`secrets/keys.toml` entries, so a key saved in an earlier session shows Connected after a
+restart, and a provider the route does not list shows Not connected. "Not reported by the
+server" appears only while the route cannot be read. Alpha Vantage answers
 an unknown key with ordinary data, so its Save can succeed for a made-up key; FRED, Exa,
 Firecrawl and Gemini reject one.
+
+## Setup dialog
+
+The first-run dialog (plan R7 to R11, flow F1) is a 720 by 520 point sheet on the main
+window with a progress bar and "Step N of M", the current step, and a footer with Finish
+Later, Back, Skip (Later on the engine step) and a primary button whose label follows the
+step. `FOKit.SetupFlow` holds the logic, so it is unit tested; `Setup/SetupModel.swift`
+wraps it with the step actions, and each step is its own view in `Setup/`.
+
+| Step | Shows | Primary | Skip |
+| ---- | ----- | ------- | ---- |
+| welcome | what the app is in two sentences and the advisors' robot row | Get Started | no |
+| office | Create (a parent folder from `NSOpenPanel` and a name, default `family-office`, then `fo setup PATH --offline` in the embedded terminal) or Open existing (a folder holding `office.toml`) | Continue, once the server reports the office | no |
+| engine | the Engines pane (detection, the server's verdict, default engine, model, effort) | Continue | Later |
+| accounts | the Connectors pane's Schwab and SimpleFIN rows (`fo auth` in the terminal), a CSV note, and Run First Sync (`fo sync` in the terminal) once one is connected | Continue | yes |
+| research | the Connectors pane's five key rows | Continue | yes |
+| phone | the Devices pane: Tailscale status and pairing | Continue | yes |
+| done | what was set up and what was skipped, with where to finish each | Open Family Office | no |
+
+- **Profile.** `new` when no office path is stored or the stored folder has no
+  `office.toml`; otherwise `existing`. A new profile shows all seven steps. An existing one
+  starts at the engine step, never shows welcome or office, and uses copy for an office
+  that is already set up.
+- **Office step.** After `fo setup` exits 0, or a folder with `office.toml` is chosen, the
+  app stores `officePath` and restarts the server on it (`AppState.setOffice`); Continue is
+  enabled once `GET /api/onboarding` reports an office (any state other than `no_office`
+  and `uninitialized_path`). A folder that already exists and is not empty is refused
+  before `fo` runs; `fo setup` refuses anything else it would refuse in a terminal.
+- **Choices.** Continue records one line for the done step's summary (`Office created at
+  …`, `Default engine: Codex`, `Connected Schwab, first sync finished`, `2 research keys`,
+  `1 phone paired`); Continue with nothing done counts as skipped. Back keeps what a step
+  finished.
+- **Return.** A local key monitor gives Return (and keypad Enter) to the primary button
+  unless the window's first responder is a text field's editor or the embedded terminal,
+  where Return is input, or the primary button is disabled. Return in another window, such
+  as a terminal sheet over the dialog, is left alone. Escape does nothing, so it can reach
+  the terminal.
+- **When it opens.** At launch when `setupVersion` is missing, when it is older than
+  `SetupFlow.currentVersion` and some step is newer than it, or when the profile is new (the
+  office is gone); and always from Help > Set Up Family Office…, which brings the main
+  window forward. Finish Later closes it without storing anything, so it opens again at the
+  next launch. Open Family Office on the done step stores `setupVersion` and reloads the
+  page.
+- **Versioning.** Every step has a `newSince` version (all `1` today). A release that adds a
+  step raises `SetupFlow.currentVersion` and gives the new step that `newSince`; an install
+  that finished the older version then sees only the newer steps and done, with everything
+  it set up before untouched.
+- **Nothing bypasses `fo`.** The office is created by `fo setup`, engine defaults are written
+  by `fo config set`, accounts by `fo auth`, keys by `fo connect`, the first sync by
+  `fo sync`, and pairing through the server's routes, each through the same model the
+  Settings pane uses. The only file the app itself looks at is whether `office.toml`
+  exists, to choose the profile and to accept Open existing.
+- **Log.** Category `setup`: the profile, the step list, each step change with whether the
+  previous one was completed or skipped, `fo setup`'s exit status, the server's onboarding
+  state, and the version stored. No paths or names.
+
+Debug-only hooks for walkthroughs:
+
+| Argument | Effect |
+| -------- | ------ |
+| `-debugIgnoreSetupVersion YES` | act as though `setupVersion` were missing |
+| `-debugSetupVersion N` | pretend this build ships setup version `N` |
+| `-debugNewSteps research,phone` | mark those steps new in the pretended version |
+| `-debugSetupWalk PARENT` | drive the dialog without clicking: Get Started, create `PARENT/family-office` with `fo setup --offline`, Continue once the server reports it, skip the optional steps, and finish |
+
+To walk the dialog without touching your own app's defaults, build a copy with its own
+defaults domain and delete it afterwards:
+
+```sh
+cd apple
+xcodebuild -project FamilyOffice.xcodeproj -scheme FamilyOffice -configuration Debug \
+  CODE_SIGNING_ALLOWED=NO -derivedDataPath /tmp/fo-dd \
+  PRODUCT_BUNDLE_IDENTIFIER=com.familyoffice.app.walkthrough build
+FO_EXECUTABLE="$PWD/../.venv/bin/fo" \
+  /tmp/fo-dd/Build/Products/Debug/FamilyOffice.app/Contents/MacOS/FamilyOffice
+# afterwards
+defaults delete com.familyoffice.app.walkthrough; rm -rf /tmp/fo-dd
+```
+
+### Home checklist
+
+`GET /api/onboarding` carries `checklist`, empty until an office exists, then four items
+`{id, done, label}` re-derived from the office on every poll:
+
+| id | Done when |
+| -- | --------- |
+| `account_connected` | a live provider is connected or the account registry lists any account |
+| `first_sync` | `data/sync_log.jsonl` has a complete sync |
+| `first_run` | `cache/serve/runs/` holds a run record |
+| `device_paired` | `secrets/devices.json` lists at least one device |
+
+Home shows a "Getting started" card with the open items and how to finish each, hidden once
+every item is done. Dismiss hides it for good in that browser (`fo.checklist.dismissed.v1`
+in `localStorage`); the Mac app's web view uses a non-persistent store, so there it returns
+at the next launch until the items are done.
 
 ## Embedded terminal
 
@@ -301,7 +408,7 @@ one of these, as typed in `FOKit.TerminalCommand`:
 
 | Command | Arguments after `fo` |
 | ------- | -------------------- |
-| setup | `--office PATH setup PATH [--provider schwab\|simplefin]` |
+| setup | `--office PATH setup PATH [--provider schwab\|simplefin]` or `--office PATH setup PATH --offline` (the setup dialog) |
 | auth | `--office PATH auth schwab` or `--office PATH auth simplefin` |
 | sync | `--office PATH sync` |
 | doctor | `--office PATH doctor` |
@@ -444,3 +551,32 @@ Use a synthetic office (`uv run fo setup /tmp/fo-dev-office --offline`),
       process remains), and quitting the app leaves no `fo serve` either.
 - [ ] The unified log (categories `settings` and `terminal`) and `ps` output never contain
       a key, token, account name, email or path.
+
+## Manual walkthrough: setup dialog and Home checklist (U15)
+
+Use the walkthrough build above (its own defaults domain), `FO_EXECUTABLE` pointing at the
+checkout's `.venv/bin/fo`, and a scratch folder outside the repository. Tick each item:
+
+- [ ] First launch from a cleared defaults domain opens the dialog on Welcome at Step 1 of
+      7 with the robot row; Return presses Get Started.
+- [ ] Office > Create: Choose… picks the scratch folder, the name defaults to
+      `family-office`, Create Office runs `fo setup --offline` in the terminal, which ends
+      with `Finished successfully`; the server restarts, Continue becomes available, and
+      `defaults read com.familyoffice.app.walkthrough officePath` names the new folder.
+      Return while the name field has focus does not advance.
+- [ ] Office > Open existing refuses a folder without `office.toml` and accepts an office.
+- [ ] Engine shows the Engines pane; Later moves on.
+- [ ] Accounts: skip it. Research and Phone: skip them. Done lists the office under Set up
+      and Accounts, Research keys and Phone under Skipped for now; Open Family Office
+      closes the dialog and `setupVersion` reads `1`.
+- [ ] Home shows Getting started with Connect an account, Run the first sync, Talk to an
+      advisor and Pair a phone; Dismiss hides it (in a browser, it stays hidden after a
+      reload).
+- [ ] Relaunching does not open the dialog (the `setup` log says the version is finished).
+- [ ] Help > Set Up Family Office… opens it on the engine step with the existing copy.
+- [ ] Bump the version in a Debug build: `-debugSetupVersion 2 -debugNewSteps research`
+      opens the dialog with only Research and Done (`steps=research,done` in the log).
+- [ ] Deleting `office.toml` from the scratch office (or choosing an empty folder in General)
+      makes the next launch open the dialog on Welcome again.
+- [ ] The `setup` and `terminal` log categories carry no path, name, key or token.
+- [ ] Delete the scratch office and the walkthrough defaults domain.

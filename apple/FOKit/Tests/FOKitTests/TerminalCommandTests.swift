@@ -8,6 +8,7 @@ final class TerminalCommandTests: XCTestCase {
     func testAcceptsOnlyTheFourCommands() {
         XCTAssertEqual(TerminalCommand(["setup"]), .setup(provider: nil))
         XCTAssertEqual(TerminalCommand(["setup", "--provider", "schwab"]), .setup(provider: "schwab"))
+        XCTAssertEqual(TerminalCommand(["setup", "--offline"]), .setupOffline)
         XCTAssertEqual(TerminalCommand(["auth", "schwab"]), .auth("schwab"))
         XCTAssertEqual(TerminalCommand(["auth", "simplefin"]), .auth("simplefin"))
         XCTAssertEqual(TerminalCommand(["sync"]), .sync)
@@ -20,6 +21,7 @@ final class TerminalCommandTests: XCTestCase {
             ["auth"], ["auth", "alphavantage"], ["auth", "schwab", "--extra"], ["auth", "../schwab"],
             ["sync", "--office", "/elsewhere"], ["doctor", "--notify"], ["setup", "/other/path"],
             ["setup", "--provider", "csv"], ["--office", "/x", "sync"], ["sh", "-c", "fo sync"],
+            ["setup", "--offline", "--provider", "schwab"], ["setup", "--offline", "/other/path"],
         ]
         for words in refused {
             XCTAssertNil(TerminalCommand(words), "\(words) should be refused")
@@ -33,6 +35,9 @@ final class TerminalCommandTests: XCTestCase {
         XCTAssertEqual(
             TerminalCommand.setup(provider: "simplefin").arguments(office: office),
             ["--office", office, "setup", office, "--provider", "simplefin"])
+        XCTAssertEqual(
+            TerminalCommand.setupOffline.arguments(office: office),
+            ["--office", office, "setup", office, "--offline"])
     }
 
     func testAValueBuiltOutsideTheParserIsStillChecked() {
