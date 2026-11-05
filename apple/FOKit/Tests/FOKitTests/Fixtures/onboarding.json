@@ -1,0 +1,13 @@
+{
+  "state": "never_synced",
+  "reason": "The office exists but has never synced.",
+  "office": "/tmp/example-office",
+  "candidate": "/tmp/example-office",
+  "steps": [
+    {"command": "fo sync --office /tmp/example-office", "purpose": "Pull balances, positions, and transactions."}
+  ],
+  "note": null,
+  "providers": [{"provider": "schwab", "connected": true, "accounts": 1}],
+  "doctor": [{"name": "skills.fresh", "status": "warn", "reason": "Rendered files stale.", "command": "fo skills sync", "hint": null}],
+  "last_sync": null
+}

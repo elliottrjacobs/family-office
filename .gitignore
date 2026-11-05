@@ -25,3 +25,11 @@ build/
 **/store.sqlite*
 **/.fo.lock
 node_modules/
+
+# Apple
+DerivedData/
+*.xcarchive
+xcuserdata/
+apple/Resources/fo/
+apple/FOKit/.build/
+.swiftpm/

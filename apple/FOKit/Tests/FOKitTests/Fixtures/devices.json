@@ -1,0 +1,6 @@
+{
+  "devices": [
+    {"id": "dev-0001", "name": "Example Phone", "created": "2026-01-01T00:00:00Z", "last_seen": "2026-01-02T00:00:00Z"},
+    {"id": "dev-0002", "name": "Example Tablet", "created": "2026-01-01T00:00:00Z", "last_seen": null}
+  ]
+}
