@@ -33,9 +33,7 @@ apple/
                               OfficeSummary, Tailscale, Pairing (payload and QR), Subprocess (macOS),
                               Engines (CLI resolver, version and sign-in parsers), Connectors,
                               TerminalCommand (the terminal's allowed commands), Setup (the
-                              setup dialog's steps, profile, version and Return rules)
-
-                              TerminalCommand (the terminal's allowed commands), Keychain and
+                              setup dialog's steps, profile, version and Return rules), Keychain and
                               DeviceSession (the phone's credential and pairing state)
   Scripts/bundle-python.sh    builds apple/Resources/fo (the bundled runtime)
   Scripts/sign-bundle.sh      signs the runtime, the frameworks and the app, inside out
@@ -65,7 +63,12 @@ dependency, which only its `termcast` tool uses and which is not linked into the
 SwiftTerm 1.11 and later add a SwiftPM build-tool plugin that `xcodebuild` refuses to run
 unless plugin validation is skipped, so stay on 1.10.x until that is acceptable for CI.
 
-## Generate the project
+## Building
+
+The order is generate, build and test, then bundle Python. Signing is in
+[Signing and releases](#signing-and-releases).
+
+### Generate the project
 
 Edit `apple/project.yml`, never the `.xcodeproj`, then:
 
@@ -78,7 +81,7 @@ Commit `project.yml`, `FamilyOffice.xcodeproj`, `FamilyOffice/Info.plist` and
 `FamilyOfficePhone/Info.plist` together. CI regenerates the project and fails when the
 committed files differ.
 
-## Build and test
+### Build and test
 
 ```sh
 cd apple/FOKit && swift build && swift test
@@ -89,7 +92,7 @@ cd apple && xcodebuild -project FamilyOffice.xcodeproj -scheme FamilyOffice \
 Development builds are unsigned (or ad-hoc signed by Xcode). Release builds are signed by
 `Scripts/sign-bundle.sh`; see [Signing and releases](#signing-and-releases).
 
-## Bundle Python
+### Bundle Python
 
 ```sh
 apple/Scripts/bundle-python.sh
@@ -723,7 +726,18 @@ xcrun simctl launch booted com.familyoffice.phone
 CI builds with `CODE_SIGNING_ALLOWED=NO`, which is enough to compile and run the tests. An
 unsigned app cannot use the Keychain, though, and opens on pairing with "The Keychain could
 not be read"; to try it by hand keep Xcode's ad-hoc "Sign to Run Locally" signing (leave the
-flag out, as above). TestFlight builds come with the release unit (U17).
+flag out, as above).
+
+### TestFlight builds
+
+`.github/workflows/release-ios.yml` runs on `v*` tags and by hand on a `macos-latest` runner:
+`xcodegen generate`, then `xcodebuild archive` of the `FamilyOfficePhone` scheme, an export
+with `method: app-store-connect`, and `xcrun altool --upload-app` with an App Store Connect API
+key. `altool` is used rather than an upload action so the key never reaches third-party code.
+It needs six secrets: `IOS_CERT_P12`, `IOS_CERT_PASSWORD`, `IOS_PROVISIONING_PROFILE`,
+`ASC_KEY_ID`, `ASC_ISSUER_ID` and `ASC_KEY_P8` (the three files base64-encoded). When any is
+missing, every signing and upload step is skipped with a notice naming the missing secrets, and
+the job only builds the app for the simulator. The build number is the workflow run number.
 
 ### Screens
 
