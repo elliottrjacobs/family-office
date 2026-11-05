@@ -1,0 +1,4 @@
+[
+  {"id": "01J00000000000000000000002", "skill": "cio", "subject": "household", "status": "running", "created": "2026-01-02T00:05:00+00:00"},
+  {"id": "01J00000000000000000000001", "skill": "risk", "subject": "household", "status": "completed", "created": "2026-01-02T00:00:00+00:00"}
+]

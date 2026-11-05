@@ -13,6 +13,7 @@ final class StubProtocol: URLProtocol, @unchecked Sendable {
     private static let lock = NSLock()
     nonisolated(unsafe) private static var responses: [String: Response] = [:]
     nonisolated(unsafe) private static var cookieHeaders: [String: String] = [:]
+    nonisolated(unsafe) private static var requests: [String: (method: String, origin: String?)] = [:]
 
     static func set(_ path: String, status: Int = 200, body: Data) {
         lock.withLock { responses[path] = Response(status: status, body: body) }
@@ -22,10 +23,16 @@ final class StubProtocol: URLProtocol, @unchecked Sendable {
         lock.withLock { cookieHeaders[path] }
     }
 
+    /// The method and Origin header of the last request to `path`.
+    static func request(for path: String) -> (method: String, origin: String?)? {
+        lock.withLock { requests[path] }
+    }
+
     static func reset() {
         lock.withLock {
             responses = [:]
             cookieHeaders = [:]
+            requests = [:]
         }
     }
 
@@ -36,6 +43,9 @@ final class StubProtocol: URLProtocol, @unchecked Sendable {
         let path = request.url?.path ?? ""
         let response = Self.lock.withLock { () -> Response? in
             Self.cookieHeaders[path] = request.value(forHTTPHeaderField: "Cookie")
+            Self.requests[path] = (
+                request.httpMethod ?? "GET", request.value(forHTTPHeaderField: "Origin")
+            )
             return Self.responses[path]
         }
         guard let response, let url = request.url else {
@@ -95,9 +105,60 @@ final class APIClientTests: XCTestCase {
     func testDecodesDevices() async throws {
         StubProtocol.set("/api/devices", body: try fixture("devices"))
         let devices = try await client().devices()
-        XCTAssertEqual(devices.map(\.id), ["dev-0001", "dev-0002"])
-        XCTAssertEqual(devices[0].lastSeen, "2026-01-02T00:00:00Z")
+        XCTAssertEqual(devices.map(\.id), ["dev_000000000001", "dev_000000000002"])
+        XCTAssertEqual(devices[0].lastSeen, "2026-01-02T00:00:00+00:00")
         XCTAssertNil(devices[1].lastSeen)
+    }
+
+    func testDecodesRuns() async throws {
+        StubProtocol.set("/api/runs", body: try fixture("runs"))
+        let runs = try await client().runs()
+        XCTAssertEqual(runs.map(\.skill), ["cio", "risk"])
+        XCTAssertEqual(runs.map(\.isActive), [true, false])
+        XCTAssertEqual(StubProtocol.request(for: "/api/runs")?.method, "GET")
+        XCTAssertNil(StubProtocol.request(for: "/api/runs")?.origin)
+    }
+
+    func testRequestsPairingCodeWithOrigin() async throws {
+        StubProtocol.set("/api/devices/pairing", body: try fixture("pairing"))
+        let code = try await client().requestPairingCode()
+        XCTAssertEqual(code.code, "ABCD2345")
+        XCTAssertEqual(code.expiresDate, Date(timeIntervalSince1970: 1_767_312_300))
+        XCTAssertFalse(String(describing: code).contains("ABCD2345"))
+        let request = try XCTUnwrap(StubProtocol.request(for: "/api/devices/pairing"))
+        XCTAssertEqual(request.method, "POST")
+        XCTAssertEqual(request.origin, "http://127.0.0.1:4790")
+    }
+
+    func testRevokesDevice() async throws {
+        StubProtocol.set(
+            "/api/devices/dev_000000000001",
+            body: Data(#"{"id": "dev_000000000001", "revoked": true}"#.utf8))
+        let result = try await client().revokeDevice(id: "dev_000000000001")
+        XCTAssertTrue(result.revoked)
+        XCTAssertEqual(StubProtocol.request(for: "/api/devices/dev_000000000001")?.method, "DELETE")
+    }
+
+    func testRevokeOfUnknownDeviceCarriesReason() async throws {
+        StubProtocol.set(
+            "/api/devices/dev_000000000009", status: 404,
+            body: Data(#"{"reason": "device_not_found", "message": "No such paired device."}"#.utf8))
+        do {
+            try await client().revokeDevice(id: "dev_000000000009")
+            XCTFail("expected an HTTP error")
+        } catch {
+            XCTAssertEqual(error as? APIError, .http(status: 404, reason: "device_not_found"))
+            XCTAssertEqual(Pairing.explain(error), "That device is no longer paired.")
+        }
+    }
+
+    func testDecodesServerVersionAndLastSync() throws {
+        let body = Data(
+            #"{"version": "2.0.0", "server_version": "2.0.0", "mode": "office", "read_only": false, "chat": true, "remote": false, "identity": null, "office": {"last_sync": {"as_of": "2026-01-02T03:04:05+00:00"}}}"#
+                .utf8)
+        let status = try APIClient.decode(ServerStatus.self, from: body)
+        XCTAssertEqual(status.serverVersion, "2.0.0")
+        XCTAssertEqual(status.lastSync, Date(timeIntervalSince1970: 1_767_323_045))
     }
 
     func testDecodingFailureIsTyped() async throws {
