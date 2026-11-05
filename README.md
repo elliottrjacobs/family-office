@@ -197,7 +197,8 @@ fetches stop at `web_fetch_cap`, and the run view lists the sites visited, searc
 by query and fetches by host with the full URL on hover. See
 [SECURITY.md](SECURITY.md) for what this exposes.
 
-Each run goes to an engine. Claude Code is the engine this version runs; the
+Each run goes to an engine: Claude Code (the default and the recommended one) or
+Codex. The
 launch panel lists the engines `fo serve` can run, with one that is missing,
 outdated, or turned off shown disabled and the reason beside it. Model and effort are
 chosen per run: the panel offers a curated list of model ids for the engine
@@ -220,6 +221,19 @@ effort = "high"            # low, medium, or high
 max_budget_usd = 2.0       # per run on this engine; [serve] max_budget_usd when unset
 enabled = true             # false turns the engine off for chat
 ```
+
+Codex needs the Codex CLI installed and signed in once in a terminal (`codex login`;
+the server links each run to that sign-in and never copies it). If `fo serve` cannot
+find `codex` on its `PATH`, set `FO_CODEX_EXECUTABLE` to its full path. It is off by
+default: Codex confines reads by refusing a list of commands rather than by path, so a
+command the list misses could print a file such as one in `secrets/` (see
+[SECURITY.md](SECURITY.md)). Turn it on with `fo config set serve.engines.codex.enabled
+true` if you accept that. What differs from Claude Code: each run has its own scratch
+workspace in its run folder, where the advisor drafts the report before writing it
+with `fo report write --body-file`; web search at level `none` comes from Codex's own
+search (page fetches go through `fo research fetch`); there is no budget cap, only
+`run_timeout_minutes`; there is no deep mode; and runs show no streamed text, only each
+finished message.
 
 A run that recorded decisions but stopped before its report verified shows as
 partial; Resume continues the same report. Stopping `fo serve` stops a run in
