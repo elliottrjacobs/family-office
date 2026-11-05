@@ -306,7 +306,7 @@ struct ConnectorsSettings: View {
                 .disabled(
                     model.edgarName.trimmingCharacters(in: .whitespaces).isEmpty
                         || !model.edgarEmail.contains("@") || busy)
-                Button("Remove…") {
+                Button("Remove") {
                     Task { await model.remove("edgar", office: state.officePath, api: state.api) }
                 }
                 .disabled(busy || model.state(connector) == .notConnected)
