@@ -156,6 +156,27 @@ def report_path(root, kind=None, subject=None, slug="report", part=None, report=
     return {"path": path, "frontmatter": meta}
 
 
+URL = re.compile(r"https?://[^\s<>\"'`]+")
+FENCE = re.compile(r"^(```|~~~).*?^\1[ \t]*$", re.M | re.S)
+EVIDENCE = re.compile(r"^##[ \t]+Evidence\b.*?(?=^##(?!#)|\Z)", re.M | re.S | re.I)
+RETRIEVED = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def urls(text):
+    return [u.rstrip(".,;:!?)]}") for u in URL.findall(text)]
+
+
+def unlisted_source(body):
+    """The first URL cited outside code fences that Evidence does not list with a date."""
+    body = FENCE.sub("", body)
+    listed = set()
+    for section in EVIDENCE.findall(body):
+        for line in section.splitlines():
+            if RETRIEVED.search(URL.sub("", line)):
+                listed.update(urls(line))
+    return next((u for u in urls(body) if u not in listed), None)
+
+
 def verify(root, path):
     from fo.notebook import decisions
 
@@ -196,6 +217,12 @@ def verify(root, path):
         raise OfficeError("report_decisions", "Report references a missing decision.")
     if CLOSING not in text:
         raise OfficeError("report_closing", "Add the closing correction invitation.")
+    missing = unlisted_source(split(file, root)[2])
+    if missing:
+        raise OfficeError(
+            "report_sources",
+            f"List {missing} in the Evidence section with its retrieval time.",
+        )
     return {"valid": True, "path": row["path"]}
 
 
