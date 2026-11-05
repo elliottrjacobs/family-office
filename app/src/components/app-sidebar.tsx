@@ -13,7 +13,12 @@ import {
 } from "lucide-react"
 
 import type { Advisor } from "@/api/office"
+import { ACTIVE, type Run, runs } from "@/api/runs"
+import { useApi } from "@/api/use-api"
 import { needsVerdict, useAppData } from "@/app-data"
+import { type AdvisorId, advisorIdFor } from "@/avatars/appearance"
+import { Robot } from "@/avatars/Robot"
+import { useAdvisorState, useLiveRun } from "@/components/advisor-avatar"
 import {
   AdvisorIcon,
   advisorName,
@@ -69,6 +74,26 @@ function NavLink({ to, onClick, ...props }: Omit<React.ComponentProps<"a">, "hre
   )
 }
 
+const ROW_ROBOT = 24
+// Tailwind's important suffix beats the menu button's `[&_svg]:size-4`.
+const ROW_ROBOT_CLASS = "size-6! shrink-0 -my-1"
+
+/** The live robot of an advisor with a conversation or run in progress. */
+function LiveRowRobot({ advisor, run }: { advisor: AdvisorId; run: Run | undefined }) {
+  const { state, level } = useAdvisorState(advisor, run)
+  // Small robots animate only while the advisor is doing something.
+  return <Robot advisor={advisor} size={ROW_ROBOT} state={state} level={level} live={state !== "idle"} className={ROW_ROBOT_CLASS} />
+}
+
+function RowAvatar({ advisor, active }: { advisor: Advisor; active: Run | undefined }) {
+  const { connected } = useAppData()
+  const id = advisorIdFor(advisor.name)
+  const published = useLiveRun(id)
+  if (!id) return <AdvisorIcon name={advisor.name} group={advisor.group} className="size-5" />
+  if (published || active) return <LiveRowRobot advisor={id} run={active} />
+  return <Robot advisor={id} size={ROW_ROBOT} state={connected ? "idle" : "sleeping"} className={ROW_ROBOT_CLASS} />
+}
+
 function ThemeSwitch() {
   const { theme, setTheme } = useTheme()
   const next = theme === "light" ? "dark" : theme === "dark" ? "system" : "light"
@@ -90,6 +115,12 @@ export function AppSidebar() {
   const { path } = useLocation()
   const { status, registry, review } = useAppData()
   const [query, setQuery] = React.useState("")
+  // Runs in progress, so the sidebar shows which advisor is working on any page.
+  const history = useApi(status?.chat ? "runs" : "runs-off", () => (status?.chat ? runs() : Promise.resolve([])), 5_000)
+  const working = new Map<string, Run>()
+  for (const run of history.data ?? []) {
+    if (ACTIVE.includes(run.status) && !working.has(run.skill)) working.set(run.skill, run)
+  }
   const office = status?.office
   const verdicts = needsVerdict(review).length
   const folder = office?.office.split("/").filter(Boolean).pop() ?? "Family Office"
@@ -163,7 +194,7 @@ export function AppSidebar() {
                           isActive={path === `/advisors/${advisor.name}`}
                           render={<NavLink to={`/advisors/${advisor.name}`} />}
                         >
-                          <AdvisorIcon name={advisor.name} group={advisor.group} className="size-5" />
+                          <RowAvatar advisor={advisor} active={working.get(advisor.name)} />
                           <span>{advisorName(advisor.name)}</span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>

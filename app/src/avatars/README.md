@@ -132,6 +132,12 @@ invisible when static) down the screen; writing fills the progress bar
 and jitters its bars; done bounces once; error shakes once into its tilted pose; sleeping
 breathes and drifts its z's.
 
+In the app, the advisor page header shows a live robot with its state named beneath it,
+following the open conversation: the chat publishes its run and events through
+`publishRun` in `components/advisor-avatar.tsx`. Each sidebar row shows a static 24 px
+robot (sleeping while the server is unreachable) that turns live while that advisor has a
+run in progress. Skills without a robot keep their icon.
+
 ## Rendering
 
 The robots are SVG with painted lighting rather than real-time 3D (KTD16). A WebGL
