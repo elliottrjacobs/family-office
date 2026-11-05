@@ -45,8 +45,8 @@ public final class Reachability {
         self.lastSeen = defaults?.object(forKey: lastSeenKey) as? Date
     }
 
-    /// Probes `GET /api/status` through `client`. Any HTTP answer, even a 401, means the
-    /// server is up.
+    /// Probes `GET /api/status` through `client`. Any HTTP answer, even a 401 or a body this
+    /// build cannot decode, means the server is up.
     public convenience init(
         client: APIClient,
         interval: Duration = .seconds(5),
@@ -60,7 +60,7 @@ public final class Reachability {
             do {
                 _ = try await client.status()
                 return true
-            } catch APIError.http {
+            } catch APIError.http, APIError.decoding {
                 return true
             } catch {
                 return false

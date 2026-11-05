@@ -325,8 +325,8 @@ extension PairingPayload {
     /// A payload typed by hand, for a simulator or a phone without a camera. The URL is the
     /// Mac's tailnet address; `https://` is assumed when no scheme is given, and plain `http`
     /// is accepted only for `localhost` or `127.0.0.1`, which a simulator shares with the Mac.
-    /// Spaces in the code are dropped and letters upper-cased; hyphens stay (the server
-    /// ignores them).
+    /// The code keeps only its letters and digits, upper-cased: the server ignores the hyphen
+    /// the Mac shows, and a keyboard may turn it into a dash.
     public static func manual(url: String, code: String) throws -> PairingPayload {
         var text = url.trimmingCharacters(in: .whitespacesAndNewlines)
         if !text.contains("://") {
@@ -346,7 +346,7 @@ extension PairingPayload {
         components.user = nil
         components.password = nil
         guard let clean = components.string else { throw DecodeError.invalid("url") }
-        let cleaned = code.uppercased().filter { !$0.isWhitespace }
+        let cleaned = code.uppercased().filter { $0.isASCII && ($0.isLetter || $0.isNumber) }
         guard !cleaned.isEmpty else { throw DecodeError.invalid("code") }
         return PairingPayload(url: clean, code: cleaned)
     }
