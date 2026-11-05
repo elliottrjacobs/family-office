@@ -262,7 +262,10 @@ returned (`--report PATH`), or allocates one from `--kind` and `--subject` the w
 directory instead. It writes only under `reports/`, never into a dotted directory
 or file there, caps the body at 2 MB (`max_body_bytes` under `[reports]`), writes
 through a temp file and rename, and prints the path and byte count. Skills and
-advisor runs use it in place of a file-writing tool.
+advisor runs use it in place of a file-writing tool. `--body-file PATH` reads the
+body from a file instead of stdin, under the same cap, for headless runs that cannot
+pipe: the file must resolve under `reports/` or a run's scratch workspace,
+`cache/serve/runs/<id>/workspace/`, or the command refuses it (`unsafe_path`).
 
 `fo config set KEY VALUE` changes one setting in `office.toml` under the office
 lock, keeps every other line and comment as it was, and refuses anything outside

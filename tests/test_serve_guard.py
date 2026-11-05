@@ -242,3 +242,16 @@ def test_web_tools_are_denied_outside_a_web_run(office, web_env):
     assert web(office, off, "WebSearch", query="x").endswith("(web_off)")
     none = {**web_env, "FO_SERVE_WEB_FETCH_CAP": "0"}
     assert web(office, none, "WebFetch", url="https://93.184.215.14/").endswith("(web_fetch_cap)")
+
+
+def test_report_write_with_a_body_file_is_left_to_the_rules(office):
+    for command in (
+        "fo report write --report reports/research/ACME/2026-11-05-report.md "
+        "--body-file cache/serve/runs/01M50V918GZEEPD9WHWV3M7CH6/workspace/body.md",
+        "fo report write --report reports/research/ACME/2026-11-05-report.md "
+        "--body-file reports/research/ACME/draft.md --json",
+    ):
+        assert call("Bash", office, command=command) is None, command
+    # Feeding the body through the shell is still refused; the command checks the file.
+    assert call("Bash", office, command="fo report write --report X < /tmp/body.md")
+    assert call("Bash", office, command="cat body.md | fo report write --report X")

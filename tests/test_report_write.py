@@ -153,3 +153,73 @@ def test_write_is_allowed_under_the_run_marker_and_refused_read_only(office, mon
     monkeypatch.delenv("FO_OFFICE", raising=False)
     code, data = cli(office, "report", "write", "--report", started["path"], body="x")
     assert (code, data["path"]) == (0, started["path"])
+
+
+RUN = "01M50V918GZEEPD9WHWV3M7CH6"
+
+
+def test_body_file_from_reports_or_a_run_workspace(office):
+    started = start(office, "research", "BETA")["report"]["data"]
+    text = report_text(started)
+    draft = office / "reports/research/BETA/draft.md"
+    draft.parent.mkdir(parents=True, exist_ok=True)
+    draft.write_text(text)
+    code, data = cli(
+        office, "report", "write", "--report", started["path"], "--body-file", str(draft)
+    )
+    assert (code, data["path"], data["bytes"]) == (0, started["path"], len(text.encode()))
+    assert (office / started["path"]).read_text() == text
+    workspace = office / "cache/serve/runs" / RUN / "workspace"
+    workspace.mkdir(parents=True)
+    (workspace / "body.md").write_text(text + "More.\n")
+    relative = f"cache/serve/runs/{RUN}/workspace/body.md"
+    code, data = cli(
+        office, "report", "write", "--report", started["path"], "--body-file", relative
+    )
+    assert code == 0 and (office / started["path"]).read_text() == text + "More.\n"
+    # The body file wins over stdin.
+    code, _ = cli(
+        office, "report", "write", "--report", started["path"], "--body-file", relative, body="x"
+    )
+    assert code == 0 and (office / started["path"]).read_text() == text + "More.\n"
+
+
+def test_body_file_outside_its_roots_is_refused(office, tmp_path):
+    started = start(office, "research", "BETA")["report"]["data"]
+    (tmp_path / "outside.md").write_text("x")
+    (office / "cache/serve/runs" / RUN).mkdir(parents=True)
+    (office / "cache/serve/runs" / f"{RUN}.jsonl").write_text("x")
+    (office / "reports/research/BETA").mkdir(parents=True, exist_ok=True)
+    (office / "reports/research/BETA/link.md").symlink_to(office / "office.toml")
+    for bad in (
+        str(tmp_path / "outside.md"),
+        "../outside.md",
+        "office.toml",
+        "notebook/decisions.jsonl",
+        "secrets/x",
+        f"cache/serve/runs/{RUN}.jsonl",
+        f"cache/serve/runs/{RUN}/web.jsonl",
+        "cache/serve/runs/x/workspace/body.md",
+        "reports/research/BETA/link.md",
+    ):
+        code, data = cli(office, "report", "write", "--report", started["path"], "--body-file", bad)
+        assert (code, data["reason"]) == (1, "unsafe_path"), bad
+    code, data = cli(
+        office, "report", "write", "--report", started["path"], "--body-file", "reports/none.md"
+    )
+    assert (code, data["reason"]) == (1, "body_file_missing")
+    assert not (office / started["path"]).exists()
+
+
+def test_body_file_keeps_the_size_cap_and_utf8_rule(office):
+    started = start(office, "research", "BETA")["report"]["data"]
+    config = office / "office.toml"
+    config.write_text(config.read_text() + "\n[reports]\nmax_body_bytes = 10\n")
+    draft = office / "reports/draft.md"
+    draft.write_text("x" * 11)
+    args = ("report", "write", "--report", started["path"], "--body-file", "reports/draft.md")
+    assert cli(office, *args)[1]["reason"] == "report_too_large"
+    draft.write_bytes(b"\xff\xfe")
+    assert cli(office, *args)[1]["reason"] == "invalid_report_body"
+    draft.write_text("  \n")
+    assert cli(office, *args)[1]["reason"] == "empty_report"
