@@ -45,6 +45,31 @@ thin calls to `fo journal` and `fo corrections` in the server's own interpreter,
 so the office lock and the notebook's validation apply as in a terminal. They need
 the token and a same-origin `Origin`, and none exist with `--read-only`.
 
+### Device tokens
+
+A paired phone holds a device token: 32 random bytes shown once, in the pairing
+response, and stored only as a SHA-256 hash with its name, creation time, and
+last-seen time in the office's `secrets/devices.json` at 0600 inside the 0700
+`secrets/` directory. Pairing codes are eight characters, held only in memory,
+single use, valid for five minutes, one at a time, and dropped after ten wrong
+attempts. A code is issued only over a loopback `Host` with the launch cookie,
+and redeemed only over the tailnet name with a Tailscale identity that passes
+`allowed_logins`.
+
+A token is accepted only with `--remote`, as `Authorization: Bearer`, on a request
+whose `Host` is the tailnet name and whose Tailscale login is present and passes
+`allowed_logins`. On a loopback `Host` a bearer token is ignored and the cookie
+rules apply unchanged: a loopback port is reachable by DNS-rebinding pages and by
+other local users, so a credential that does not change with each launch must
+never open it. `POST /api/devices/login` exchanges the token for a per-device
+session cookie (`Secure`, `HttpOnly`, `SameSite=Strict`), valid only over the
+tailnet and only while the device stays paired. Device credentials cannot list,
+pair, or revoke devices; that needs the launch cookie. Revoke a device from the
+Mac app's Devices pane or `DELETE /api/devices/{id}`; its token and sessions stop
+working on the next request. A restart keeps devices paired. Tokens never appear
+in the access log, and neither does the launch token that `fo serve --app` prints
+in its one handshake line.
+
 ### Advisor runs
 
 Chat starts one headless Claude Code run at a time in the office directory. A run
