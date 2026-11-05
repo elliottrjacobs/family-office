@@ -52,12 +52,13 @@ loads only the office's project settings plus a run profile: no user settings or
 hooks, an empty strict MCP configuration, only the Bash, Read, Write, Edit, and
 Task tools, `--permission-mode dontAsk` with every permission prompt denied, and a
 budget cap and time limit. Its environment carries only what login needs, with
-`FO_SERVE_RUN` set so `fo` refuses other offices and the setup, credential, sync,
-commit, schedule, notify, migrate, reindex, and serve commands whatever the flag
-order. A PreToolUse hook (`fo.serve.guard`) is the last word on every tool call,
-worker agents included: only plain `fo` commands with no pipes, redirects, or
-substitution; reads inside the office outside `secrets/`, `cache/`, `imports/`,
-`medical/`, `.git/`, the store, and the lock; and writes only under `reports/`.
+`FO_SERVE_RUN` set so `fo` refuses other offices and the setup, `config set`,
+credential, sync, commit, schedule, notify, migrate, reindex, and serve commands
+whatever the flag order. A PreToolUse hook (`fo.serve.guard`) is the last word on
+every tool call, worker agents included: only plain `fo` commands with no pipes,
+redirects, or substitution; reads inside the office outside `secrets/`, `cache/`,
+`imports/`, `medical/`, `.git/`, the store, and the lock; and writes only under
+`reports/`.
 It exists because a skill's own `Read` permission and read-only shell commands
 otherwise reach files outside the office. The runner never passes
 `bypassPermissions`. Run records and event logs live in `cache/serve/runs/` at

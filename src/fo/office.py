@@ -9,9 +9,11 @@ from fo.errors import OfficeError
 # Set by fo serve for a headless advisor run: the value is the office the run belongs to.
 RUN_MARKER = "FO_SERVE_RUN"
 # Commands an advisor run may never invoke: setup, credentials, account sync, publishing,
-# scheduling, notifications, rewriting derived or rendered files, and starting a server.
+# scheduling, notifications, rewriting derived or rendered files, changing office.toml,
+# and starting a server.
 RUN_RESTRICTED = (
     "setup",
+    "config set",
     "auth",
     "sync",
     "commit",
@@ -47,8 +49,8 @@ def run_office(explicit: Path | None, args: list[str]) -> Path | None:
             if args != ["sync", "status"]:
                 raise OfficeError(
                     "serve_run_restricted",
-                    "Advisor runs cannot set up, authenticate, sync, commit, schedule, "
-                    "notify, migrate, or reindex.",
+                    "Advisor runs cannot set up, change settings, authenticate, sync, "
+                    "commit, schedule, notify, migrate, or reindex.",
                 )
     return office
 

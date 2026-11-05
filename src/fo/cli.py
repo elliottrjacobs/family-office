@@ -48,6 +48,8 @@ skills_app = typer.Typer(no_args_is_help=True)
 app.add_typer(skills_app, name="skills")
 sync_app = typer.Typer(invoke_without_command=True)
 app.add_typer(sync_app, name="sync")
+config_app = typer.Typer(invoke_without_command=True)
+app.add_typer(config_app, name="config")
 
 
 def emit(ctx, result):
@@ -148,9 +150,31 @@ def doctor(ctx: typer.Context, notify: bool = False):
         raise typer.Exit(1)
 
 
-@app.command("config")
+@config_app.callback()
 def config_command(ctx: typer.Context):
+    """Print settings with secrets masked; set or get one settable key."""
+    if ctx.invoked_subcommand:
+        return
     run(ctx, lambda: public_config(root(ctx)))
+
+
+@config_app.command("set")
+def config_set(ctx: typer.Context, key: str, value: str):
+    """Set one office.toml key from the schema in the README."""
+    from fo.config import set_config
+
+    def execute():
+        writable(ctx)
+        return set_config(root(ctx), key, value)
+
+    run(ctx, execute)
+
+
+@config_app.command("get")
+def config_get(ctx: typer.Context, key: str):
+    from fo.config import get_config
+
+    run(ctx, lambda: get_config(root(ctx), key))
 
 
 @app.command("status")
