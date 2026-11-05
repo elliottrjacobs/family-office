@@ -66,6 +66,7 @@ SCRAPE = ("POST", "https://api.firecrawl.dev/v2/scrape")
 def test_search_returns_ranked_untrusted_results_and_then_the_cache(office, routes):
     table, seen = routes
     connect(office, "exa")
+    configure(office, "[providers.exa]\ncache_hours = 24")
     table[EXA] = httpx.Response(200, json=fixture("exa-search.json"))
     code, data = invoke("research", "search", "ACME earnings", "--office", str(office))
     assert code == 0
@@ -123,6 +124,7 @@ def test_search_without_a_key_is_not_connected(office, routes):
 def test_the_daily_limit_refuses_the_twenty_sixth_call(office, routes):
     table, seen = routes
     connect(office, "exa")
+    configure(office, "[providers.exa]\ncache_hours = 24")
     table[EXA] = httpx.Response(200, json=fixture("exa-search.json"))
     for index in range(25):
         assert invoke("research", "search", f"query {index}", "--office", str(office))[0] == 0

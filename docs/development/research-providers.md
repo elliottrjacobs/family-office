@@ -133,7 +133,7 @@ list. `fo report write --part` (unit U2) may later take over writing this file.
 ```toml
 [providers.exa]
 daily_limit = 25        # searches per UTC day
-cache_hours = 24
+cache_hours = 0         # off: Exa's terms do not clearly allow keeping results; set hours to cache
 
 [providers.firecrawl]
 daily_limit = 25        # scrapes per UTC day

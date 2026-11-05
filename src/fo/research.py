@@ -29,7 +29,7 @@ RESOLVER = None
 MAX_REDIRECTS = 3
 USER_AGENT = "family-office research fetch (+https://github.com/elliottrjacobs/family-office)"
 DEFAULTS = {
-    "exa": {"daily_limit": 25, "cache_hours": 24},
+    "exa": {"daily_limit": 25, "cache_hours": 0},
     "firecrawl": {"daily_limit": 25, "cache_hours": 24},
 }
 FETCH_DEFAULTS = {"fetch_max_bytes": 400_000, "text_max_chars": 60_000, "cache_hours": 24}
