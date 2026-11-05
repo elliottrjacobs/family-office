@@ -13,7 +13,7 @@ import {
 } from "lucide-react"
 
 import type { Decision } from "@/api/office"
-import { ACTIVE, type Run } from "@/api/runs"
+import { ACTIVE, engineLabel, type Run } from "@/api/runs"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -105,6 +105,19 @@ function Message({ item, decisions }: { item: Item; decisions: Map<string, Decis
   }
 }
 
+/** Which engine and model the run uses; the model the engine reported wins once known. */
+export function RunEngine({ run }: { run: Run }) {
+  if (!run.engine) return null
+  const model = run.reported_model ?? run.model
+  return (
+    <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground" aria-label="Engine and model">
+      <Badge variant="outline">{engineLabel(run.engine)}</Badge>
+      {model && <code className="font-mono">{model}</code>}
+      {run.effort && <span>{run.effort} effort</span>}
+    </p>
+  )
+}
+
 function Outcome({ run, onResume, onNew }: { run: Run; onResume: () => void; onNew: () => void }) {
   const cost = run.cost_usd ? ` Cost so far $${run.cost_usd.toFixed(2)}.` : ""
   switch (run.status) {
@@ -187,6 +200,7 @@ export function RunView({
 
   return (
     <div className="space-y-4">
+      {run && <RunEngine run={run} />}
       <div className="space-y-3" aria-live="polite">
         {transcript.items.map((item) => (
           <Message key={`${item.type}-${item.seq}`} item={item} decisions={known} />

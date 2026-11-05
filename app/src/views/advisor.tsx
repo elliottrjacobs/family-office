@@ -2,7 +2,7 @@ import * as React from "react"
 import { Check, FileText, MessageSquare, Plus, Terminal } from "lucide-react"
 
 import { decisions, levels, reports } from "@/api/office"
-import { cancel, follow, reply, run as fetchRun, runnerStatus, runs } from "@/api/runs"
+import { cancel, follow, reply, run as fetchRun, type RunnerStatus, runnerStatus, runs } from "@/api/runs"
 import { useApi } from "@/api/use-api"
 import { useAppData } from "@/app-data"
 import { AdvisorIcon, advisorName, GROUP_LABELS } from "@/components/advisor-icon"
@@ -20,7 +20,7 @@ import { apply, empty, type Transcript } from "@/lib/transcript"
 const TIERS = { fast: "Fast model", balanced: "Balanced model", strong: "Strongest model" }
 
 /** The conversation with one advisor: launch, stream, follow up, cancel, resume. */
-function Chat({ name, deepAvailable }: { name: string; deepAvailable: boolean }) {
+function Chat({ name, runner }: { name: string; runner: RunnerStatus }) {
   const { registry, refresh } = useAppData()
   const advisor = registry!.skills.find((a) => a.name === name)!
   const history = useApi("runs", runs)
@@ -64,7 +64,9 @@ function Chat({ name, deepAvailable }: { name: string; deepAvailable: boolean })
     return (
       <LaunchPanel
         advisor={advisor}
-        deepAvailable={deepAvailable}
+        deepAvailable={Boolean(runner.deep)}
+        engines={runner.engines ?? []}
+        officeDefault={runner.default}
         onLaunched={(started) => {
           setChosen(started.id)
           history.reload()
@@ -194,7 +196,7 @@ export function AdvisorPage({ name }: { name: string }) {
             <h2 className="flex items-center gap-2 text-base font-semibold">
               <MessageSquare className="size-4 text-muted-foreground" /> Ask {advisorName(advisor.name)}
             </h2>
-            {chat ? <Chat key={name} name={name} deepAvailable={Boolean(runner.data?.deep)} /> : <ChatUnavailable name={name} />}
+            {chat ? <Chat key={name} name={name} runner={runner.data!} /> : <ChatUnavailable name={name} />}
           </section>
           <section className="rounded-xl border bg-card p-4 sm:p-5">
             <h2 className="mb-3 text-base font-semibold">Recent reports</h2>
