@@ -4,11 +4,13 @@ import shutil
 import stat
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
 
 from fo.brief import start
+from fo.config import set_config
 from fo.errors import OfficeError
 from fo.serve.runner_claude import ClaudeRunner
 from fo.serve.runner_codex import (
@@ -20,6 +22,8 @@ from fo.serve.runner_codex import (
     TOOLS,
     CodexRunner,
 )
+from fo.serve.runs import ACTIVE, ENGINE_DEFAULTS, RunManager, engine_settings
+from tests.offices import synthetic
 
 FAKE = Path(__file__).parent / "fake_codex.py"
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -32,6 +36,13 @@ OVERRIDES = [
     "suppress_unstable_features_warning=true",
     *(f"features.{name}=false" for name in FEATURES),
 ]
+
+
+@pytest.fixture
+def office(tmp_path):
+    root = synthetic(tmp_path / "office")
+    set_config(root, "serve.engines.codex.enabled", "true")
+    return root
 
 
 @pytest.fixture
@@ -49,6 +60,16 @@ def fake(tmp_path, lines, auth, name="script"):
     path.write_text("".join(json.dumps(line) + "\n" for line in lines))
     runner = CodexRunner(executable=[sys.executable, str(FAKE), str(path)], auth_home=auth)
     return runner, folder
+
+
+def settle(manager, root, run_id, timeout=30):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        record = manager.get(root, run_id)
+        if record["status"] not in ACTIVE and not manager.running(run_id):
+            return record
+        time.sleep(0.05)
+    raise AssertionError("the run did not finish")
 
 
 def values(argv, flag):
@@ -285,6 +306,115 @@ def test_check_refuses_mcp_unexpected_tools_and_prompts():
     assert "unexpected tools web" in codex.check({**init, "tools": [*TOOLS, "web"]}, "cio")
     assert "approval policy" in codex.check({**init, "permission_mode": "on-request"}, "cio")
     assert "cio skill" in codex.check({**init, "slash_commands": ["eli5"]}, "cio")
+
+
+COMPLETE = [
+    {"fake": "thread"},
+    {"fake": "start"},
+    {"fake": "draft"},
+    {"fake": "write"},
+    {"fake": "text", "text": "Done; the report is written."},
+    {"fake": "done"},
+]
+
+
+def test_fake_codex_run_completes_with_a_report_written_through_fo(office, tmp_path, auth):
+    runner, folder = fake(tmp_path, COMPLETE, auth)
+    manager = RunManager({"codex": runner})
+    expected = start(office, "eli5", "ACME", "none")["report"]["data"]["path"]
+    record = manager.launch(office, "eli5", "ACME", "none", engine="codex", effort="low")
+    assert record["engine"] == "codex" and record["runner"] == "codex"
+    assert record["report"] == expected
+    assert record["budget_enforced"] is False and record["max_budget_usd"] == 2.0
+    done = settle(manager, office, record["id"])
+    assert done["status"] == "completed", done
+    assert done["verify"] == {"valid": True, "reason": None}
+    assert done["report_written"] is True and done["session_id"] == "thread-1"
+    assert done["engine"] == "codex"
+    run = office / "cache/serve/runs" / record["id"]
+    argv = json.loads((folder / "argv.json").read_text())
+    assert values(argv, "-C") == [str(run / "workspace")]
+    assert "--search" in argv and values(argv, "-m") == ["gpt-5.6-sol"]
+    assert 'model_reasoning_effort="low"' in values(argv, "-c")
+    homes = json.loads((folder / "homes.json").read_text())
+    assert homes == {
+        "CODEX_HOME": str(run / "codex-home"),
+        "HOME": str(run / "home"),
+        "FO_SERVE_RUN": str(office),
+    }
+    assert not [k for k in json.loads((folder / "env.json").read_text()) if k.startswith("CLAUDE")]
+    prompt = (folder / "prompts.txt").read_text()
+    assert prompt.startswith(
+        f"Write the finished report with: fo report write --report {expected} --body-file "
+        f"{run / 'workspace/report.md'} (draft report.md with apply_patch first)."
+    )
+    assert "\n\n/eli5 ACME --level none\n" in prompt
+    assert (run / "codex-home/auth.json").is_symlink()
+    kinds = [e["kind"] for e in manager.events(office, record["id"])]
+    assert kinds[0] == "user" and "init" in kinds and "tool" in kinds and kinds[-1] == "status"
+
+
+def test_follow_up_reuses_the_folder_and_the_thread(office, tmp_path, auth):
+    lines = [{"fake": "thread"}, {"fake": "text", "text": "Which ticker?"}, {"fake": "done"}]
+    runner, folder = fake(tmp_path, lines, auth)
+    manager = RunManager({"codex": runner})
+    record = manager.launch(office, "eli5", "ACME", "household", engine="codex")
+    first = settle(manager, office, record["id"])
+    assert first["status"] == "awaiting_input" and first["session_id"] == "thread-1"
+    argv = json.loads((folder / "argv.json").read_text())
+    assert "--search" not in argv and 'web_search="disabled"' in values(argv, "-c")
+    manager.message(office, record["id"], "ACME, please.")
+    second = settle(manager, office, record["id"])
+    argv = json.loads((folder / "argv.json").read_text())
+    at = argv.index("exec")
+    assert argv[at : at + 3] == ["exec", "resume", "thread-1"]
+    run = office / "cache/serve/runs" / record["id"]
+    assert values(argv, "-C") == [str(run / "workspace")]
+    assert second["session_id"] == "thread-1" and second["engine"] == "codex"
+    assert (folder / "prompts.txt").read_text().split("\n---\n")[1] == "ACME, please."
+
+
+def test_codex_is_off_by_default_and_says_why(tmp_path, auth):
+    root = synthetic(tmp_path / "office")
+    assert ENGINE_DEFAULTS["codex"]["enabled"] is False
+    assert engine_settings(root)["engines"]["codex"]["enabled"] is False
+    runner, _ = fake(tmp_path, COMPLETE, auth)
+    manager = RunManager({"codex": runner})
+    with pytest.raises(OfficeError) as raised:
+        manager.launch(root, "eli5", "ACME", "none", engine="codex")
+    assert raised.value.reason == "engine_disabled" and "nl" in raised.value.message
+    status = manager.status(root, lambda name, engine: engine.preflight())
+    entry = status["engines"][0]
+    assert entry["reason"] == "engine_disabled" and "command, not by path" in entry["message"]
+    set_config(root, "serve.engines.codex.enabled", "false")
+    message = manager.status(root, lambda name, engine: engine.preflight())["engines"][0]["message"]
+    assert message == "The codex engine is turned off in office.toml ([serve.engines.codex])."
+
+
+def test_engine_report_names_the_preflight_reason_when_codex_is_missing(office, auth):
+    manager = RunManager({"codex": CodexRunner(executable=[], auth_home=auth)})
+    entry = manager.status(office, lambda name, engine: engine.preflight())["engines"][0]
+    assert entry["name"] == "codex" and entry["usable"] is False
+    assert entry["reason"] == "runner_missing"
+
+
+def test_codex_refuses_deep_mode(office, tmp_path, auth):
+    runner, _ = fake(tmp_path, COMPLETE, auth)
+    manager = RunManager({"codex": runner}, deep=True)
+    with pytest.raises(OfficeError) as raised:
+        manager.launch(office, "research", "ACME", "household", deep=True, engine="codex")
+    assert raised.value.reason == "deep_unavailable"
+
+
+def test_the_server_registers_both_engines(tmp_path):
+    from fo import serve
+
+    root = synthetic(tmp_path / "office")
+    server, _ = serve.prepare(office=str(root), port=0)
+    try:
+        assert set(server.app.runs.runners) == {"claude", "codex"}
+    finally:
+        server.server_close()
 
 
 # The isolation gate: the real Codex against a synthetic office -----------------------------
