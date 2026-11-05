@@ -16,8 +16,8 @@
 # Running it again rebuilds the tree from scratch; the downloaded archive is cached under
 # apple/build/python-cache/ and re-verified against its checksum on every run.
 #
-# TODO(U12): sign every Mach-O file under python/ and venv/ with the Developer ID, the hardened
-# runtime and the interpreter's entitlements before the app itself is signed and notarized.
+# Signing: Scripts/sign-bundle.sh signs every Mach-O file under python/ and venv/ (the hardened
+# runtime, the interpreter entitlements) after Xcode copies the tree into the app.
 set -euo pipefail
 
 # python-build-standalone release pinned by exact tag and SHA-256 (from the release's

@@ -12,13 +12,14 @@ apple/
   FamilyOffice/
     App/                      @main app, AppState, ServerProcess, WebView, ContentView,
                               Power, LoginItem, CommandLineTool, FoCommand, SessionPrimer,
-                              SetupVersion
+                              SetupVersion, Updater (Sparkle)
     MenuBar/                  the menu bar item and the 30 s status poller
     Settings/                 the Settings window: General, Engines, Connectors, Devices, Advanced
     Setup/                    the first-run setup dialog: SetupModel, SetupDialog, one view per step
     Terminal/                 FoTerminalView: the embedded terminal (SwiftTerm) for four fo commands
     Assets.xcassets           placeholder icon, the welcome step's robot row
     Info.plist                generated from project.yml, committed
+    FamilyOffice.entitlements the bundled interpreter's entitlements (applied by sign-bundle.sh)
   FamilyOfficePhone/
     App/                      @main app, RootView, OfficeScreen, PhoneModel
     Pairing/                  PairingView, PairingInput (scanned or typed text to a payload)
@@ -37,6 +38,9 @@ apple/
                               TerminalCommand (the terminal's allowed commands), Keychain and
                               DeviceSession (the phone's credential and pairing state)
   Scripts/bundle-python.sh    builds apple/Resources/fo (the bundled runtime)
+  Scripts/sign-bundle.sh      signs the runtime, the frameworks and the app, inside out
+  Scripts/make-dmg.sh         builds FamilyOffice-<version>-<arch>.dmg from the signed app
+  Scripts/notarize.sh         submits a zip or DMG to notarytool and waits (CI only)
   Resources/fo/               build product, git-ignored
 ```
 
@@ -46,15 +50,17 @@ project.
 
 ## Dependencies
 
-The Mac app has one third-party Swift package; the iPhone app has none:
+The Mac app has two third-party Swift packages; the iPhone app has none:
 
 | Package | Version | License | Used for |
 | ------- | ------- | ------- | -------- |
 | [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) | 1.10.1 (exact) | MIT | the embedded terminal (`Terminal/`) |
+| [Sparkle](https://github.com/sparkle-project/Sparkle) | 2.10.1 (exact) | MIT | in-app updates (`App/Updater.swift`) |
 
-It is declared in `project.yml` with `exactVersion`, and
+Each is declared in `project.yml` with `exactVersion`, and
 `FamilyOffice.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` pins its
-revision; commit both. SwiftPM also resolves SwiftTerm's own `swift-argument-parser`
+revision; commit both. When Sparkle moves, update `SPARKLE_VERSION` and `SPARKLE_SHA256` in
+`.github/workflows/release-mac.yml` to the same release. SwiftPM also resolves SwiftTerm's own `swift-argument-parser`
 dependency, which only its `termcast` tool uses and which is not linked into the app.
 SwiftTerm 1.11 and later add a SwiftPM build-tool plugin that `xcodebuild` refuses to run
 unless plugin validation is skipped, so stay on 1.10.x until that is acceptable for CI.
@@ -80,8 +86,8 @@ cd apple && xcodebuild -project FamilyOffice.xcodeproj -scheme FamilyOffice \
   -configuration Debug CODE_SIGNING_ALLOWED=NO build
 ```
 
-Signing, notarization and the universal release build come later; development builds are
-unsigned (or ad-hoc signed by Xcode).
+Development builds are unsigned (or ad-hoc signed by Xcode). Release builds are signed by
+`Scripts/sign-bundle.sh`; see [Signing and releases](#signing-and-releases).
 
 ## Bundle Python
 
@@ -106,6 +112,97 @@ When `apple/Resources/fo/` exists, the build copies it to `Contents/Resources/fo
 Without it the app builds anyway and finds `fo` as described below. The bundle is never
 committed. To move to a new python-build-standalone release, update the tag, version and both
 checksums together from the release's `SHA256SUMS`.
+
+## Signing and releases
+
+Releases are built by `.github/workflows/release-mac.yml` on a `v*` tag; the steps, secrets and
+checks are in [RELEASING.md](../../RELEASING.md). Only CI holds the Developer ID certificate, the
+notarization key and the Sparkle private key. Locally you sign ad-hoc.
+
+### sign-bundle.sh
+
+```sh
+apple/Scripts/sign-bundle.sh path/to/FamilyOffice.app            # ad-hoc ("-")
+apple/Scripts/sign-bundle.sh path/to/FamilyOffice.app IDENTITY   # CI: Developer ID
+```
+
+It signs from the inside out, because each signature seals what is already signed inside it:
+
+1. every Mach-O file under `Contents/Resources/fo/` (found with `file`): the shared libraries
+   and extension modules first, then the `python3.12` interpreter with
+   `FamilyOffice/FamilyOffice.entitlements`. The launchers `bin/fo` and `venv/bin/fo` are shell
+   scripts, sealed as resources by the app's signature;
+2. each framework in `Contents/Frameworks/` (Sparkle; SwiftTerm is linked statically): its
+   XPC services, `Updater.app` and `Autoupdate`, deepest first with their own entitlements
+   preserved, then the framework;
+3. the app, without entitlements;
+
+and ends with `codesign --verify --deep --strict`. With a real identity every signature gets
+`--options runtime --timestamp`, as notarization requires. Ad-hoc runs leave the hardened
+runtime off: an ad-hoc signature has no Team ID, so under the hardened runtime library
+validation rejects `Sparkle.framework` and the app cannot launch. `FO_SIGN_RUNTIME=1` turns the
+runtime on for an ad-hoc run anyway (the bundled `fo` then runs, the app does not);
+`FO_SIGN_ENTITLEMENTS=path` swaps the interpreter entitlements.
+
+The release workflow archives with `CODE_SIGNING_ALLOWED=NO` and lets this script do all of the
+signing, so there is one signing path for every Mach-O in the bundle.
+
+### Entitlements the bundled Python needs
+
+Tested on 2026-11-05 (arm64, python-build-standalone 3.12.16) by ad-hoc signing a Release build
+with `FO_SIGN_RUNTIME=1` and each entitlement set, then running the bundled `fo --version`,
+`fo serve --help`, and an import of `fo.cli` plus a `ctypes` callback:
+
+| Interpreter entitlements | Result |
+| ------------------------ | ------ |
+| none | fails: importing `rpds` (an extension module) is refused, "mapping process and mapped file (non-platform) have different Team IDs" |
+| `allow-unsigned-executable-memory` only | fails the same way |
+| `disable-library-validation` only | passes |
+| both | passes |
+
+So the entitlements file holds only `com.apple.security.cs.disable-library-validation`, and
+only the interpreter carries it. `allow-unsigned-executable-memory` is not needed: `ctypes`
+callbacks work without it. The failure without library validation disabled comes from ad-hoc
+signatures having no Team ID; with the Developer ID every file shares the Team ID and the
+interpreter may load its modules without the entitlement. To confirm that on a test tag, point
+`FO_SIGN_ENTITLEMENTS` at an empty entitlements plist in the Sign step: the workflow's "Bundled
+fo runs after signing" step fails if the interpreter cannot load its modules. Drop the key only
+after that passes.
+
+### Local ad-hoc verification
+
+```sh
+apple/Scripts/bundle-python.sh                      # if apple/Resources/fo is absent
+cd apple && xcodegen generate
+xcodebuild -project FamilyOffice.xcodeproj -scheme FamilyOffice -configuration Release \
+  CODE_SIGNING_ALLOWED=NO -derivedDataPath /tmp/fo-dd build
+scratch="$(mktemp -d)"
+ditto /tmp/fo-dd/Build/Products/Release/FamilyOffice.app "$scratch/FamilyOffice.app"
+Scripts/sign-bundle.sh "$scratch/FamilyOffice.app" -
+codesign --verify --deep --strict --verbose=2 "$scratch/FamilyOffice.app"
+"$scratch/FamilyOffice.app/Contents/Resources/fo/bin/fo" --version
+Scripts/make-dmg.sh "$scratch/FamilyOffice.app" - "$scratch"   # prints the DMG path
+hdiutil attach -nobrowse -readonly "$scratch"/FamilyOffice-*.dmg  # then detach it
+rm -rf "$scratch" /tmp/fo-dd
+```
+
+`spctl --assess` rejects an ad-hoc signed app ("source=no usable signature"); that is expected.
+Gatekeeper acceptance can only be checked on a notarized build:
+
+```sh
+spctl -a -vv FamilyOffice.app            # accepted, source=Notarized Developer ID
+spctl -a -vv -t open --context context:primary-signature FamilyOffice-<version>-<arch>.dmg
+xcrun stapler validate FamilyOffice-<version>-<arch>.dmg
+```
+
+### Updates (Sparkle)
+
+`App/Updater.swift` owns an `SPUStandardUpdaterController`. `Info.plist` sets `SUFeedURL` to
+`appcast.xml` on the latest GitHub Release and `SUEnableAutomaticChecks` to true; Intel builds
+read `appcast-x86_64.xml` beside it (each architecture has its own DMG and appcast).
+`SUPublicEDKey` is a placeholder until the release key pair exists (RELEASING.md, one-time
+setup); while it is, the updater is not started and the menu item and the Settings controls
+are disabled, so development builds never show Sparkle's "failed to start" alert.
 
 ## Run against a repo checkout
 
@@ -186,12 +283,14 @@ cookie dies with the app.
 | `allowPhoneAccess`     | General > Allow phone access over Tailscale (`fo serve --remote`)      |
 | `settingsTab`          | the Settings tab shown last (`general`, `engines`, `connectors`, `devices`, `advanced`) |
 | `foExecutablePath`     | development only: a `fo` to run when no bundle is present              |
+| `SU*` (Sparkle)        | Sparkle's own keys, such as `SUEnableAutomaticChecks` (General > Updates) and `SULastCheckTime`; written only once the updater is configured |
 
 Launch at login is not a default: macOS keeps it (`SMAppService.mainApp`), and the toggle
 reads its status every time General appears. Every `office.toml` setting (port, run caps,
 retention, web fetch cap, tailnet name) is written by `fo config set` and read by
 `fo config get`; the app never edits the file. Outside the office the app writes only the
-optional `/usr/local/bin/fo` link. Nothing else: no tokens, cookies, pairing codes, logs or
+optional `/usr/local/bin/fo` link and, in configured release builds, Sparkle's update
+cache under `~/Library/Caches/com.familyoffice.app/org.sparkle-project.Sparkle/`. Nothing else: no tokens, cookies, pairing codes, logs or
 office data. Pairing codes exist only in memory and on screen.
 
 Any default can be set for one launch on the command line without writing it, for example
@@ -205,7 +304,7 @@ dialog has four more Debug-only hooks, described under Setup dialog: `-debugSetu
 `-debugIgnoreSetupVersion`, `-debugSetupVersion` and `-debugNewSteps`.
 
 The app logs state changes to the unified log under subsystem `com.familyoffice.app`
-(categories `monitor`, `power`, `settings`, `setup`, `terminal`): kinds and counts only, never names,
+(categories `monitor`, `power`, `settings`, `setup`, `terminal`, `updates`): kinds and counts only, never names,
 paths, codes, keys or tokens. Read them with:
 
 ```sh
@@ -235,7 +334,13 @@ is non-empty, and releases it when either changes and on quit. `pmset -g asserti
   login (`SMAppService.mainApp`, with the Login Items link while macOS reports
   `requiresApproval`); Allow phone access over Tailscale (runs `--remote`; refused until
   `serve.tailnet_name` is set); Keep Mac awake while a phone is paired (disabled until a
-  device exists); Command line tool.
+  device exists); Command line tool; Updates.
+- **Updates.** "Check for updates automatically" is Sparkle's
+  `automaticallyChecksForUpdates` (stored by Sparkle in the app's user defaults; on by
+  default through `SUEnableAutomaticChecks`, so Sparkle never asks), with the last check time
+  and Check Now. Family Office > Check for Updates… in the app menu does the same as Check
+  Now. Both are disabled while `SUPublicEDKey` is the placeholder (development builds and
+  any build before the release key exists); see Signing and releases.
 - **Command line tool.** Install links `/usr/local/bin/fo` to
   `FamilyOffice.app/Contents/Resources/fo/bin/fo` when `/usr/local/bin` is writable;
   otherwise it shows the exact command (`sudo ln -s '<bundle>/Contents/Resources/fo/bin/fo'

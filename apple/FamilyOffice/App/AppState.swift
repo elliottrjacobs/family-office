@@ -46,6 +46,8 @@ final class AppState {
     let loginItem = LoginItem()
     /// The `/usr/local/bin/fo` link, verified on launch.
     let commandLineTool = CommandLineTool()
+    /// Sparkle: Check for Updates… and the automatic check preference.
+    let updater = Updater()
 
     /// One non-persistent website data store per launch, so the session cookie dies with the app.
     @ObservationIgnored let websiteDataStore = WKWebsiteDataStore.nonPersistent()

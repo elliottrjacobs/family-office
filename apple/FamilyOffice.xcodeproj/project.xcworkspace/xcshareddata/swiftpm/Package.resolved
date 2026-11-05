@@ -1,6 +1,15 @@
 {
-  "originHash" : "fcb9b0c19c710673d3b0b76eb247172017b19cc566594dd80aae2df51ffbd364",
+  "originHash" : "ff5ce0856333053dee0d9296ee8f4bd06efe1405c9fa35e282dcd426ece43dee",
   "pins" : [
+    {
+      "identity" : "sparkle",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/sparkle-project/Sparkle",
+      "state" : {
+        "revision" : "ab7d71291238df6e0492143b120c9b696a35f603",
+        "version" : "2.10.1"
+      }
+    },
     {
       "identity" : "swift-argument-parser",
       "kind" : "remoteSourceControl",
