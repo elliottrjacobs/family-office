@@ -94,6 +94,7 @@ RESTRICTED = [
     ["reindex", "--json"],
     ["skills", "sync", "--json"],
     ["setup", "elsewhere", "--json"],
+    ["config", "set", "serve.port", "4800", "--json"],
     ["auth", "schwab", "--json"],
     ["init", "elsewhere", "--json"],
     ["schedule", "install", "--json"],
