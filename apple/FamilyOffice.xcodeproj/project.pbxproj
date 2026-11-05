@@ -1,0 +1,409 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0DF7F3EB82E89DA4FD2E6F46 /* FamilyOfficeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2032A6EDA81D65E9BD20C53 /* FamilyOfficeApp.swift */; };
+		154C15F10AF51AD9414599D0 /* FOKit in Frameworks */ = {isa = PBXBuildFile; productRef = DF481BCC8A9E78BF50EE3A43 /* FOKit */; };
+		5E2FAA7FCCC64A4624688C4F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EDA4080F851A9F3BC3747D0F /* Assets.xcassets */; };
+		A08AE86CED19175E230F3B61 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDB05CCEBE3E59E588B3820 /* ContentView.swift */; };
+		A7EFF0FE6E81566518B6C338 /* ServerProcess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 059D7D4AF22E4755566DDB86 /* ServerProcess.swift */; };
+		BE1949BA0CFCAC03F10371C0 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = D27071BAA7837ECF5683851F /* AppState.swift */; };
+		CA148CF3D917A99FE68FD429 /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 171CC6CFE0D9A2E1CD994202 /* WebView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		059D7D4AF22E4755566DDB86 /* ServerProcess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerProcess.swift; sourceTree = "<group>"; };
+		171CC6CFE0D9A2E1CD994202 /* WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
+		6722F6BDC19655D23C302C60 /* FOKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FOKit; path = FOKit; sourceTree = SOURCE_ROOT; };
+		A2032A6EDA81D65E9BD20C53 /* FamilyOfficeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyOfficeApp.swift; sourceTree = "<group>"; };
+		CCDB05CCEBE3E59E588B3820 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		D27071BAA7837ECF5683851F /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		E710C853BC711C93653AC6FF /* FamilyOffice.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FamilyOffice.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		EDA4080F851A9F3BC3747D0F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		90B84567B8510B856A26F6C3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				154C15F10AF51AD9414599D0 /* FOKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		44A3D7F08357E3246677085E /* FamilyOffice */ = {
+			isa = PBXGroup;
+			children = (
+				EDA4080F851A9F3BC3747D0F /* Assets.xcassets */,
+				6556A613027B59E3F852E0A3 /* App */,
+			);
+			path = FamilyOffice;
+			sourceTree = "<group>";
+		};
+		6556A613027B59E3F852E0A3 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				D27071BAA7837ECF5683851F /* AppState.swift */,
+				CCDB05CCEBE3E59E588B3820 /* ContentView.swift */,
+				A2032A6EDA81D65E9BD20C53 /* FamilyOfficeApp.swift */,
+				059D7D4AF22E4755566DDB86 /* ServerProcess.swift */,
+				171CC6CFE0D9A2E1CD994202 /* WebView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		8DA97BCA0CFB36BB7C820A16 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				6722F6BDC19655D23C302C60 /* FOKit */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		A2FAAE20F1754E2993474B2D /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				E710C853BC711C93653AC6FF /* FamilyOffice.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		C065893454D3822806443615 = {
+			isa = PBXGroup;
+			children = (
+				44A3D7F08357E3246677085E /* FamilyOffice */,
+				8DA97BCA0CFB36BB7C820A16 /* Packages */,
+				A2FAAE20F1754E2993474B2D /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		C9E6FCFB79D8458223625418 /* FamilyOffice */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FCA6E94EB4EF8830BD5C4CEA /* Build configuration list for PBXNativeTarget "FamilyOffice" */;
+			buildPhases = (
+				5D41CC65DF407D5EDBB3683B /* Sources */,
+				FE346E2431F3E7C6150B28BE /* Resources */,
+				90B84567B8510B856A26F6C3 /* Frameworks */,
+				AA8C2BAC05BEE96CEBE507D3 /* Copy bundled Python runtime */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FamilyOffice;
+			packageProductDependencies = (
+				DF481BCC8A9E78BF50EE3A43 /* FOKit */,
+			);
+			productName = FamilyOffice;
+			productReference = E710C853BC711C93653AC6FF /* FamilyOffice.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		B9BF8A635D383D07A9D000FE /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					C9E6FCFB79D8458223625418 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = CBCFDCEF31F914C8AE5B2AD1 /* Build configuration list for PBXProject "FamilyOffice" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = C065893454D3822806443615;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				89F3EC8B00F072B00B51CCEE /* XCLocalSwiftPackageReference "FOKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = A2FAAE20F1754E2993474B2D /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				C9E6FCFB79D8458223625418 /* FamilyOffice */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		FE346E2431F3E7C6150B28BE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5E2FAA7FCCC64A4624688C4F /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		AA8C2BAC05BEE96CEBE507D3 /* Copy bundled Python runtime */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Copy bundled Python runtime";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Copies apple/Resources/fo (built by Scripts/bundle-python.sh) into\n# Contents/Resources/fo when it exists. Without it, development builds use\n# FO_EXECUTABLE or the foExecutablePath user default instead.\nset -eu\nsrc=\"${SRCROOT}/Resources/fo\"\ndst=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/fo\"\nif [ -x \"$src/bin/fo\" ]; then\n  mkdir -p \"$dst\"\n  rsync -a --delete \"$src/\" \"$dst/\"\nelse\n  rm -rf \"$dst\"\n  echo \"note: apple/Resources/fo not found; building without the bundled runtime.\"\nfi\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5D41CC65DF407D5EDBB3683B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BE1949BA0CFCAC03F10371C0 /* AppState.swift in Sources */,
+				A08AE86CED19175E230F3B61 /* ContentView.swift in Sources */,
+				0DF7F3EB82E89DA4FD2E6F46 /* FamilyOfficeApp.swift in Sources */,
+				A7EFF0FE6E81566518B6C338 /* ServerProcess.swift in Sources */,
+				CA148CF3D917A99FE68FD429 /* WebView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		8802477723974352BFC0DEB1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD)";
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		C1A5562C3121D3C5AC50F114 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD)";
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		D711D0BA513D651630468131 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				INFOPLIST_FILE = FamilyOffice/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 2.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.familyoffice.app;
+				PRODUCT_NAME = FamilyOffice;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		DB0B509E8A5288728C934810 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				INFOPLIST_FILE = FamilyOffice/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 2.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.familyoffice.app;
+				PRODUCT_NAME = FamilyOffice;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		CBCFDCEF31F914C8AE5B2AD1 /* Build configuration list for PBXProject "FamilyOffice" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8802477723974352BFC0DEB1 /* Debug */,
+				C1A5562C3121D3C5AC50F114 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		FCA6E94EB4EF8830BD5C4CEA /* Build configuration list for PBXNativeTarget "FamilyOffice" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DB0B509E8A5288728C934810 /* Debug */,
+				D711D0BA513D651630468131 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		89F3EC8B00F072B00B51CCEE /* XCLocalSwiftPackageReference "FOKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = FOKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		DF481BCC8A9E78BF50EE3A43 /* FOKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FOKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = B9BF8A635D383D07A9D000FE /* Project object */;
+}
