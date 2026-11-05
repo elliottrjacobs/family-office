@@ -131,6 +131,21 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic
+  FamilyOfficePhoneTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: FamilyOfficePhoneTests
+    dependencies:
+      - target: FamilyOfficePhone
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.familyoffice.phone.tests
+        GENERATE_INFOPLIST_FILE: YES
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1"
 schemes:
   FamilyOffice:
     build:
@@ -146,5 +161,9 @@ schemes:
         FamilyOfficePhone: all
     run:
       config: Debug
+    test:
+      config: Debug
+      targets:
+        - FamilyOfficePhoneTests
     archive:
       config: Release

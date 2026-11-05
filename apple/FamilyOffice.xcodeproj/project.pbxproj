@@ -19,6 +19,7 @@
 		448563699DDD1E9CD7E7C775 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 346CE7785F209554B306F270 /* QRScannerView.swift */; };
 		4E3A3795CBC5545660BE84B0 /* OfficeMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC4C85F8472D4356BE515CDE /* OfficeMonitor.swift */; };
 		54E9EDD44038A83E722C14BC /* CommandLineTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAE0D2830BDC0809F45D06F2 /* CommandLineTool.swift */; };
+		5C845056873D7E47F9683B38 /* PairingInputTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A01D498C4F80453E8908BBA /* PairingInputTests.swift */; };
 		5E2FAA7FCCC64A4624688C4F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EDA4080F851A9F3BC3747D0F /* Assets.xcassets */; };
 		5E6399652BCD96FC2BA96C9B /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 139169067359077E6B6143DF /* SwiftTerm */; };
 		60335F1EF79EFAD851E79E6F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95A587E11C352EB3B99F5F72 /* SettingsView.swift */; };
@@ -40,6 +41,16 @@
 		F84480924652590F2529599D /* OfficeWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F4D8BCAFCBB24713AB0DF05 /* OfficeWebView.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		E1A3E961DC7E69F5C446FB27 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B9BF8A635D383D07A9D000FE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5C0228ABEC7D6E88317FF07C;
+			remoteInfo = FamilyOfficePhone;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		059D7D4AF22E4755566DDB86 /* ServerProcess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerProcess.swift; sourceTree = "<group>"; };
 		0904B005B7B3E86F909B3F98 /* MenuBarContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarContent.swift; sourceTree = "<group>"; };
@@ -50,6 +61,8 @@
 		346CE7785F209554B306F270 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 		3614B3A98352883F7D2BEA46 /* Engines.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines.swift; sourceTree = "<group>"; };
 		38848154291730D953B09475 /* Power.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Power.swift; sourceTree = "<group>"; };
+		4A01D498C4F80453E8908BBA /* PairingInputTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingInputTests.swift; sourceTree = "<group>"; };
+		52CE4B15AE2054E010475312 /* FamilyOfficePhoneTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = FamilyOfficePhoneTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5D7DF61CB85479892FEAC887 /* General.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = General.swift; sourceTree = "<group>"; };
 		60CB6B1463BABBFA338078C9 /* Devices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Devices.swift; sourceTree = "<group>"; };
 		641829AEF5F3F977A7B05AB9 /* ConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionView.swift; sourceTree = "<group>"; };
@@ -95,6 +108,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		1807A1DA4B46C7637EC38E06 /* FamilyOfficePhoneTests */ = {
+			isa = PBXGroup;
+			children = (
+				4A01D498C4F80453E8908BBA /* PairingInputTests.swift */,
+			);
+			path = FamilyOfficePhoneTests;
+			sourceTree = "<group>";
+		};
 		44A3D7F08357E3246677085E /* FamilyOffice */ = {
 			isa = PBXGroup;
 			children = (
@@ -154,6 +175,7 @@
 			children = (
 				E710C853BC711C93653AC6FF /* FamilyOffice.app */,
 				E277E30FB23377735CA86E95 /* FamilyOfficePhone.app */,
+				52CE4B15AE2054E010475312 /* FamilyOfficePhoneTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -187,6 +209,7 @@
 			children = (
 				44A3D7F08357E3246677085E /* FamilyOffice */,
 				C8B0F4CF0A43A2B55CA6C7F4 /* FamilyOfficePhone */,
+				1807A1DA4B46C7637EC38E06 /* FamilyOfficePhoneTests */,
 				8DA97BCA0CFB36BB7C820A16 /* Packages */,
 				A2FAAE20F1754E2993474B2D /* Products */,
 			);
@@ -259,6 +282,24 @@
 			productReference = E277E30FB23377735CA86E95 /* FamilyOfficePhone.app */;
 			productType = "com.apple.product-type.application";
 		};
+		758F563B1048F2A83E42969B /* FamilyOfficePhoneTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5CBB55FC5EF380BD00364970 /* Build configuration list for PBXNativeTarget "FamilyOfficePhoneTests" */;
+			buildPhases = (
+				CC6D6690A0D160BFAFB55627 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C38B645FD34E7E4C29791698 /* PBXTargetDependency */,
+			);
+			name = FamilyOfficePhoneTests;
+			packageProductDependencies = (
+			);
+			productName = FamilyOfficePhoneTests;
+			productReference = 52CE4B15AE2054E010475312 /* FamilyOfficePhoneTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		C9E6FCFB79D8458223625418 /* FamilyOffice */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = FCA6E94EB4EF8830BD5C4CEA /* Build configuration list for PBXNativeTarget "FamilyOffice" */;
@@ -318,6 +359,7 @@
 			targets = (
 				C9E6FCFB79D8458223625418 /* FamilyOffice */,
 				5C0228ABEC7D6E88317FF07C /* FamilyOfficePhone */,
+				758F563B1048F2A83E42969B /* FamilyOfficePhoneTests */,
 			);
 		};
 /* End PBXProject section */
@@ -391,6 +433,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CC6D6690A0D160BFAFB55627 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5C845056873D7E47F9683B38 /* PairingInputTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		FE0F800F765B0D12EC313CF0 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -406,6 +456,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		C38B645FD34E7E4C29791698 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5C0228ABEC7D6E88317FF07C /* FamilyOfficePhone */;
+			targetProxy = E1A3E961DC7E69F5C446FB27 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		8802477723974352BFC0DEB1 /* Debug */ = {
@@ -553,6 +611,25 @@
 			};
 			name = Release;
 		};
+		D3376967061AFBFF98C43C7E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.familyoffice.phone.tests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FamilyOfficePhone.app/FamilyOfficePhone";
+			};
+			name = Debug;
+		};
 		D711D0BA513D651630468131 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -603,6 +680,25 @@
 			};
 			name = Debug;
 		};
+		DE518DD7292573E96E730E0B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.familyoffice.phone.tests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FamilyOfficePhone.app/FamilyOfficePhone";
+			};
+			name = Release;
+		};
 		EC0A6B3A5202CC394204E8B0 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -628,6 +724,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		5CBB55FC5EF380BD00364970 /* Build configuration list for PBXNativeTarget "FamilyOfficePhoneTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D3376967061AFBFF98C43C7E /* Debug */,
+				DE518DD7292573E96E730E0B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		AA44A1507492E389F5ADAE74 /* Build configuration list for PBXNativeTarget "FamilyOfficePhone" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
