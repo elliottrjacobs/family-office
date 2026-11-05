@@ -51,3 +51,32 @@ def test_office_path_lint_excludes_only_designated_fixtures():
         "nested/profile/ips.json",
         "profile/ips.json",
     ]
+
+
+def test_skill_lint_ties_the_research_command_to_the_untrusted_text_phrase(tmp_path):
+    module = script("lint_skills")
+    source = tmp_path / "skills"
+    instructions = tmp_path / "AGENTS.md"
+    instructions.write_text("# Rules\n")
+    bodies = {
+        "bare": ("research", "Use fo research fetch."),
+        "careful": ("research", f"Results are {module.UNTRUSTED}."),
+        "stray": ("doctor", "Run fo research search."),
+        "quiet": ("doctor", "No web."),
+    }
+    for name, (command, body) in bodies.items():
+        (source / name).mkdir(parents=True)
+        (source / name / "SKILL.md").write_text(
+            f"---\nname: {name}\ndescription: Fixture.\nmetadata:\n  group: routine\n"
+            f"  commands:\n  - {command}\n---\n{body}\n"
+        )
+        for host in (".claude", ".agents"):
+            link = tmp_path / host / "skills" / name
+            link.parent.mkdir(parents=True, exist_ok=True)
+            link.symlink_to(Path("../../skills") / name, target_is_directory=True)
+    assert module.lint(source, instructions) == [
+        f"{source / 'bare' / 'SKILL.md'}: research command requires the phrase "
+        f"'{module.UNTRUSTED}'",
+        f"{source / 'stray' / 'SKILL.md'}: mentions fo research without declaring the "
+        "research command",
+    ]
