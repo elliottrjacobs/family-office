@@ -19,14 +19,23 @@ export function AppearanceSheet({
   advisorId,
   children,
   className,
+  defaultOpen = false,
+  container,
+  modal = true,
 }: {
   advisorId: AdvisorId
   /** The trigger's content, normally the header robot. */
   children: React.ReactNode
   className?: string
+  /** Opens the sheet on mount (the playground shows it open). */
+  defaultOpen?: boolean
+  /** Where the sheet mounts; the document body by default. */
+  container?: HTMLElement | null
+  /** Whether the page behind is inert while the sheet is open. */
+  modal?: boolean
 }) {
-  const [open, setOpen] = React.useState(false)
-  const opened = React.useRef<Appearance | null>(null)
+  const [open, setOpen] = React.useState(defaultOpen)
+  const opened = React.useRef<Appearance | null>(defaultOpen ? loadAppearance(advisorId) : null)
   const look = useAppearance(advisorId)
   const name = ADVISORS[advisorId].name
 
@@ -39,6 +48,7 @@ export function AppearanceSheet({
   return (
     <Sheet
       open={open}
+      modal={modal}
       onOpenChange={(next) => {
         if (next) {
           opened.current = loadAppearance(advisorId)
@@ -58,6 +68,7 @@ export function AppearanceSheet({
       <SheetContent
         side="bottom"
         showCloseButton={false}
+        container={container}
         className="max-h-[92dvh] gap-0 overflow-y-auto rounded-t-3xl border-t-0 px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]"
       >
         {/* Cancel and Done stay in reach while the options scroll. */}

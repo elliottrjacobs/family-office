@@ -15,6 +15,15 @@
  *   --fo-look-period     4 to 7 s     --fo-look-delay   0 to -7 s
  */
 
+/* A 9% black contact shadow vanishes on a dark surface; deepen it under the dark theme. */
+.dark svg[data-advisor] [data-shadow="soft"] {
+  opacity: 0.55;
+}
+
+.dark svg[data-advisor] [data-shadow="core"] {
+  opacity: 0.4;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .fo-avatar-live [data-part="head"],
   .fo-avatar-live [data-part="sleep"] {

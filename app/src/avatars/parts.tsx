@@ -392,16 +392,17 @@ export const ACCESSORIES: Record<AdvisorId, AccessoryDef> = {
   },
   ventures: {
     rim: (def, paint) => screenRim(def.screen, 3.5, 1.3, paint),
+    // The fins are trim metal behind the head, so they read on light and dark backgrounds.
+    back: (def, paint) => (
+      <Anchored anchor="head" home={home("ventures")} def={def}>
+        <path d="M25 62L10 84L27 79Z" fill={paint.url.trim} stroke="#000" strokeOpacity={0.12} strokeLinejoin="round" />
+        <path d="M75 62L90 84L73 79Z" fill={paint.url.trim} stroke="#000" strokeOpacity={0.12} strokeLinejoin="round" />
+      </Anchored>
+    ),
     face: (def) => (
-      <>
-        <Anchored anchor="head" home={home("ventures")} def={def}>
-          <path d="M23 64L10 84L24 79Z" fill="#000" fillOpacity={0.18} />
-          <path d="M77 64L90 84L76 79Z" fill="#000" fillOpacity={0.18} />
-        </Anchored>
-        <Anchored anchor="mount" home={home("ventures")} def={def}>
-          <circle cx={50} cy={20} r={2.6} fill={PART.noseLight} />
-        </Anchored>
-      </>
+      <Anchored anchor="mount" home={home("ventures")} def={def}>
+        <circle cx={50} cy={20} r={2.6} fill={PART.noseLight} />
+      </Anchored>
     ),
   },
 }

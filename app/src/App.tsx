@@ -14,6 +14,7 @@ import { Decisions } from "@/views/decisions"
 import { Finances } from "@/views/finances"
 import { Home } from "@/views/home"
 import { OnboardingPage } from "@/views/onboarding"
+import { Playground } from "@/views/playground"
 import { Profile } from "@/views/profile"
 import { ReportReader, Reports } from "@/views/reports"
 
@@ -111,6 +112,9 @@ function Shell() {
 }
 
 export function App() {
+  const { path } = useLocation()
+  // The avatar playground needs no office and no server, so it skips the app data entirely.
+  if (path === "/playground/robots") return <Playground />
   return (
     <AppDataProvider>
       <Shell />
