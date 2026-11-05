@@ -111,6 +111,29 @@ Useful commands include `networth`, `positions`, `allocation`, `spend`, `cashflo
 `goals`, `lots`, `performance`, `quote`, `fundamentals`, `filings`, `macro`, and `screen`.
 `fo --help` and each command's `--help` document arguments.
 
+### Research providers
+
+`fo research search`, `fo research fetch`, and `fo research deep` reach Exa,
+Firecrawl (or a direct fetch), and Gemini Deep Research. Store a key with
+`fo connect exa` (the key is read from standard input), remove it with
+`fo connect exa --remove`, and set the SEC contact with
+`fo connect edgar --user-agent "Name email@example.com"`. Results are marked
+untrusted, scrubbed, cached under `cache/research/`, and limited per day:
+
+```toml
+[providers.exa]
+daily_limit = 25
+
+[providers.firecrawl]
+daily_limit = 25
+
+[providers.gemini]
+max_tasks_per_day = 3
+```
+
+Fetches refuse local, private, and tailnet addresses. See
+[research providers](docs/development/research-providers.md).
+
 Reports have dated paths, frontmatter, prior-report links, decision IDs, and a
 correction invitation. `fo start` supplies context and a path; `fo skill verify`
 checks the result. `fo journal add` records a thesis and invalidation. `fo review`

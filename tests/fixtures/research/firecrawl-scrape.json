@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "data": {
+    "markdown": "# ACME third quarter\n\nRevenue rose 8% to $1.2 billion. Reference 987654321098765 belongs to a fixture.",
+    "metadata": {
+      "title": "ACME third quarter",
+      "sourceURL": "https://example.com/x",
+      "url": "https://example.com/x",
+      "statusCode": 200,
+      "contentType": "text/html"
+    }
+  }
+}

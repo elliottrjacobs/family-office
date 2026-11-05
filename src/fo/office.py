@@ -15,6 +15,7 @@ RUN_RESTRICTED = (
     "setup",
     "config set",
     "auth",
+    "connect",
     "sync",
     "commit",
     "schedule",
@@ -62,9 +63,9 @@ def run_office(explicit: Path | None, args: list[str]) -> Path | None:
             if words != ["sync", "status"]:
                 raise OfficeError(
                     "serve_run_restricted",
-                    "Advisor runs cannot set up, change settings, authenticate, sync, "
-                    "commit, schedule, notify, migrate, reindex, retire corrections, or "
-                    "settle decisions.",
+                    "Advisor runs cannot set up, change settings, authenticate, connect "
+                    "providers, sync, commit, schedule, notify, migrate, reindex, retire "
+                    "corrections, or settle decisions.",
                 )
     return office
 

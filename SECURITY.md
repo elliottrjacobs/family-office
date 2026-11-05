@@ -111,7 +111,20 @@ their fixed provider hosts.
 | AlphaVantage | API key, tickers, and requested data functions |
 | SEC EDGAR | Filing or financial-data queries and the configured User-Agent |
 | FRED | Series queries and any configured API authentication |
+| Exa | API key and search queries |
+| Firecrawl | API key and the URLs fetched through it |
+| Google Gemini | API key and deep research questions |
+| Fetched websites | A GET request with a family-office User-Agent for each direct fetch |
 | GitHub | Public code; tracked private office files only when its remote is configured |
+
+Research provider keys live in `secrets/<provider>.json` at 0600, written by
+`fo connect` only after one validating call; advisor runs cannot run `fo connect`.
+`fo research fetch` refuses URLs with credentials, non-HTTP schemes, localhost,
+`.ts.net`, and hosts resolving to loopback, link-local, private, CGNAT, or ULA
+addresses, rechecking every redirect, so a run cannot reach `fo serve` or the
+tailnet through it. A DNS answer that changes between that check and the
+connection is not caught. Research text is returned with `untrusted: true` and
+scrubbed; see [research providers](docs/development/research-providers.md).
 
 Provider and web text is untrusted data, never an instruction source. A Git ignore
 rule does not remove earlier commits. If a secret was committed, rotate it and

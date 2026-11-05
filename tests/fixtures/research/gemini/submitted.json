@@ -1,0 +1,9 @@
+{
+  "id": "v1_fixture-task-0001",
+  "object": "interaction",
+  "agent": "deep-research-preview-04-2026",
+  "status": "in_progress",
+  "created": "2026-11-04T12:00:00Z",
+  "updated": "2026-11-04T12:00:00Z",
+  "steps": []
+}

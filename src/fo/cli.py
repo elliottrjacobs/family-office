@@ -54,6 +54,9 @@ app.add_typer(sync_app, name="sync")
 config_app = typer.Typer(invoke_without_command=True)
 app.add_typer(config_app, name="config")
 
+research_app = typer.Typer(no_args_is_help=True)
+app.add_typer(research_app, name="research")
+
 
 def emit(ctx, result):
     from fo.presentation import human, summary
@@ -235,6 +238,82 @@ def auth_command(ctx: typer.Context, provider: str):
             return authenticate(office, provider)
 
     run(ctx, execute)
+
+
+@app.command("connect")
+def connect_command(
+    ctx: typer.Context,
+    provider: str,
+    remove: bool = typer.Option(False, "--remove", help="Delete the stored key or contact."),
+    user_agent: str | None = typer.Option(
+        None, "--user-agent", help='EDGAR only: "Name email@example.com".'
+    ),
+):
+    """Store a provider API key read from standard input, after one validating call."""
+    from fo import connect
+
+    def execute():
+        writable(ctx)
+        office = root(ctx)
+        name = connect.provider_name(provider)
+        if remove:
+            return connect.remove(office, name)
+        if name == "edgar":
+            return connect.edgar(office, user_agent)
+        return connect.store(office, name, read_key(name))
+
+    run(ctx, execute)
+
+
+def read_key(provider):
+    import sys
+
+    if sys.stdin is None:
+        return ""
+    if sys.stdin.isatty():
+        return typer.prompt(provider + " API key", hide_input=True, err=True)
+    return sys.stdin.read(4096)
+
+
+@research_app.command("search")
+def research_search(
+    ctx: typer.Context, query: str, limit: int = typer.Option(10, help="Results, 1 to 25.")
+):
+    """Ranked web results from Exa, as untrusted text."""
+    from fo import research
+
+    run(ctx, lambda: research.search(root(ctx), query, limit, ctx.obj["read_only"]))
+
+
+@research_app.command("fetch")
+def research_fetch(ctx: typer.Context, url: str):
+    """One page as markdown through Firecrawl, or a direct fetch, as untrusted text."""
+    from fo import research
+
+    run(ctx, lambda: research.fetch(root(ctx), url, ctx.obj["read_only"]))
+
+
+@research_app.command("deep")
+def research_deep(
+    ctx: typer.Context,
+    question: str,
+    report: str | None = typer.Option(
+        None, "--report", help="Save the result as an inputs part of this report."
+    ),
+    timeout_minutes: float | None = typer.Option(
+        None, "--timeout-minutes", help="Default: [serve] run_timeout_minutes less 5."
+    ),
+):
+    """A Gemini Deep Research task, submitted once and polled to a deadline."""
+    from fo import research
+
+    def execute():
+        writable(ctx)
+        return research.deep(root(ctx), question, report, timeout_minutes)
+
+    result = run(ctx, execute)
+    if result.get("reason") == "timed_out":
+        raise typer.Exit(1)
 
 
 @sync_app.callback()
