@@ -53,7 +53,9 @@ public struct ServerStatus: Codable, Sendable, Equatable {
     public let readOnly: Bool
     public let chat: Bool
     public let remote: Bool
-    public let identity: String?
+    /// The Tailscale identity of a request over the tailnet (`{"login", "name"}`); nil on
+    /// loopback and without `--remote`.
+    public let identity: TailnetIdentity?
     /// The office status document, or nil while onboarding.
     public let office: JSONValue?
 
@@ -67,6 +69,17 @@ public struct ServerStatus: Codable, Sendable, Equatable {
     public var lastSync: Date? {
         guard case .string(let stamp)? = office?["last_sync"]?["as_of"] else { return nil }
         return ISODate.parse(stamp)
+    }
+}
+
+/// The Tailscale login and display name `tailscale serve` attached to a request.
+public struct TailnetIdentity: Codable, Sendable, Equatable {
+    public let login: String?
+    public let name: String?
+
+    public init(login: String?, name: String?) {
+        self.login = login
+        self.name = name
     }
 }
 

@@ -7,39 +7,59 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		03F15F4726FB08660E1F651C /* ConnectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 641829AEF5F3F977A7B05AB9 /* ConnectionView.swift */; };
 		0517375A2DFB328A89E1B38F /* SetupVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 752AA5EBBA439628E264F451 /* SetupVersion.swift */; };
 		0DF7F3EB82E89DA4FD2E6F46 /* FamilyOfficeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2032A6EDA81D65E9BD20C53 /* FamilyOfficeApp.swift */; };
+		132CF3014C8F041CFB3BB32E /* FOKit in Frameworks */ = {isa = PBXBuildFile; productRef = CE4D5C51CD12FC9DEF870C6C /* FOKit */; };
 		150DA21D7E1A8E7E77F120BC /* MenuBarContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0904B005B7B3E86F909B3F98 /* MenuBarContent.swift */; };
 		154C15F10AF51AD9414599D0 /* FOKit in Frameworks */ = {isa = PBXBuildFile; productRef = DF481BCC8A9E78BF50EE3A43 /* FOKit */; };
 		1A3FA6FCF443B6C825160E4B /* LoginItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32C2EDB32D9059747ECC130A /* LoginItem.swift */; };
+		1AE7F4EB97022464B77AB46A /* PairingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B93143984659F2590680491 /* PairingView.swift */; };
 		1D4CE369F1995DEB4B45EA22 /* ResearchStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01CDCD783763EB0C438341B8 /* ResearchStep.swift */; };
 		33B67A29C2E66B7732A4B1DA /* FoCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19DF1F5CD0CDC2D99FB12140 /* FoCommand.swift */; };
 		373192AA3A4EA75429AEDD7B /* Devices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60CB6B1463BABBFA338078C9 /* Devices.swift */; };
 		3860A8FEE5DF52796696696D /* SetupDialog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DEDE8765C2A676131D74782 /* SetupDialog.swift */; };
+		448563699DDD1E9CD7E7C775 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 346CE7785F209554B306F270 /* QRScannerView.swift */; };
 		4E3A3795CBC5545660BE84B0 /* OfficeMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC4C85F8472D4356BE515CDE /* OfficeMonitor.swift */; };
 		54E9EDD44038A83E722C14BC /* CommandLineTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAE0D2830BDC0809F45D06F2 /* CommandLineTool.swift */; };
 		556A9A1706D1F6AA444DFCDC /* DoneStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22496DA5F3C91F1300911F64 /* DoneStep.swift */; };
+		5C845056873D7E47F9683B38 /* PairingInputTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A01D498C4F80453E8908BBA /* PairingInputTests.swift */; };
 		5E2FAA7FCCC64A4624688C4F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EDA4080F851A9F3BC3747D0F /* Assets.xcassets */; };
 		5E6399652BCD96FC2BA96C9B /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 139169067359077E6B6143DF /* SwiftTerm */; };
 		60335F1EF79EFAD851E79E6F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95A587E11C352EB3B99F5F72 /* SettingsView.swift */; };
 		65606E6474CBA55926352E9C /* Engines.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3614B3A98352883F7D2BEA46 /* Engines.swift */; };
+		68F573CFCD42BBA29758805F /* FamilyOfficePhoneApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA42C5E2EF304216F870710 /* FamilyOfficePhoneApp.swift */; };
 		6CED8F7D5DCB440ED53986E6 /* Advanced.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4B5E063180DDB30A3DB489D /* Advanced.swift */; };
+		73B0B1D40A0D5E2E91A003AA /* PairingInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5D8043A7F552FEDDBA6052F /* PairingInput.swift */; };
 		75698D259BFE3D75FB23811B /* EngineStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 464CA3B67249DEB8F2E3772D /* EngineStep.swift */; };
 		8617C0378A3E9DCA5B5BDEDD /* OfficeStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0494D817EC2F211054FC1431 /* OfficeStep.swift */; };
 		91378C1A63F90401039036EB /* Power.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38848154291730D953B09475 /* Power.swift */; };
 		960333C3B7E8D61D550E65CC /* General.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D7DF61CB85479892FEAC887 /* General.swift */; };
 		A08AE86CED19175E230F3B61 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDB05CCEBE3E59E588B3820 /* ContentView.swift */; };
 		A7EFF0FE6E81566518B6C338 /* ServerProcess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 059D7D4AF22E4755566DDB86 /* ServerProcess.swift */; };
+		ACB4EDBEC7EF520849C0D07C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E5DC09F534FFB02944E5D76A /* Assets.xcassets */; };
 		B39989793D39ADE71FC85ABF /* SessionPrimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33AE1144D1A1DE4243A0D101 /* SessionPrimer.swift */; };
 		BE1949BA0CFCAC03F10371C0 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = D27071BAA7837ECF5683851F /* AppState.swift */; };
 		CA148CF3D917A99FE68FD429 /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 171CC6CFE0D9A2E1CD994202 /* WebView.swift */; };
 		CB080669FE29CA693777061F /* PhoneStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11891E94ED9FC8A2CE641902 /* PhoneStep.swift */; };
+		CDE4E2C11F337A398BEA1297 /* PhoneModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C12F6A9ACE83036437A85A9A /* PhoneModel.swift */; };
 		D3F290559CE3D0A1DE395BB9 /* AccountsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4247B886178B5C75D2BF031C /* AccountsStep.swift */; };
 		DD14BD79C8C051E144E1E97C /* Connectors.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93C6564389DE3756255199B /* Connectors.swift */; };
 		E779D0418A3D6D1080DB559A /* FoTerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F63710ECEC5EEA4FEEED35A1 /* FoTerminalView.swift */; };
 		F4B655E61D21A97D488F4AA1 /* WelcomeStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 017F594AE1EEEACB77146E6F /* WelcomeStep.swift */; };
+		F84480924652590F2529599D /* OfficeWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F4D8BCAFCBB24713AB0DF05 /* OfficeWebView.swift */; };
 		FC4BF2B42B60432C52709729 /* SetupModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 450FA972BCEDB55C287AB50C /* SetupModel.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		E1A3E961DC7E69F5C446FB27 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B9BF8A635D383D07A9D000FE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5C0228ABEC7D6E88317FF07C;
+			remoteInfo = FamilyOfficePhone;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		017F594AE1EEEACB77146E6F /* WelcomeStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeStep.swift; sourceTree = "<group>"; };
@@ -53,23 +73,34 @@
 		22496DA5F3C91F1300911F64 /* DoneStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoneStep.swift; sourceTree = "<group>"; };
 		32C2EDB32D9059747ECC130A /* LoginItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginItem.swift; sourceTree = "<group>"; };
 		33AE1144D1A1DE4243A0D101 /* SessionPrimer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionPrimer.swift; sourceTree = "<group>"; };
+		346CE7785F209554B306F270 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 		3614B3A98352883F7D2BEA46 /* Engines.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines.swift; sourceTree = "<group>"; };
 		38848154291730D953B09475 /* Power.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Power.swift; sourceTree = "<group>"; };
 		4247B886178B5C75D2BF031C /* AccountsStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountsStep.swift; sourceTree = "<group>"; };
 		450FA972BCEDB55C287AB50C /* SetupModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupModel.swift; sourceTree = "<group>"; };
 		464CA3B67249DEB8F2E3772D /* EngineStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineStep.swift; sourceTree = "<group>"; };
+		4A01D498C4F80453E8908BBA /* PairingInputTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingInputTests.swift; sourceTree = "<group>"; };
+		52CE4B15AE2054E010475312 /* FamilyOfficePhoneTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = FamilyOfficePhoneTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5D7DF61CB85479892FEAC887 /* General.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = General.swift; sourceTree = "<group>"; };
 		5DEDE8765C2A676131D74782 /* SetupDialog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupDialog.swift; sourceTree = "<group>"; };
 		60CB6B1463BABBFA338078C9 /* Devices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Devices.swift; sourceTree = "<group>"; };
+		641829AEF5F3F977A7B05AB9 /* ConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionView.swift; sourceTree = "<group>"; };
 		6722F6BDC19655D23C302C60 /* FOKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FOKit; path = FOKit; sourceTree = SOURCE_ROOT; };
+		6F4D8BCAFCBB24713AB0DF05 /* OfficeWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficeWebView.swift; sourceTree = "<group>"; };
 		752AA5EBBA439628E264F451 /* SetupVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupVersion.swift; sourceTree = "<group>"; };
+		7B93143984659F2590680491 /* PairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingView.swift; sourceTree = "<group>"; };
 		95A587E11C352EB3B99F5F72 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A2032A6EDA81D65E9BD20C53 /* FamilyOfficeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyOfficeApp.swift; sourceTree = "<group>"; };
 		A93C6564389DE3756255199B /* Connectors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Connectors.swift; sourceTree = "<group>"; };
+		AAA42C5E2EF304216F870710 /* FamilyOfficePhoneApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyOfficePhoneApp.swift; sourceTree = "<group>"; };
+		C12F6A9ACE83036437A85A9A /* PhoneModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneModel.swift; sourceTree = "<group>"; };
 		C4B5E063180DDB30A3DB489D /* Advanced.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Advanced.swift; sourceTree = "<group>"; };
 		CCDB05CCEBE3E59E588B3820 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		D27071BAA7837ECF5683851F /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		DC4C85F8472D4356BE515CDE /* OfficeMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficeMonitor.swift; sourceTree = "<group>"; };
+		E277E30FB23377735CA86E95 /* FamilyOfficePhone.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FamilyOfficePhone.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E5D8043A7F552FEDDBA6052F /* PairingInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingInput.swift; sourceTree = "<group>"; };
+		E5DC09F534FFB02944E5D76A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E710C853BC711C93653AC6FF /* FamilyOffice.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FamilyOffice.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EDA4080F851A9F3BC3747D0F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F63710ECEC5EEA4FEEED35A1 /* FoTerminalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoTerminalView.swift; sourceTree = "<group>"; };
@@ -77,6 +108,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		48605731025D01B615D4095C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				132CF3014C8F041CFB3BB32E /* FOKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		90B84567B8510B856A26F6C3 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -89,6 +128,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		1807A1DA4B46C7637EC38E06 /* FamilyOfficePhoneTests */ = {
+			isa = PBXGroup;
+			children = (
+				4A01D498C4F80453E8908BBA /* PairingInputTests.swift */,
+			);
+			path = FamilyOfficePhoneTests;
+			sourceTree = "<group>";
+		};
 		44A3D7F08357E3246677085E /* FamilyOffice */ = {
 			isa = PBXGroup;
 			children = (
@@ -118,6 +165,15 @@
 				171CC6CFE0D9A2E1CD994202 /* WebView.swift */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		7DFF54E280879B55E799474F /* Pairing */ = {
+			isa = PBXGroup;
+			children = (
+				E5D8043A7F552FEDDBA6052F /* PairingInput.swift */,
+				7B93143984659F2590680491 /* PairingView.swift */,
+			);
+			path = Pairing;
 			sourceTree = "<group>";
 		};
 		8D587B4A06F1F56A78C7BEE4 /* Terminal */ = {
@@ -156,17 +212,67 @@
 			isa = PBXGroup;
 			children = (
 				E710C853BC711C93653AC6FF /* FamilyOffice.app */,
+				E277E30FB23377735CA86E95 /* FamilyOfficePhone.app */,
+				52CE4B15AE2054E010475312 /* FamilyOfficePhoneTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		A9D11DA3CF14B1E3DD081760 /* Web */ = {
+			isa = PBXGroup;
+			children = (
+				6F4D8BCAFCBB24713AB0DF05 /* OfficeWebView.swift */,
+			);
+			path = Web;
+			sourceTree = "<group>";
+		};
+		BCC1E94EC1FB084F985DD125 /* Connection */ = {
+			isa = PBXGroup;
+			children = (
+				641829AEF5F3F977A7B05AB9 /* ConnectionView.swift */,
+			);
+			path = Connection;
+			sourceTree = "<group>";
+		};
+		BF0E3FFCE165F1846BA74471 /* Scanner */ = {
+			isa = PBXGroup;
+			children = (
+				346CE7785F209554B306F270 /* QRScannerView.swift */,
+			);
+			path = Scanner;
 			sourceTree = "<group>";
 		};
 		C065893454D3822806443615 = {
 			isa = PBXGroup;
 			children = (
 				44A3D7F08357E3246677085E /* FamilyOffice */,
+				C8B0F4CF0A43A2B55CA6C7F4 /* FamilyOfficePhone */,
+				1807A1DA4B46C7637EC38E06 /* FamilyOfficePhoneTests */,
 				8DA97BCA0CFB36BB7C820A16 /* Packages */,
 				A2FAAE20F1754E2993474B2D /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		C8B0F4CF0A43A2B55CA6C7F4 /* FamilyOfficePhone */ = {
+			isa = PBXGroup;
+			children = (
+				E5DC09F534FFB02944E5D76A /* Assets.xcassets */,
+				E0428C6603C7FD7B546DBE1A /* App */,
+				BCC1E94EC1FB084F985DD125 /* Connection */,
+				7DFF54E280879B55E799474F /* Pairing */,
+				BF0E3FFCE165F1846BA74471 /* Scanner */,
+				A9D11DA3CF14B1E3DD081760 /* Web */,
+			);
+			path = FamilyOfficePhone;
+			sourceTree = "<group>";
+		};
+		E0428C6603C7FD7B546DBE1A /* App */ = {
+			isa = PBXGroup;
+			children = (
+				AAA42C5E2EF304216F870710 /* FamilyOfficePhoneApp.swift */,
+				C12F6A9ACE83036437A85A9A /* PhoneModel.swift */,
+			);
+			path = App;
 			sourceTree = "<group>";
 		};
 		E8B5D70D5F82A0EA9A75BC7B /* Settings */ = {
@@ -194,6 +300,44 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		5C0228ABEC7D6E88317FF07C /* FamilyOfficePhone */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA44A1507492E389F5ADAE74 /* Build configuration list for PBXNativeTarget "FamilyOfficePhone" */;
+			buildPhases = (
+				FE0F800F765B0D12EC313CF0 /* Sources */,
+				A24896FCB374705D50BF93F8 /* Resources */,
+				48605731025D01B615D4095C /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FamilyOfficePhone;
+			packageProductDependencies = (
+				CE4D5C51CD12FC9DEF870C6C /* FOKit */,
+			);
+			productName = FamilyOfficePhone;
+			productReference = E277E30FB23377735CA86E95 /* FamilyOfficePhone.app */;
+			productType = "com.apple.product-type.application";
+		};
+		758F563B1048F2A83E42969B /* FamilyOfficePhoneTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5CBB55FC5EF380BD00364970 /* Build configuration list for PBXNativeTarget "FamilyOfficePhoneTests" */;
+			buildPhases = (
+				CC6D6690A0D160BFAFB55627 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C38B645FD34E7E4C29791698 /* PBXTargetDependency */,
+			);
+			name = FamilyOfficePhoneTests;
+			packageProductDependencies = (
+			);
+			productName = FamilyOfficePhoneTests;
+			productReference = 52CE4B15AE2054E010475312 /* FamilyOfficePhoneTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		C9E6FCFB79D8458223625418 /* FamilyOffice */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = FCA6E94EB4EF8830BD5C4CEA /* Build configuration list for PBXNativeTarget "FamilyOffice" */;
@@ -225,6 +369,9 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					5C0228ABEC7D6E88317FF07C = {
+						ProvisioningStyle = Automatic;
+					};
 					C9E6FCFB79D8458223625418 = {
 						ProvisioningStyle = Automatic;
 					};
@@ -249,11 +396,21 @@
 			projectRoot = "";
 			targets = (
 				C9E6FCFB79D8458223625418 /* FamilyOffice */,
+				5C0228ABEC7D6E88317FF07C /* FamilyOfficePhone */,
+				758F563B1048F2A83E42969B /* FamilyOfficePhoneTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		A24896FCB374705D50BF93F8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ACB4EDBEC7EF520849C0D07C /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		FE346E2431F3E7C6150B28BE /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -324,7 +481,37 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CC6D6690A0D160BFAFB55627 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5C845056873D7E47F9683B38 /* PairingInputTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FE0F800F765B0D12EC313CF0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				03F15F4726FB08660E1F651C /* ConnectionView.swift in Sources */,
+				68F573CFCD42BBA29758805F /* FamilyOfficePhoneApp.swift in Sources */,
+				F84480924652590F2529599D /* OfficeWebView.swift in Sources */,
+				73B0B1D40A0D5E2E91A003AA /* PairingInput.swift in Sources */,
+				1AE7F4EB97022464B77AB46A /* PairingView.swift in Sources */,
+				CDE4E2C11F337A398BEA1297 /* PhoneModel.swift in Sources */,
+				448563699DDD1E9CD7E7C775 /* QRScannerView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		C38B645FD34E7E4C29791698 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5C0228ABEC7D6E88317FF07C /* FamilyOfficePhone */;
+			targetProxy = E1A3E961DC7E69F5C446FB27 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		8802477723974352BFC0DEB1 /* Debug */ = {
@@ -380,17 +567,39 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
+		};
+		91457FFDDB78F2B66178E75B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = FamilyOfficePhone/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 2.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.familyoffice.phone;
+				PRODUCT_NAME = FamilyOfficePhone;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
 		};
 		C1A5562C3121D3C5AC50F114 /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -439,16 +648,35 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 6.0;
 			};
 			name = Release;
+		};
+		D3376967061AFBFF98C43C7E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.familyoffice.phone.tests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FamilyOfficePhone.app/FamilyOfficePhone";
+			};
+			name = Debug;
 		};
 		D711D0BA513D651630468131 /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -500,9 +728,68 @@
 			};
 			name = Debug;
 		};
+		DE518DD7292573E96E730E0B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.familyoffice.phone.tests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FamilyOfficePhone.app/FamilyOfficePhone";
+			};
+			name = Release;
+		};
+		EC0A6B3A5202CC394204E8B0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = FamilyOfficePhone/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 2.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.familyoffice.phone;
+				PRODUCT_NAME = FamilyOfficePhone;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		5CBB55FC5EF380BD00364970 /* Build configuration list for PBXNativeTarget "FamilyOfficePhoneTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D3376967061AFBFF98C43C7E /* Debug */,
+				DE518DD7292573E96E730E0B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		AA44A1507492E389F5ADAE74 /* Build configuration list for PBXNativeTarget "FamilyOfficePhone" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EC0A6B3A5202CC394204E8B0 /* Debug */,
+				91457FFDDB78F2B66178E75B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		CBCFDCEF31F914C8AE5B2AD1 /* Build configuration list for PBXProject "FamilyOffice" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -546,6 +833,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 899A635AEE14A15FB4979D0F /* XCRemoteSwiftPackageReference "SwiftTerm" */;
 			productName = SwiftTerm;
+		};
+		CE4D5C51CD12FC9DEF870C6C /* FOKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FOKit;
 		};
 		DF481BCC8A9E78BF50EE3A43 /* FOKit */ = {
 			isa = XCSwiftPackageProductDependency;
