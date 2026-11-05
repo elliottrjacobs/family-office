@@ -217,6 +217,7 @@ export function Robot({
             fill="#000"
             opacity={LIGHT.shadow.soft.opacity}
             filter={url("shadow")}
+            data-shadow="soft"
           />
         )}
         <ellipse
@@ -226,6 +227,7 @@ export function Robot({
           ry={LIGHT.shadow.ry}
           fill="#000"
           opacity={LIGHT.shadow.opacity}
+          data-shadow="core"
         />
       </g>
 

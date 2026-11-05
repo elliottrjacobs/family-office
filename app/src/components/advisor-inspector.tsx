@@ -9,6 +9,7 @@ import { levels } from "@/api/office"
 import { preview } from "@/api/runs"
 import { useApi } from "@/api/use-api"
 import { advisorIdFor } from "@/avatars/appearance"
+import type { AvatarState } from "@/avatars/states"
 import { useAdvisorState, useLiveRun } from "@/components/advisor-avatar"
 import { AppearanceControls, AppearancePreview } from "@/components/appearance-editor"
 import { advisorName } from "@/components/advisor-icon"
@@ -81,9 +82,21 @@ function Reads({ advisor, subject, level }: { advisor: Advisor; subject: string 
   return <p className="text-xs text-muted-foreground">Loading…</p>
 }
 
-export function AdvisorInspector({ advisor }: { advisor: Advisor }) {
+export function AdvisorInspector({
+  advisor,
+  state: shown,
+  reads,
+}: {
+  advisor: Advisor
+  /** A fixed state and speaking level instead of the conversation's (the playground). */
+  state?: { state: AvatarState; level?: number }
+  /** Fixed lines for "What it reads"; the inspector then makes no API calls. */
+  reads?: string[]
+}) {
   const robot = advisorIdFor(advisor.name)
-  const { state, level: amplitude } = useAdvisorState(robot)
+  const followed = useAdvisorState(robot)
+  const state = shown?.state ?? followed.state
+  const amplitude = shown ? (shown.level ?? 0) : followed.level
   const live = useLiveRun(robot)
   const name = advisorName(advisor.name)
   const household = advisor.group === "household" || advisor.group === "routine"
@@ -102,7 +115,7 @@ export function AdvisorInspector({ advisor }: { advisor: Advisor }) {
       {robot && <AppearanceControls advisorId={robot} />}
       <section className="space-y-2.5">
         <Heading>What {name} reads</Heading>
-        <Reads advisor={advisor} subject={subject} level={level} />
+        {reads ? <CheckList lines={reads} /> : <Reads advisor={advisor} subject={subject} level={level} />}
       </section>
       {advisor.allowed_context.length > 1 && (
         <section className="space-y-2">

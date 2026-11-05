@@ -30,7 +30,8 @@ only while it animates) and `data-finish`, and the speed as the CSS custom prope
 background is transparent. Groups are named for animation: `data-part` is `head`,
 `ears`, `antenna`, `eyes`, `mouth`, `details` or `sleep`, and the lighting layers
 carry `data-layer` (`shadow`, `shell`, `specular`, `rim`, `screen`, `sheen`,
-`glow`).
+`glow`). The two contact-shadow ellipses carry `data-shadow` (`soft`, `core`);
+`animations.css` deepens them inside `.dark`, where a 9% black shadow would vanish.
 
 ## Appearance
 
@@ -137,6 +138,22 @@ following the open conversation: the chat publishes its run and events through
 `publishRun` in `components/advisor-avatar.tsx`. Each sidebar row shows a static 24 px
 robot (sleeping while the server is unreachable) that turns live while that advisor has a
 run in progress. Skills without a robot keep their icon.
+
+## Playground and screenshots
+
+`/playground/robots` (reachable by URL only; nothing in the app links to it) shows
+every default at 24, 34, 64 and 160 px on a light and a dark panel, the eight states
+for a chosen advisor at 120 px, six preset combinations, the live editor with Copy
+JSON and a text area that applies a pasted config through `parseAppearance`, and both
+customize UIs: the Mac inspector in a 320 px column showing Speaking, and the phone
+sheet open in a 375 px frame. It needs no office and makes no API calls: it renders
+outside the app shell with `OfflineAppData`, and the inspector gets fixed reads.
+
+`?shot=<section>` renders one section (`defaults`, `states`, `combinations`, `editor`,
+`customize`) with no page chrome on a white or `#111` background picked by
+`&theme=light|dark`, and sets `data-ready="true"` on the section once fonts have
+loaded; `&advisor=<id>` picks the states advisor. `npm run screenshots` (see
+`app/README.md`) captures the set in `docs/explainers/robots/`.
 
 ## Rendering
 
