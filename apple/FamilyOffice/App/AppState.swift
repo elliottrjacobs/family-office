@@ -20,6 +20,8 @@ final class AppState {
 
     /// `UserDefaults` key for the chosen office folder.
     static let officePathKey = "officePath"
+    /// `UserDefaults` key for "Allow phone access over Tailscale" (`fo serve --remote`).
+    static let phoneAccessKey = "allowPhoneAccess"
 
     private(set) var serverState: ServerState = .idle
     /// The live server's handshake. Its token stays in memory and is only used by the web view.
@@ -28,6 +30,8 @@ final class AppState {
     private(set) var pageGeneration = 0
     private(set) var officePath: String?
     var showOfficeSheet = false
+    /// Runs the server with `--remote` on the configured port, for `tailscale serve`.
+    private(set) var phoneAccess: Bool
 
     /// Reachability of the status route, probed once the web view holds the session cookie.
     private(set) var reachability: Reachability?
@@ -50,6 +54,7 @@ final class AppState {
 
     init() {
         officePath = defaults.string(forKey: Self.officePathKey).flatMap { $0.isEmpty ? nil : $0 }
+        phoneAccess = UserDefaults.standard.bool(forKey: Self.phoneAccessKey)
         server.onEvent = { [weak self] event in self?.handle(event) }
         monitor.onDevices = { [weak self] devices in
             self?.power.update(deviceCount: devices.count)
@@ -113,7 +118,7 @@ final class AppState {
 
     func startServer() {
         serverState = .starting
-        server.start(office: officePath)
+        server.start(office: officePath, remote: phoneAccess && officePath != nil)
     }
 
     func restartServer() {
@@ -121,6 +126,26 @@ final class AppState {
             await server.stop()
             startServer()
         }
+    }
+
+    /// Turns phone access on or off and restarts the server. `--remote` needs
+    /// `[serve] tailnet_name`, so turning it on without one is refused with the reason.
+    func setPhoneAccess(_ on: Bool) async -> String? {
+        if on {
+            guard officePath != nil else { return "Choose an office folder first." }
+            switch await FoCommand.configGet(office: officePath, "serve.tailnet_name") {
+            case .success(let value?) where !value.fieldText.isEmpty:
+                break
+            case .success:
+                return "Set this Mac's tailnet name in Devices first."
+            case .failure(let error):
+                return error.message
+            }
+        }
+        phoneAccess = on
+        defaults.set(on, forKey: Self.phoneAccessKey)
+        restartServer()
+        return nil
     }
 
     func shutdown() async {

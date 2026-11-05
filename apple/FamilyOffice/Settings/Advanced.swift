@@ -68,6 +68,9 @@ final class ConfigFieldsModel {
             }
         }
         loaded = true
+        settingsLog.info(
+            "advanced: loaded=\(self.stored.count, privacy: .public) unsupported=\(self.unsupported.sorted().joined(separator: ","), privacy: .public) errors=\(self.errors.count, privacy: .public)"
+        )
     }
 
     func isDirty(_ field: ConfigField) -> Bool {
@@ -91,6 +94,8 @@ final class ConfigFieldsModel {
             return true
         case .failure(let error):
             errors[field.key] = error.message
+            settingsLog.info(
+                "advanced: \(field.key, privacy: .public) refused (\(error.reason, privacy: .public))")
             return false
         }
     }

@@ -1,6 +1,7 @@
 import AppKit
 import FOKit
 import SwiftUI
+import os
 
 /// The menu bar item's menu: office, sync age, a run in progress, phone reachability, then
 /// Open Family Office, Restart Server, Settings… and Quit.
@@ -53,5 +54,9 @@ struct MenuBarLabel: View {
     var body: some View {
         Image(systemName: state.serverState == .running ? "building.columns.fill" : "building.columns")
             .accessibilityLabel("Family Office")
+            .onAppear {
+                Logger(subsystem: "com.familyoffice.app", category: "monitor")
+                    .info("menu bar item shown")
+            }
     }
 }

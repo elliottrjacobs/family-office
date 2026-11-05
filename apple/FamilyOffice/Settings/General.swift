@@ -8,6 +8,7 @@ struct GeneralSettings: View {
         Form {
             officeSection
             startupSection
+            PhoneAccessSection()
             powerSection
             commandLineSection
         }
@@ -15,6 +16,16 @@ struct GeneralSettings: View {
         .onAppear {
             state.loginItem.refresh()
             state.commandLineTool.verify()
+            let cli: String =
+                switch state.commandLineTool.state {
+                case .unavailable: "unavailable"
+                case .notInstalled: "not-installed"
+                case .installed: "installed"
+                case .other: "other"
+                }
+            settingsLog.info(
+                "general: login=\(state.loginItem.status.rawValue, privacy: .public) phoneAccess=\(state.phoneAccess, privacy: .public) keepAwakeAvailable=\(state.power.available, privacy: .public) assertion=\(state.power.assertionHeld, privacy: .public) cli=\(cli, privacy: .public)"
+            )
         }
     }
 
@@ -49,6 +60,45 @@ struct GeneralSettings: View {
             if login.needsApproval {
                 Button("Open Login Items Settings…") {
                     login.openSystemSettings()
+                }
+            }
+        }
+    }
+
+    /// "Allow phone access over Tailscale": runs the server with `--remote` on the configured
+    /// port so `tailscale serve` can forward the tailnet name to it.
+    private struct PhoneAccessSection: View {
+        @Environment(AppState.self) private var state
+        @State private var error: String?
+        @State private var busy = false
+
+        var body: some View {
+            Section("Phone access") {
+                Toggle(
+                    "Allow phone access over Tailscale",
+                    isOn: Binding(
+                        get: { state.phoneAccess },
+                        set: { on in
+                            busy = true
+                            Task {
+                                error = await state.setPhoneAccess(on)
+                                busy = false
+                            }
+                        })
+                )
+                .disabled(busy)
+                if let error {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                } else {
+                    Text(
+                        state.phoneAccess
+                            ? "The server runs with --remote on the port in Advanced and accepts paired phones over the tailnet. Changing this restarts the server."
+                            : "Off: the server listens on this Mac only, on a port chosen at each launch."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
             }
         }
