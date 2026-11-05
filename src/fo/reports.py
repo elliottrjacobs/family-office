@@ -6,9 +6,10 @@ from pathlib import Path
 import yaml
 
 from fo.errors import OfficeError
-from fo.office import contained
+from fo.office import atomic_write, contained
 
 CLOSING = "Reply with corrections in your next task."
+MAX_BODY_BYTES = 2 * 1024 * 1024
 
 
 def component(value):
@@ -222,3 +223,71 @@ def parts(root, kind=None, subject=None, slug="report", report=None):
         "complete": complete,
         "missing": [name for name in names if name not in complete],
     }
+
+
+def safe_report_path(root, path):
+    """A path under reports/ with no dotted component, as a relative POSIX string.
+
+    The SEC-27 rule: nothing under reports/ may begin with a dot, so a write can never
+    land in reports/.git/, reports/x/.claude/, or a hidden file. An absolute path must sit
+    inside the office, and the path may not leave reports/ through `..` or a symlink.
+    """
+    root = Path(root)
+    target = Path(path)
+    if target.is_absolute():
+        for base in (root, root.resolve()):
+            if target.is_relative_to(base):
+                target = target.relative_to(base)
+                break
+        else:
+            raise OfficeError("unsafe_path", "Report is outside the office.")
+    relative = os.path.normpath(target.as_posix())
+    pieces = Path(relative).parts
+    if len(pieces) < 2 or pieces[0] != "reports":
+        raise OfficeError("unsafe_path", "Choose a path under reports/.")
+    if any(piece.startswith(".") for piece in pieces[1:]):
+        raise OfficeError("unsafe_path", "Paths under reports/ may not start with a dot.")
+    if not contained(root, relative).resolve().is_relative_to((root / "reports").resolve()):
+        raise OfficeError("unsafe_path", "Choose a path under reports/.")
+    return relative
+
+
+def body_limit(root):
+    from fo.config import read_config
+
+    value = read_config(root).get("reports", {})
+    limit = value.get("max_body_bytes", MAX_BODY_BYTES) if isinstance(value, dict) else None
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
+        raise OfficeError("invalid_config", "[reports] max_body_bytes must be a positive integer.")
+    return limit
+
+
+def write(root, stream, kind=None, subject=None, slug="report", part=None, report=None):
+    """Write a report, or one of its parts, from a byte stream through a temp file and rename.
+
+    The path comes from the allocation fo start and fo report path use, or from a pinned
+    --report, so a resumed run keeps writing to the file and part directory it started.
+    """
+    if not report and not (kind and subject):
+        raise OfficeError(
+            "invalid_report", "Pass --report PATH from fo start, or --kind and --subject."
+        )
+    limit = body_limit(root)
+    data = stream.read(limit + 1)
+    if len(data) > limit:
+        raise OfficeError("report_too_large", f"The report body exceeds {limit} bytes.")
+    if not data.strip():
+        raise OfficeError("empty_report", "The report body on stdin is empty.")
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise OfficeError("invalid_report_body", "The report body must be UTF-8 text.") from exc
+    relative = safe_report_path(root, report_path(root, kind, subject, slug, part, report)["path"])
+    target = contained(root, relative)
+    if target.exists() and not target.is_file():
+        raise OfficeError("unsafe_path", "The report path is not a regular file.")
+    try:
+        atomic_write(target, text)
+    except OSError as exc:
+        raise OfficeError("write_failed", "The report could not be written.") from exc
+    return {"path": relative, "bytes": len(data), "part": part}
