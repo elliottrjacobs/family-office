@@ -81,6 +81,9 @@ def launch(handler, params, query):
         text(body, "subject"),
         text(body, "level", required=False),
         deep,
+        engine=text(body, "engine", required=False, limit=40),
+        model=text(body, "model", required=False),
+        effort=text(body, "effort", required=False, limit=10),
     )
 
 

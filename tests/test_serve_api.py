@@ -328,3 +328,42 @@ def test_a_disabled_engine_is_reported_and_refused(office, tmp_path):
         status, refused = client.post("/api/runs", {"skill": "research", "subject": "BETA"})
         assert (status, refused["reason"]) == (503, "engine_disabled")
         assert app.runs.list(office) == []
+
+
+def test_the_launch_body_carries_engine_model_and_effort(office, tmp_path):
+    from tests.test_serve_runs import settle
+
+    served, folder = engine_app(office, tmp_path)
+    with served as (app, client):
+        status, refused = client.post(
+            "/api/runs", {"skill": "research", "subject": "BETA", "engine": "codex"}
+        )
+        assert (status, refused["reason"]) == (400, "unknown_engine")
+        status, refused = client.post(
+            "/api/runs", {"skill": "research", "subject": "BETA", "effort": 3}
+        )
+        assert (status, refused["reason"]) == (400, "invalid_request")
+        status, record = client.post(
+            "/api/runs",
+            {
+                "skill": "research",
+                "subject": "BETA",
+                "engine": "claude",
+                "model": "claude-sonnet-5-5",
+                "effort": "medium",
+            },
+        )
+        assert status == 200
+        settle(app.runs, office, record["id"])
+        listed = client.get("/api/runs")[1][0]
+        detail = client.get(f"/api/runs/{record['id']}")[1]
+        for row in (listed, detail):
+            assert (row["engine"], row["model"], row["effort"]) == (
+                "claude",
+                "claude-sonnet-5-5",
+                "medium",
+            )
+            assert row["reported_model"] == "fake-model"
+        argv = json.loads((folder / "argv.json").read_text())
+        assert argv[argv.index("--model") + 1] == "claude-sonnet-5-5"
+        assert argv[argv.index("--effort") + 1] == "medium"

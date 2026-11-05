@@ -55,8 +55,10 @@ DECISION = re.compile(r"\b[0-9A-HJKMNP-TV-Z]{26}\b")
 RESUME = (
     "Resume the interrupted report. Pass --report {path} to fo start, fo report path, "
     "and fo report parts so the work continues in the same file and part directory, "
-    "and record no decision twice."
+    "write the report through fo report write --report {path}, and record no decision twice."
 )
+# A model name reaches the engine as one argument; it must not read as a flag.
+MODEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/@\[\]-]{0,199}")
 MESSAGE_LIMIT = 8000
 
 
@@ -291,7 +293,9 @@ class RunManager:
 
     # Lifecycle ---------------------------------------------------------------------
 
-    def launch(self, root, skill, subject, level=None, deep=False):
+    def launch(
+        self, root, skill, subject, level=None, deep=False, engine=None, model=None, effort=None
+    ):
         advisor = next((a for a in registry()["skills"] if a["name"] == skill), None)
         if advisor is None:
             raise OfficeError("unknown_skill", "No such advisor.")
@@ -303,9 +307,13 @@ class RunManager:
             raise OfficeError("invalid_context", "This advisor does not read at that level.")
         if deep and not (advisor["deep"] and self.deep):
             raise OfficeError("deep_unavailable", "Deep mode is not available for this run.")
+        if model is not None and not MODEL.fullmatch(model):
+            raise OfficeError("invalid_model", "Name the model as one word, such as an id.")
+        if effort is not None and effort not in EFFORTS:
+            raise OfficeError("invalid_effort", "Effort is low, medium, or high.")
         config = run_settings(root)
-        runner, engine, name = self.engine(root)
-        config["max_budget_usd"] = engine["max_budget_usd"]
+        _, settings, name = self.engine(root, engine)
+        config["max_budget_usd"] = settings["max_budget_usd"]
         with self.mutex:
             self.claim(root)
             try:
@@ -321,6 +329,9 @@ class RunManager:
                     "status": "queued",
                     "runner": name,
                     "engine": name,
+                    "model": model or settings["model"],
+                    "effort": effort or settings["effort"],
+                    "reported_model": None,
                     "session_id": None,
                     "report": started["report"]["data"]["path"],
                     "report_written": False,
@@ -422,7 +433,14 @@ class RunManager:
     def run(self, root, record, prompt, session, config):
         runner = self.runners.get(record.get("engine") or record.get("runner"))
         try:
-            argv = runner.command(root, runner.settings(root), config["max_budget_usd"], session)
+            argv = runner.command(
+                root,
+                runner.settings(root),
+                config["max_budget_usd"],
+                session,
+                record.get("model"),
+                record.get("effort"),
+            )
             process = subprocess.Popen(
                 argv,
                 stdin=subprocess.PIPE,
@@ -462,6 +480,7 @@ class RunManager:
                     kind = event["kind"]
                     if kind == "init":
                         record["session_id"] = event.get("session_id") or record["session_id"]
+                        record["reported_model"] = event.get("model")
                         problem = runner.check(event, record["skill"])
                         event = {k: event[k] for k in ("kind", "session_id", "model")}
                         if problem and error is None:
