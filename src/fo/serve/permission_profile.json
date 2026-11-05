@@ -39,6 +39,8 @@
     "Bash(fo setup *)",
     "Bash(fo auth)",
     "Bash(fo auth *)",
+    "Bash(fo connect)",
+    "Bash(fo connect *)",
     "Bash(fo sync)",
     "Bash(fo sync -*)",
     "Bash(fo commit)",

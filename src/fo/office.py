@@ -13,6 +13,7 @@ RUN_MARKER = "FO_SERVE_RUN"
 RUN_RESTRICTED = (
     "setup",
     "auth",
+    "connect",
     "sync",
     "commit",
     "schedule",
@@ -47,8 +48,8 @@ def run_office(explicit: Path | None, args: list[str]) -> Path | None:
             if args != ["sync", "status"]:
                 raise OfficeError(
                     "serve_run_restricted",
-                    "Advisor runs cannot set up, authenticate, sync, commit, schedule, "
-                    "notify, migrate, or reindex.",
+                    "Advisor runs cannot set up, authenticate, connect providers, sync, "
+                    "commit, schedule, notify, migrate, or reindex.",
                 )
     return office
 

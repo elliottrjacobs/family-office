@@ -30,10 +30,21 @@ def save_keys(root, keys):
                 )
         return lines
 
+    secrets_dir(root)
+    atomic_write(contained(root, "secrets/keys.toml"), "\n".join(table(keys)) + "\n", 0o600)
+
+
+def secrets_dir(root):
     directory = contained(root, "secrets")
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     directory.chmod(0o700)
-    atomic_write(contained(root, "secrets/keys.toml"), "\n".join(table(keys)) + "\n", 0o600)
+    return directory
+
+
+def save_secret_json(root, name, value):
+    """Write secrets/<name>.json atomically at 0600 inside the 0700 secrets directory."""
+    secrets_dir(root)
+    write_json(contained(root, f"secrets/{name}.json"), value, 0o600)
 
 
 def register_schwab(root, mappings, keys):

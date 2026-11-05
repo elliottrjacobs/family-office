@@ -210,6 +210,41 @@ def auth_command(ctx: typer.Context, provider: str):
     run(ctx, execute)
 
 
+@app.command("connect")
+def connect_command(
+    ctx: typer.Context,
+    provider: str,
+    remove: bool = typer.Option(False, "--remove", help="Delete the stored key or contact."),
+    user_agent: str | None = typer.Option(
+        None, "--user-agent", help='EDGAR only: "Name email@example.com".'
+    ),
+):
+    """Store a provider API key read from standard input, after one validating call."""
+    from fo import connect
+
+    def execute():
+        writable(ctx)
+        office = root(ctx)
+        name = connect.provider_name(provider)
+        if remove:
+            return connect.remove(office, name)
+        if name == "edgar":
+            return connect.edgar(office, user_agent)
+        return connect.store(office, name, read_key(name))
+
+    run(ctx, execute)
+
+
+def read_key(provider):
+    import sys
+
+    if sys.stdin is None:
+        return ""
+    if sys.stdin.isatty():
+        return typer.prompt(provider + " API key", hide_input=True, err=True)
+    return sys.stdin.read(4096)
+
+
 @sync_app.callback()
 def sync_command(
     ctx: typer.Context,

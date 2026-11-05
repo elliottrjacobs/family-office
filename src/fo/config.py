@@ -25,6 +25,21 @@ def read_secrets(root: Path) -> dict:
         ) from exc
 
 
+def provider_key(root: Path, provider: str) -> str | None:
+    """The API key fo connect stored in secrets/<provider>.json, else one fo auth stored."""
+    path = contained(root, f"secrets/{provider}.json")
+    if path.exists():
+        try:
+            key = json.loads(path.read_text()).get("api_key")
+        except (OSError, ValueError, AttributeError) as exc:
+            raise OfficeError(
+                "invalid_secrets", "A provider key file is unreadable or malformed."
+            ) from exc
+        return key if isinstance(key, str) and key else None
+    key = read_secrets(root).get(provider, {}).get("api_key")
+    return key if isinstance(key, str) and key else None
+
+
 def masked(value):
     if isinstance(value, dict):
         return {key: masked(item) for key, item in value.items()}
