@@ -1,0 +1,263 @@
+# Build, sign, notarize and publish the Mac app. See RELEASING.md.
+#
+# Every step that needs a secret is skipped, with a notice saying so, when that secret is absent,
+# so a fork (or a repository before the one-time setup) still produces ad-hoc signed DMGs as
+# workflow artifacts and attaches them to a draft release.
+name: Release Mac app
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag whose release receives the assets (empty to build artifacts only)
+        required: false
+        default: ""
+permissions:
+  contents: read
+concurrency:
+  group: release-mac-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  # Sparkle's release tools (generate_appcast), pinned with the SHA-256 GitHub reports for the asset.
+  SPARKLE_VERSION: 2.10.1
+  SPARKLE_SHA256: 1a856d2a9edb8e628de88121d7be04cf0e2167f8641650b78fca00b14244cf27
+jobs:
+  build:
+    name: Build ${{ matrix.arch }}
+    runs-on: macos-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        arch: [arm64, x86_64]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+      - run: brew install xcodegen
+
+      - name: Check secrets
+        id: secrets
+        env:
+          MAC_CERT_P12: ${{ secrets.MAC_CERT_P12 }}
+          MAC_CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+        run: |
+          if [ -n "$MAC_CERT_P12" ] && [ -n "$MAC_CERT_PASSWORD" ]; then
+            echo "sign=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "sign=false" >>"$GITHUB_OUTPUT"
+            echo "::notice::MAC_CERT_P12 or MAC_CERT_PASSWORD is not set: signing ad-hoc. The DMG will not pass Gatekeeper and is not for distribution."
+          fi
+          if [ -n "$MAC_CERT_P12" ] && [ -n "$NOTARY_KEY_ID" ] && [ -n "$NOTARY_ISSUER_ID" ] && [ -n "$NOTARY_KEY_P8" ]; then
+            echo "notarize=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "notarize=false" >>"$GITHUB_OUTPUT"
+            echo "::notice::Notarization skipped: it needs MAC_CERT_P12 and NOTARY_KEY_ID, NOTARY_ISSUER_ID, NOTARY_KEY_P8."
+          fi
+
+      - name: Version
+        id: version
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ] && [[ "$GITHUB_REF_NAME" == v* ]]; then
+            echo "marketing=${GITHUB_REF_NAME#v}" >>"$GITHUB_OUTPUT"
+          else
+            echo "marketing=$(sed -n 's/^ *MARKETING_VERSION: *//p' apple/project.yml | head -1)" >>"$GITHUB_OUTPUT"
+          fi
+          # Sparkle compares CFBundleVersion, which must grow with every release.
+          echo "build=$(git rev-list --count HEAD)" >>"$GITHUB_OUTPUT"
+
+      - name: Install Rosetta for the x86_64 runtime checks
+        if: matrix.arch == 'x86_64'
+        run: /usr/bin/pgrep -q oahd || sudo softwareupdate --install-rosetta --agree-to-license
+
+      - name: Build the wheel
+        run: uv build --wheel --out-dir dist
+
+      - name: Bundle Python
+        env:
+          FO_BUNDLE_ARCH: ${{ matrix.arch }}
+        run: apple/Scripts/bundle-python.sh
+
+      - name: Generate the Xcode project
+        working-directory: apple
+        run: xcodegen generate
+
+      - name: Archive
+        # Unsigned here; sign-bundle.sh signs every Mach-O in one pass below.
+        run: |
+          xcodebuild archive \
+            -project apple/FamilyOffice.xcodeproj -scheme FamilyOffice -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -archivePath "$RUNNER_TEMP/FamilyOffice.xcarchive" \
+            ARCHS=${{ matrix.arch }} ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO \
+            MARKETING_VERSION=${{ steps.version.outputs.marketing }} \
+            CURRENT_PROJECT_VERSION=${{ steps.version.outputs.build }}
+          echo "APP=$RUNNER_TEMP/FamilyOffice.xcarchive/Products/Applications/FamilyOffice.app" >>"$GITHUB_ENV"
+
+      - name: Import the Developer ID certificate
+        if: steps.secrets.outputs.sign == 'true'
+        env:
+          MAC_CERT_P12: ${{ secrets.MAC_CERT_P12 }}
+          MAC_CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password="$(openssl rand -base64 24)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          printf '%s' "$MAC_CERT_P12" | base64 --decode >"$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" -P "$MAC_CERT_PASSWORD" \
+            -T /usr/bin/codesign >/dev/null
+          rm -f "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" \
+            "$keychain" >/dev/null
+          # shellcheck disable=SC2046
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          identity="$(security find-identity -v -p codesigning "$keychain" |
+            awk '/Developer ID Application/ { print $2; exit }')"
+          if [ -z "$identity" ]; then
+            echo "::error::No Developer ID Application identity in MAC_CERT_P12."
+            exit 1
+          fi
+          echo "SIGN_IDENTITY=$identity" >>"$GITHUB_ENV"
+          echo "KEYCHAIN=$keychain" >>"$GITHUB_ENV"
+
+      - name: Sign
+        run: apple/Scripts/sign-bundle.sh "$APP" "${SIGN_IDENTITY:--}"
+
+      - name: Bundled fo runs after signing
+        run: |
+          "$APP/Contents/Resources/fo/bin/fo" --version
+          "$APP/Contents/Resources/fo/bin/fo" serve --help >/dev/null
+
+      - name: Write the notarization key
+        if: steps.secrets.outputs.notarize == 'true'
+        env:
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+        run: |
+          umask 077
+          printf '%s\n' "$NOTARY_KEY_P8" >"$RUNNER_TEMP/notary.p8"
+
+      - name: Notarize and staple the app
+        if: steps.secrets.outputs.notarize == 'true'
+        env:
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+          NOTARY_KEY_PATH: ${{ runner.temp }}/notary.p8
+        run: |
+          ditto -c -k --keepParent "$APP" "$RUNNER_TEMP/FamilyOffice.zip"
+          apple/Scripts/notarize.sh "$RUNNER_TEMP/FamilyOffice.zip"
+          xcrun stapler staple "$APP"
+          xcrun stapler validate "$APP"
+          spctl --assess --type execute -vv "$APP"
+
+      - name: Build the DMG
+        run: |
+          dmg="$(apple/Scripts/make-dmg.sh "$APP" "${SIGN_IDENTITY:--}" "$RUNNER_TEMP/dmg" | tail -1)"
+          echo "DMG=$dmg" >>"$GITHUB_ENV"
+
+      - name: Notarize and staple the DMG
+        if: steps.secrets.outputs.notarize == 'true'
+        env:
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+          NOTARY_KEY_PATH: ${{ runner.temp }}/notary.p8
+        run: |
+          apple/Scripts/notarize.sh "$DMG"
+          xcrun stapler staple "$DMG"
+          xcrun stapler validate "$DMG"
+          spctl --assess --type open --context context:primary-signature -vv "$DMG"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dmg-${{ matrix.arch }}
+          path: ${{ env.DMG }}
+          if-no-files-found: error
+
+      - name: Remove the signing material
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/notary.p8" "$RUNNER_TEMP/cert.p12"
+          if [ -n "${KEYCHAIN:-}" ]; then security delete-keychain "$KEYCHAIN" || true; fi
+
+  publish:
+    name: Appcast and release
+    needs: build
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dmg-*
+          path: dmg
+
+      - name: Release tag
+        id: tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            tag="$GITHUB_REF_NAME"
+          else
+            tag="$INPUT_TAG"
+          fi
+          echo "tag=$tag" >>"$GITHUB_OUTPUT"
+          if [ -z "$tag" ]; then
+            echo "::notice::No tag: the DMGs stay as workflow artifacts and no release is touched."
+          fi
+
+      - name: Check the Sparkle key
+        id: sparkle
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          if [ -n "$SPARKLE_PRIVATE_KEY" ]; then
+            echo "sign=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "sign=false" >>"$GITHUB_OUTPUT"
+            echo "::notice::SPARKLE_PRIVATE_KEY is not set: no appcast is generated, so installed apps will not see this release."
+          fi
+
+      - name: Generate the appcasts
+        if: steps.sparkle.outputs.sign == 'true' && steps.tag.outputs.tag != ''
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          tools="$RUNNER_TEMP/sparkle"
+          mkdir -p "$tools"
+          curl -fsSL --retry 3 -o "$tools/sparkle.tar.xz" \
+            "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz"
+          echo "$SPARKLE_SHA256  $tools/sparkle.tar.xz" | shasum -a 256 -c
+          tar -xJf "$tools/sparkle.tar.xz" -C "$tools"
+          prefix="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/"
+          # One appcast per architecture; Intel builds read appcast-x86_64.xml (App/Updater.swift).
+          for arch in arm64 x86_64; do
+            feed=appcast.xml
+            [ "$arch" = arm64 ] || feed="appcast-$arch.xml"
+            printf '%s' "$SPARKLE_PRIVATE_KEY" | "$tools/bin/generate_appcast" --ed-key-file - \
+              --download-url-prefix "$prefix" -o "$PWD/$feed" "dmg/dmg-$arch"
+          done
+          ls -l appcast*.xml
+
+      - name: Attach to the release
+        if: steps.tag.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --draft --verify-tag --title "$TAG" \
+              --notes "Draft created by the Mac release workflow. Edit the notes, then publish."
+          fi
+          gh release upload "$TAG" dmg/dmg-*/*.dmg --clobber
+          if ls appcast*.xml >/dev/null 2>&1; then
+            gh release upload "$TAG" appcast*.xml --clobber
+          fi
