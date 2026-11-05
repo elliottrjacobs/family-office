@@ -17,9 +17,11 @@
 # seals them as resources.
 #
 # With a real identity every signature gets the hardened runtime and a secure timestamp, as
-# notarization requires. Ad-hoc signing uses the hardened runtime too, so a local run exercises
-# the same runtime restrictions; set FO_SIGN_RUNTIME=0 to leave it off. FO_SIGN_ENTITLEMENTS
-# overrides the interpreter entitlements file (for testing which entitlements Python needs).
+# notarization requires. Ad-hoc signatures get neither by default: an ad-hoc signature has no
+# Team ID, so under the hardened runtime library validation rejects every framework the app
+# links (Sparkle) and the app cannot launch. FO_SIGN_RUNTIME=1 adds the hardened runtime to an
+# ad-hoc run anyway, which is how the interpreter entitlements were tested (the bundled fo runs;
+# the app itself does not). FO_SIGN_ENTITLEMENTS overrides the interpreter entitlements file.
 set -euo pipefail
 
 die() {
@@ -38,11 +40,14 @@ entitlements="${FO_SIGN_ENTITLEMENTS:-$APPLE/FamilyOffice/FamilyOffice.entitleme
 [ -f "$entitlements" ] || die "entitlements file not found: $entitlements"
 
 flags=(--force --sign "$identity")
-if [ "$identity" != "-" ]; then
+if [ "$identity" = "-" ]; then
+    runtime="${FO_SIGN_RUNTIME:-0}"
+else
+    runtime="${FO_SIGN_RUNTIME:-1}"
+    [ "$runtime" = "1" ] || die "a real identity always signs with the hardened runtime"
     flags+=(--timestamp)
-    [ "${FO_SIGN_RUNTIME:-1}" = "1" ] || die "a real identity always signs with the hardened runtime"
 fi
-if [ "${FO_SIGN_RUNTIME:-1}" = "1" ]; then
+if [ "$runtime" = "1" ]; then
     flags+=(--options runtime)
 fi
 
@@ -108,7 +113,7 @@ fi
 # 3. The app.
 sign "$app"
 count=$((count + 1))
-echo "Signed $count items with identity '$identity'"
+echo "Signed $count items with identity '$identity' (hardened runtime: $([ "$runtime" = 1 ] && echo on || echo off))"
 
 codesign --verify --deep --strict "$app"
 echo "codesign --verify --deep --strict: ok"
