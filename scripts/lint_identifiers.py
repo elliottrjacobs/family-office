@@ -13,6 +13,7 @@ CGNAT_ALLOWED = {
     "src/fo/netguard.py",
     "docs/development/research-providers.md",
     "SECURITY.md",
+    "scripts/lint_identifiers.py",
     # The tests that exercise the network guard and the synthetic `tailscale status` fixture.
     "tests/test_netguard.py",
     "tests/test_research.py",
