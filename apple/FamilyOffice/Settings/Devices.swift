@@ -463,7 +463,7 @@ private struct ServeConfirmation: View {
 }
 
 /// A command shown in monospace, selectable, with a Copy button.
-private struct CommandText: View {
+struct CommandText: View {
     let command: String
 
     init(_ command: String) {

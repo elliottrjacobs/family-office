@@ -6,7 +6,9 @@ struct SettingsView: View {
     /// `UserDefaults` key for the last tab shown; `-settingsTab devices` opens a given tab.
     static let tabKey = "settingsTab"
 
+    @Environment(AppState.self) private var state
     @AppStorage(SettingsView.tabKey) private var tab = "general"
+    @State private var debugTerminal: FoTerminalSession?
 
     var body: some View {
         TabView(selection: $tab) {
@@ -21,6 +23,20 @@ struct SettingsView: View {
                 .tag("advanced")
         }
         .frame(width: 560, height: 560)
+        #if DEBUG
+        // Development walkthroughs: `-terminalCommand "auth schwab"` opens the embedded
+        // terminal with those words, so the refusal of anything outside the allowed set can
+        // be checked (`-terminalCommand "bash"` is refused without starting a process).
+        .task {
+            if let words = UserDefaults.standard.string(forKey: "terminalCommand"), !words.isEmpty {
+                debugTerminal = FoTerminalSession(
+                    words: words.split(separator: " ").map(String.init), office: state.officePath)
+            }
+        }
+        .sheet(item: $debugTerminal) { session in
+            TerminalSheet(session: session) { debugTerminal = nil }
+        }
+        #endif
     }
 }
 
