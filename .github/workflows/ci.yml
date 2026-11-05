@@ -48,3 +48,22 @@ jobs:
             echo "Run npm run build in app/ and commit src/fo/data/app."
             exit 1
           fi
+  apple:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - name: Committed Xcode project matches project.yml
+        working-directory: apple
+        run: |
+          xcodegen generate
+          git diff --exit-code FamilyOffice.xcodeproj FamilyOffice/Info.plist
+      - name: FOKit
+        working-directory: apple/FOKit
+        run: |
+          swift build
+          swift test
+      - name: Mac app
+        run: >-
+          xcodebuild -project apple/FamilyOffice.xcodeproj -scheme FamilyOffice
+          -configuration Debug CODE_SIGNING_ALLOWED=NO build
