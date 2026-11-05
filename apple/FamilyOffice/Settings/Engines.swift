@@ -45,8 +45,15 @@ final class EnginesModel {
             detections[detection.engine] = detection
         }
         let summary = found.map { detection in
-            let source = detection.location?.source.rawValue ?? "missing"
-            return "\(detection.engine.rawValue)=\(source)"
+            guard let location = detection.location else { return "\(detection.engine.rawValue)=missing" }
+            let version = detection.version == nil ? "no-version" : "version"
+            let signIn: String
+            switch detection.signIn {
+            case .signedIn: signIn = "signed-in"
+            case .signedOut: signIn = "signed-out"
+            case .unknown: signIn = "sign-in-unknown"
+            }
+            return "\(detection.engine.rawValue)=\(location.source.rawValue)/\(version)/\(signIn)"
         }.joined(separator: " ")
         settingsLog.info("engines: detected \(summary, privacy: .public)")
     }
@@ -62,6 +69,9 @@ final class EnginesModel {
             let runner = try await api.runner()
             self.runner = runner
             serverError = nil
+            let summary = runner.engines.map { "\($0.name)=\($0.usable ? "usable" : $0.reason ?? "unusable")" }
+                .joined(separator: " ")
+            settingsLog.info("engines: server \(summary, privacy: .public)")
         } catch {
             runner = nil
             serverError = "The server did not report engine status."
@@ -70,6 +80,8 @@ final class EnginesModel {
             let catalog = try await api.models()
             self.catalog = catalog
             apply(catalog)
+            settingsLog.info(
+                "engines: catalog default=\(catalog.default, privacy: .public) models=\(catalog.engines.values.map(\.models.count).reduce(0, +), privacy: .public)")
         } catch {
             catalog = nil
             serverError = serverError ?? "The server did not report its model list."
