@@ -29,6 +29,16 @@ struct FamilyOfficeApp: App {
                 .keyboardShortcut("r", modifiers: [.command, .shift])
             }
         }
+
+        // The always-on part: status at a glance while the window is closed.
+        MenuBarExtra {
+            MenuBarContent()
+                .environment(delegate.state)
+        } label: {
+            MenuBarLabel()
+                .environment(delegate.state)
+        }
+        .menuBarExtraStyle(.menu)
     }
 }
 
@@ -40,13 +50,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         state.launch()
     }
 
+    /// The menu bar item keeps the app, and so the server, running with no window open;
+    /// Quit in the menu bar or the app menu stops both.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        true
+        false
     }
 
     /// The server must stop with the app: SIGTERM, up to five seconds, then SIGKILL.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard state.serverRunning else { return .terminateNow }
+        guard state.serverRunning else {
+            state.power.release()
+            return .terminateNow
+        }
         Task {
             await state.shutdown()
             sender.reply(toApplicationShouldTerminate: true)

@@ -33,14 +33,43 @@ final class AppState {
     private(set) var reachability: Reachability?
     private(set) var api: APIClient?
 
+    /// Status, runs and devices for the menu bar, polled every thirty seconds.
+    let monitor = OfficeMonitor()
+    /// The keep-awake assertion; it follows the paired-device count.
+    let power = Power()
+    /// Launch at login.
+    let loginItem = LoginItem()
+
     /// One non-persistent website data store per launch, so the session cookie dies with the app.
     @ObservationIgnored let websiteDataStore = WKWebsiteDataStore.nonPersistent()
     @ObservationIgnored private let server = ServerProcess()
+    @ObservationIgnored private let primer = SessionPrimer()
     @ObservationIgnored private let defaults = UserDefaults.standard
 
     init() {
         officePath = defaults.string(forKey: Self.officePathKey).flatMap { $0.isEmpty ? nil : $0 }
         server.onEvent = { [weak self] event in self?.handle(event) }
+        monitor.onDevices = { [weak self] devices in
+            self?.power.update(deviceCount: devices.count)
+        }
+    }
+
+    /// The menu bar's first line: the office folder, shortened with a tilde.
+    var officeTitle: String {
+        guard let officePath else { return "No office folder chosen" }
+        return (officePath as NSString).abbreviatingWithTildeInPath
+    }
+
+    /// The menu bar's server line while the server is not running normally, else nil.
+    var serverLine: String? {
+        switch serverState {
+        case .running: return nil
+        case .idle: return officePath == nil ? "Choose an office folder to start" : "Server not started"
+        case .starting: return "Starting the server…"
+        case .restarting(let attempt, _): return "Server restarting (attempt \(attempt))"
+        case .failed: return "Server stopped with an error"
+        case .stopped: return "Server stopped"
+        }
     }
 
     var serverRunning: Bool { server.isRunning }
@@ -94,6 +123,9 @@ final class AppState {
 
     func shutdown() async {
         reachability?.stop()
+        monitor.stop()
+        primer.cancel()
+        power.release()
         await server.stop()
         serverState = .stopped
     }
@@ -143,6 +175,12 @@ final class AppState {
         }
         api?.setCookies(cookies)
         reachability?.start()
+        monitor.attach(api)
+    }
+
+    /// Polls the routes now, for panes that just changed something.
+    func refreshMonitor() async {
+        await monitor.refresh()
     }
 
     private func handle(_ event: ServerProcess.Event) {
@@ -151,19 +189,26 @@ final class AppState {
             handshake = value
             serverState = .running
             pageGeneration += 1
+            // The menu bar needs the cookie even while the main window is closed.
+            primer.prime(value, store: websiteDataStore) { [weak self] cookies in
+                self?.pageLoaded(cookies: cookies)
+            }
         case .restarting(let attempt, let delay):
             handshake = nil
             reachability?.stop()
+            monitor.stop()
             serverState = .restarting(attempt: attempt, delay: delay)
         case .starting:
             serverState = .starting
         case .failed(let message):
             handshake = nil
             reachability?.stop()
+            monitor.stop()
             serverState = .failed(message)
         case .stopped:
             handshake = nil
             reachability?.stop()
+            monitor.stop()
             serverState = .stopped
         }
     }

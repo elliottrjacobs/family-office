@@ -66,14 +66,51 @@ public final class APIClient: Sendable {
         try await get("api/onboarding")
     }
 
+    /// `GET /api/devices`: the paired phones. Needs the launch cookie.
     public func devices() async throws -> [Device] {
         let list: DeviceList = try await get("api/devices")
         return list.devices
     }
 
+    /// `GET /api/runs`: advisor runs, newest first. A server without chat answers with an error.
+    public func runs() async throws -> [RunSummary] {
+        try await get("api/runs")
+    }
+
+    /// `POST /api/devices/pairing`: a new five-minute pairing code. Loopback and cookie only;
+    /// it replaces any code still outstanding.
+    public func requestPairingCode() async throws -> PairingCode {
+        try await send("POST", "api/devices/pairing")
+    }
+
+    /// `DELETE /api/devices/{id}`: revokes a paired phone; its next request fails.
+    @discardableResult
+    public func revokeDevice(id: String) async throws -> DeviceRevocation {
+        try await send("DELETE", "api/devices/\(id)")
+    }
+
     func get<T: Decodable>(_ path: String) async throws -> T {
+        try await send("GET", path)
+    }
+
+    /// `http://127.0.0.1:PORT`, the Origin a page from this server sends.
+    var origin: String {
+        var components = URLComponents()
+        components.scheme = baseURL.scheme
+        components.host = baseURL.host
+        components.port = baseURL.port
+        return components.string ?? ""
+    }
+
+    /// Sends one request with the copied session cookie. Writes also carry the server's own
+    /// origin, which the server requires on every non-GET request.
+    func send<T: Decodable>(_ method: String, _ path: String) async throws -> T {
         var request = URLRequest(url: baseURL.appendingPathComponent(path))
+        request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if method != "GET" {
+            request.setValue(origin, forHTTPHeaderField: "Origin")
+        }
         for (field, value) in HTTPCookie.requestHeaderFields(with: cookies.current) {
             request.setValue(value, forHTTPHeaderField: field)
         }

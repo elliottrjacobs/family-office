@@ -8,21 +8,31 @@
 
 /* Begin PBXBuildFile section */
 		0DF7F3EB82E89DA4FD2E6F46 /* FamilyOfficeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2032A6EDA81D65E9BD20C53 /* FamilyOfficeApp.swift */; };
+		150DA21D7E1A8E7E77F120BC /* MenuBarContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0904B005B7B3E86F909B3F98 /* MenuBarContent.swift */; };
 		154C15F10AF51AD9414599D0 /* FOKit in Frameworks */ = {isa = PBXBuildFile; productRef = DF481BCC8A9E78BF50EE3A43 /* FOKit */; };
+		1A3FA6FCF443B6C825160E4B /* LoginItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32C2EDB32D9059747ECC130A /* LoginItem.swift */; };
+		4E3A3795CBC5545660BE84B0 /* OfficeMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC4C85F8472D4356BE515CDE /* OfficeMonitor.swift */; };
 		5E2FAA7FCCC64A4624688C4F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EDA4080F851A9F3BC3747D0F /* Assets.xcassets */; };
+		91378C1A63F90401039036EB /* Power.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38848154291730D953B09475 /* Power.swift */; };
 		A08AE86CED19175E230F3B61 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDB05CCEBE3E59E588B3820 /* ContentView.swift */; };
 		A7EFF0FE6E81566518B6C338 /* ServerProcess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 059D7D4AF22E4755566DDB86 /* ServerProcess.swift */; };
+		B39989793D39ADE71FC85ABF /* SessionPrimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33AE1144D1A1DE4243A0D101 /* SessionPrimer.swift */; };
 		BE1949BA0CFCAC03F10371C0 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = D27071BAA7837ECF5683851F /* AppState.swift */; };
 		CA148CF3D917A99FE68FD429 /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 171CC6CFE0D9A2E1CD994202 /* WebView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		059D7D4AF22E4755566DDB86 /* ServerProcess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerProcess.swift; sourceTree = "<group>"; };
+		0904B005B7B3E86F909B3F98 /* MenuBarContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarContent.swift; sourceTree = "<group>"; };
 		171CC6CFE0D9A2E1CD994202 /* WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
+		32C2EDB32D9059747ECC130A /* LoginItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginItem.swift; sourceTree = "<group>"; };
+		33AE1144D1A1DE4243A0D101 /* SessionPrimer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionPrimer.swift; sourceTree = "<group>"; };
+		38848154291730D953B09475 /* Power.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Power.swift; sourceTree = "<group>"; };
 		6722F6BDC19655D23C302C60 /* FOKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FOKit; path = FOKit; sourceTree = SOURCE_ROOT; };
 		A2032A6EDA81D65E9BD20C53 /* FamilyOfficeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyOfficeApp.swift; sourceTree = "<group>"; };
 		CCDB05CCEBE3E59E588B3820 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		D27071BAA7837ECF5683851F /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		DC4C85F8472D4356BE515CDE /* OfficeMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficeMonitor.swift; sourceTree = "<group>"; };
 		E710C853BC711C93653AC6FF /* FamilyOffice.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FamilyOffice.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EDA4080F851A9F3BC3747D0F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -44,6 +54,7 @@
 			children = (
 				EDA4080F851A9F3BC3747D0F /* Assets.xcassets */,
 				6556A613027B59E3F852E0A3 /* App */,
+				EEEAB7FAB87B3237C5442CBB /* MenuBar */,
 			);
 			path = FamilyOffice;
 			sourceTree = "<group>";
@@ -54,7 +65,10 @@
 				D27071BAA7837ECF5683851F /* AppState.swift */,
 				CCDB05CCEBE3E59E588B3820 /* ContentView.swift */,
 				A2032A6EDA81D65E9BD20C53 /* FamilyOfficeApp.swift */,
+				32C2EDB32D9059747ECC130A /* LoginItem.swift */,
+				38848154291730D953B09475 /* Power.swift */,
 				059D7D4AF22E4755566DDB86 /* ServerProcess.swift */,
+				33AE1144D1A1DE4243A0D101 /* SessionPrimer.swift */,
 				171CC6CFE0D9A2E1CD994202 /* WebView.swift */,
 			);
 			path = App;
@@ -83,6 +97,15 @@
 				8DA97BCA0CFB36BB7C820A16 /* Packages */,
 				A2FAAE20F1754E2993474B2D /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		EEEAB7FAB87B3237C5442CBB /* MenuBar */ = {
+			isa = PBXGroup;
+			children = (
+				0904B005B7B3E86F909B3F98 /* MenuBarContent.swift */,
+				DC4C85F8472D4356BE515CDE /* OfficeMonitor.swift */,
+			);
+			path = MenuBar;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -187,7 +210,12 @@
 				BE1949BA0CFCAC03F10371C0 /* AppState.swift in Sources */,
 				A08AE86CED19175E230F3B61 /* ContentView.swift in Sources */,
 				0DF7F3EB82E89DA4FD2E6F46 /* FamilyOfficeApp.swift in Sources */,
+				1A3FA6FCF443B6C825160E4B /* LoginItem.swift in Sources */,
+				150DA21D7E1A8E7E77F120BC /* MenuBarContent.swift in Sources */,
+				4E3A3795CBC5545660BE84B0 /* OfficeMonitor.swift in Sources */,
+				91378C1A63F90401039036EB /* Power.swift in Sources */,
 				A7EFF0FE6E81566518B6C338 /* ServerProcess.swift in Sources */,
+				B39989793D39ADE71FC85ABF /* SessionPrimer.swift in Sources */,
 				CA148CF3D917A99FE68FD429 /* WebView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
