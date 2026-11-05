@@ -122,3 +122,38 @@ def test_explicit_bind_address_is_an_accepted_host():
     access = Access(port=4790, bound="192.0.2.10")
     assert "192.0.2.10:4790" in access.hosts()
     assert "0.0.0.0:4790" not in Access(port=4790, bound="0.0.0.0").hosts()
+
+
+class Registry:
+    """A stand-in device registry that accepts one token and counts lookups."""
+
+    def __init__(self):
+        self.lookups = 0
+
+    def match(self, token):
+        self.lookups += 1
+        return {"id": "dev_000000000001"} if token == "good" else None
+
+    def session(self, value):
+        return None
+
+
+def test_bearer_tokens_count_only_over_the_tailnet():
+    devices = Registry()
+    access = remote(port=4790, allowed_logins=["owner@example.com"], devices=devices)
+    login = {"Tailscale-User-Login": "owner@example.com"}
+    loopback = {"Host": "127.0.0.1:4790", "Authorization": "Bearer good", **login}
+    assert access.authenticate("GET", loopback)[1].reason == "unauthorized"
+    assert devices.lookups == 0
+    tailnet = {**loopback, "Host": TAILNET}
+    kind, denial, device = access.authenticate("POST", tailnet)
+    assert (kind, denial, device["id"]) == ("device", None, "dev_000000000001")
+    wrong = {**tailnet, "Authorization": "Bearer bad"}
+    assert access.authenticate("GET", wrong)[1].reason == "unknown_device"
+    assert access.authenticate("GET", {**tailnet, "Tailscale-User-Login": ""})[1].status == 403
+    # Without --remote the tailnet name is not ours, and bearer tokens mean nothing.
+    local = Access(port=4790, tailnet_name=TAILNET, devices=devices)
+    assert not local.on_tailnet(tailnet)
+    assert local.authenticate("GET", tailnet)[1].reason == "unauthorized"
+    assert Access.bearer({"Authorization": "Basic good"}) is None
+    assert Access.bearer({"Authorization": "bearer  good "}) == "good"

@@ -272,13 +272,24 @@ def serve_command(
         False, "--remote", help="Also accept the tailnet name configured for tailscale serve."
     ),
     open_browser: bool = typer.Option(False, "--open", help="Open the app in a browser."),
+    app_mode: bool = typer.Option(
+        False, "--app", help="Print one JSON handshake line first, for the Mac app."
+    ),
 ):
     """Start the companion web app for this office on 127.0.0.1."""
     from fo.serve import serve
 
     run(
         ctx,
-        lambda: serve(ctx.obj["office"], port, host, remote, open_browser, ctx.obj["read_only"]),
+        lambda: serve(
+            ctx.obj["office"],
+            port,
+            host,
+            remote,
+            open_browser,
+            ctx.obj["read_only"],
+            app_mode,
+        ),
     )
 
 

@@ -190,6 +190,21 @@ not supported, because it sends no identity. `--host` binds another address for 
 proxy of your own and prints a warning; do not expose the server to a network you
 do not control.
 
+### For the Mac app
+
+`fo serve --app` prints one JSON line on stdout before the usual lines, then runs
+exactly like `fo serve` without the press-Enter reprint:
+
+```json
+{"port": 4790, "token": "…", "office": "/path/to/office", "state": "ready", "version": "…"}
+```
+
+`office` is null and `state` names the onboarding step when no office exists yet.
+The app reads that line, ignores the rest of stdout, and opens the landing link so
+the cookie is set the normal way. With `--remote`, a phone pairs once over the
+tailnet with a five-minute code from the Mac and then holds a revocable device
+token; see [SECURITY.md](SECURITY.md).
+
 ## Storage and migration
 
 The public repository contains code and skills. The private office contains
