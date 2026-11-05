@@ -17,6 +17,11 @@ settings:
 packages:
   FOKit:
     path: FOKit
+  # The embedded terminal (Terminal/FoTerminalView). MIT; pinned to an exact release. 1.11 and later
+  # add a SwiftPM build-tool plugin, which xcodebuild refuses without skipping plugin validation.
+  SwiftTerm:
+    url: https://github.com/migueldeicaza/SwiftTerm
+    exactVersion: 1.10.1
 targets:
   FamilyOffice:
     type: application
@@ -29,6 +34,8 @@ targets:
     dependencies:
       - package: FOKit
         product: FOKit
+      - package: SwiftTerm
+        product: SwiftTerm
     info:
       path: FamilyOffice/Info.plist
       properties:

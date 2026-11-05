@@ -11,11 +11,14 @@ apple/
     App/                      @main app, AppState, ServerProcess, WebView, ContentView,
                               Power, LoginItem, CommandLineTool, FoCommand, SessionPrimer
     MenuBar/                  the menu bar item and the 30 s status poller
-    Settings/                 the Settings window: General, Devices, Advanced
+    Settings/                 the Settings window: General, Engines, Connectors, Devices, Advanced
+    Terminal/                 FoTerminalView: the embedded terminal (SwiftTerm) for four fo commands
     Assets.xcassets           placeholder icon
     Info.plist                generated from project.yml, committed
   FOKit/                      Swift package shared with the iOS app: Handshake, APIClient, Reachability,
-                              OfficeSummary, Tailscale, Pairing (payload and QR), Subprocess (macOS)
+                              OfficeSummary, Tailscale, Pairing (payload and QR), Subprocess (macOS),
+                              Engines (CLI resolver, version and sign-in parsers), Connectors,
+                              TerminalCommand (the terminal's allowed commands)
   Scripts/bundle-python.sh    builds apple/Resources/fo (the bundled runtime)
   Resources/fo/               build product, git-ignored
 ```
@@ -23,6 +26,21 @@ apple/
 Requirements: Xcode 16 or later (Swift 6), macOS 14 or later, `uv`, and
 [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`) when you change the
 project.
+
+## Dependencies
+
+The app has one third-party Swift package:
+
+| Package | Version | License | Used for |
+| ------- | ------- | ------- | -------- |
+| [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) | 1.10.1 (exact) | MIT | the embedded terminal (`Terminal/`) |
+
+It is declared in `project.yml` with `exactVersion`, and
+`FamilyOffice.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` pins its
+revision; commit both. SwiftPM also resolves SwiftTerm's own `swift-argument-parser`
+dependency, which only its `termcast` tool uses and which is not linked into the app.
+SwiftTerm 1.11 and later add a SwiftPM build-tool plugin that `xcodebuild` refuses to run
+unless plugin validation is skipped, so stay on 1.10.x until that is acceptable for CI.
 
 ## Generate the project
 
@@ -103,8 +121,8 @@ version in `pyproject.toml`).
 The app launches:
 
 ```text
-fo [--office PATH] serve --port 0 --app
-fo [--office PATH] serve --remote --app     # with Allow phone access over Tailscale on
+fo [--office PATH] serve --port 0 --app --parent-pid APP_PID
+fo [--office PATH] serve --remote --app --parent-pid APP_PID   # with phone access on
 ```
 
 with stdin closed, the working directory set to the home folder, and a scrubbed environment:
@@ -127,7 +145,7 @@ session cookie; it never sends the token in its own requests. `FOKit.APIClient` 
 with the cookie copied from the web view's store.
 
 Transitional fallback: until every supported `fo` has `--app`, the app checks `fo serve --help`
-for the flag and omits it when absent. A first stdout line that is not JSON then counts as no
+for the flag and omits it when absent; it does the same for `--parent-pid`. A first stdout line that is not JSON then counts as no
 handshake, and the app takes port and token from the printed `  Open: http://127.0.0.1:PORT/?t=TOKEN`
 line (`Handshake.parseOpenLine`). Remove both once the minimum supported version prints the
 handshake.
@@ -146,7 +164,7 @@ cookie dies with the app.
 | `officePath`           | the office folder (first-launch sheet or General > Change…)            |
 | `keepAwakeWhilePaired` | General > Keep Mac awake while a phone is paired                       |
 | `allowPhoneAccess`     | General > Allow phone access over Tailscale (`fo serve --remote`)      |
-| `settingsTab`          | the Settings tab shown last (`general`, `devices`, `advanced`)         |
+| `settingsTab`          | the Settings tab shown last (`general`, `engines`, `connectors`, `devices`, `advanced`) |
 | `foExecutablePath`     | development only: a `fo` to run when no bundle is present              |
 
 Launch at login is not a default: macOS keeps it (`SMAppService.mainApp`), and the toggle
@@ -158,11 +176,15 @@ office data. Pairing codes exist only in memory and on screen.
 
 Any default can be set for one launch on the command line without writing it, for example
 `-allowPhoneAccess YES -keepAwakeWhilePaired YES -settingsTab devices`. Debug builds also
-accept `-openSettingsOnLaunch YES`, which opens Settings without clicking.
+accept `-openSettingsOnLaunch YES`, which opens Settings without clicking, and two
+walkthrough hooks: `-terminalCommand "WORDS"` opens the embedded terminal with those words
+(anything outside the allowed set is refused), and, with `-settingsTab connectors`,
+`-debugSaveSyntheticKey PROVIDER` saves the made-up key `synthetic-walkthrough-key-0000`
+through the Save path once the server is up. Neither exists in Release builds.
 
 The app logs state changes to the unified log under subsystem `com.familyoffice.app`
-(categories `monitor`, `power`, `settings`): kinds and counts only, never names, paths,
-codes or tokens. Read them with:
+(categories `monitor`, `power`, `settings`, `terminal`): kinds and counts only, never names,
+paths, codes, keys or tokens. Read them with:
 
 ```sh
 /usr/bin/log show --last 5m --info --predicate 'subsystem == "com.familyoffice.app"' --style compact
@@ -201,6 +223,7 @@ is non-empty, and releases it when either changes and on quit. `pmset -g asserti
   verified at launch and whenever General appears. The bundled launcher follows symlinks, so
   the linked `fo` finds its runtime. Development builds without the bundle show the tool as
   unavailable.
+- **Engines** and **Connectors.** See below.
 - **Devices.** See below.
 - **Advanced.** Port (`serve.port`; a change restarts the server), Run budget
   (`serve.max_budget_usd`), Run timeout (`serve.run_timeout_minutes`), Runs kept
@@ -210,6 +233,88 @@ is non-empty, and releases it when either changes and on quit. `pmset -g asserti
   65535 other than 8182.`). A key the installed `fo config set` rejects with `invalid_key` is
   shown as not settable instead of being written another way; all five keys are settable
   on the current server.
+
+## Engines
+
+`FOKit.CLIResolver` looks for `claude` and `codex`, in order, at:
+
+1. `command -v <cli>` in the user's login shell (`/bin/zsh -lc`, 5 second timeout; only an
+   absolute path counts, so aliases and profile chatter are ignored);
+2. `~/.nvm/versions/node/*/bin/<cli>`, newest Node version first;
+3. `/opt/homebrew/bin/<cli>`, `/usr/local/bin/<cli>`, `~/.local/bin/<cli>`;
+4. for Claude Code, `~/.claude/local/claude`.
+
+The first executable file wins (a symlink to one already found is skipped). `EngineDetector`
+then runs `<cli> --version` (10 second timeout) with the CLI's own directory first on PATH,
+so an nvm or Homebrew install finds its `node`, and the account variables the server passes
+through (`ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, `CLAUDE_CONFIG_DIR`, `CODEX_HOME`).
+The sign-in check is `claude auth status` (JSON `loggedIn`) when `claude --help` lists the
+`auth` command, otherwise "unknown", and `codex login status` for Codex. Only signed in or
+not is kept; account names and emails in the output are never shown, stored or logged.
+
+Each engine shows the path found and how, the version, the sign-in state, and the server's
+own verdict from `GET /api/runner` (`usable`, or its `message`). A missing engine shows the
+official install commands with Copy buttons (Claude Code: the `claude.ai/install.sh`
+script, `brew install --cask claude-code` or `npm install -g @anthropic-ai/claude-code`;
+Codex: `npm install -g @openai/codex` or `brew install --cask codex`), the install guide,
+and that runs bill through the user's own Claude or ChatGPT/OpenAI account. A signed-out
+engine shows its sign-in command. The app never installs or signs in an engine.
+
+Defaults come from `GET /api/models` (the curated list and the office's values) and are
+written with `fo config set`: Default engine (segmented, `serve.engines.default`), Model (a
+picker of the curated models plus Other… for any id, `serve.engines.<name>.model`), Effort
+(low, medium, high, `serve.engines.<name>.effort`), Budget per run
+(`serve.engines.<name>.max_budget_usd`) and Enabled (`serve.engines.<name>.enabled`). A
+refusal shows the CLI's message under the field, and `/api/runner` is read again after
+every write.
+
+The server resolves `claude` and `codex` from its own PATH (`shutil.which`); it has no
+executable override such as `FO_CLAUDE_EXECUTABLE`, so the app passes none. With the app's
+scrubbed PATH (the runtime's `bin`, `/usr/bin`, `/bin`) an nvm, Homebrew or `~/.local/bin`
+install is therefore found by the pane but reported `runner_missing` by the server. The
+pane shows both side by side and does no more.
+
+## Connectors
+
+| Provider | Kind | Connect | Remove | State from |
+| -------- | ---- | ------- | ------ | ---------- |
+| Schwab, SimpleFIN | account | Connect… opens the terminal with `fo auth schwab` or `fo auth simplefin` | (not in the app) | `/api/onboarding` `providers[].connected`, else a masked entry in `/api/config` `secrets` |
+| Alpha Vantage, FRED, Exa, Firecrawl, Gemini | API key | Save runs `fo --json --office PATH connect <provider>` with the key on stdin | Remove… runs `fo connect --remove <provider>` after confirmation | a masked `/api/config` `secrets` entry (a key `fo auth` stored), else the last Save or Remove in this session |
+| SEC EDGAR | contact | Save runs `fo connect edgar --user-agent "Name email"` | Remove runs `fo connect --remove edgar` | `/api/config` `settings.providers.edgar.user_agent` |
+
+The key never appears in an argument list: `FOKit.Subprocess` writes it to stdin and closes
+it, the field is emptied the moment Save is pressed, and the row shows only the CLI's
+public result (`Saved. … accepted the key.` or, for example, `The provider rejected the API
+key.`). A field that is empty, contains spaces or is longer than 512 characters is refused
+in the app without running `fo`. The app never reads `secrets/`.
+
+`fo connect` writes keys to `secrets/<provider>.json`, and no server route reports those
+files yet (`/api/config` masks only `secrets/keys.toml`), so a key saved in an earlier
+session shows "Not reported by the server" until it is saved again. Alpha Vantage answers
+an unknown key with ordinary data, so its Save can succeed for a made-up key; FRED, Exa,
+Firecrawl and Gemini reject one.
+
+## Embedded terminal
+
+`Terminal/FoTerminalView.swift` hosts SwiftTerm's `LocalProcessTerminalView`. It runs exactly
+one of these, as typed in `FOKit.TerminalCommand`:
+
+| Command | Arguments after `fo` |
+| ------- | -------------------- |
+| setup | `--office PATH setup PATH [--provider schwab\|simplefin]` |
+| auth | `--office PATH auth schwab` or `--office PATH auth simplefin` |
+| sync | `--office PATH sync` |
+| doctor | `--office PATH doctor` |
+
+Anything else (another subcommand, another provider, extra flags, a shell) is refused in
+code before a process exists, and the sheet says so. The executable is the bundled or
+configured `fo` (`ServerProcess.resolveExecutable`), started directly by `forkpty` and
+`execve` with the server's scrubbed environment plus `TERM=xterm-256color`, the home folder
+as working directory, and no shell. Keystrokes reach the process only while it runs, so the
+CLI's hidden prompts and the Schwab consent flow work unchanged; when it exits the view is
+read-only and shows the exit status. Closing the sheet stops the command. Output exists only
+in the terminal's scrollback in memory; it is never logged or written to disk (the unified
+log records only `started <subcommand>` and the exit status).
 
 ## Devices and Tailscale
 
@@ -246,8 +351,9 @@ The launch cookie is marked `Secure` only on a landing reached through the tailn
 on loopback it is plain, because WebKit drops a `Secure` cookie set over `http://127.0.0.1`
 and the Mac's own web view would otherwise have no session with phone access on.
 
-The app passes `--parent-pid <its pid>` when it starts the server, so a server whose app
-died without a normal quit (a crash or SIGKILL) stops itself within a few seconds.
+The app passes `--parent-pid <its pid>` when it starts the server (when `fo serve --help`
+lists the flag), so a server whose app died without a normal quit (a crash or SIGKILL)
+stops itself within a few seconds.
 
 ## Restart behavior
 
@@ -302,3 +408,39 @@ Use a synthetic office (`uv run fo setup /tmp/fo-dev-office --offline`) and
       disappear and the device appear.
 - [ ] Revoke asks for confirmation, removes the row, and the phone's next request gets 401.
 - [ ] The unified log for the run carries no token, pairing code, device name or path.
+
+## Manual walkthrough: engines, connectors and the terminal (U13)
+
+Use a synthetic office (`uv run fo setup /tmp/fo-dev-office --offline`),
+`FO_EXECUTABLE="$PWD/.venv/bin/fo"` and `-openSettingsOnLaunch YES -settingsTab engines`
+(or `connectors`). Use made-up keys only. Tick each item:
+
+- [ ] Engines with one CLI missing (rename it or test on a Mac without it): the installed
+      engine shows its path, `via nvm` (or Homebrew, login shell, …), its version and
+      sign-in state; the missing one shows Not installed, the install commands with Copy
+      buttons, the billing note and the guide link. Check Again picks up an install.
+- [ ] The Server line matches `fo serve`'s `/api/runner`: Usable with a version, or Not
+      usable with the server's message (for example `runner_missing` when the CLI is only
+      on an nvm or Homebrew PATH the server does not see).
+- [ ] Default engine, Model (a listed model and Other… with a custom id), Effort, Budget per
+      run and Enabled each save; `fo config get serve.engines.claude.model` (and the other
+      keys) shows the value, and `0` as a budget shows `… expects a number greater than 0.`
+      and changes nothing. Turning an engine off makes its Server line say it is turned off.
+- [ ] Connectors: saving a made-up FRED key shows `The provider rejected the API key.` and
+      writes nothing; saving a real key shows `Saved.`, the row turns Connected, the field
+      is empty, and `secrets/fred.json` exists at 0600. Remove… asks, then deletes it.
+- [ ] EDGAR: a name and email save (`fo config get providers.edgar.user_agent`), a name
+      without an email cannot be saved, and Remove clears it.
+- [ ] Connect… on Schwab opens the terminal running `fo auth schwab`: the app key and
+      secret prompts hide what is typed, then the default browser opens Schwab's consent
+      page; after approval the command ends, the status line shows the exit status, the
+      terminal no longer takes input, and the row reads Connected.
+- [ ] Connect… on SimpleFIN hides the setup token as it is typed.
+- [ ] The terminal refuses other commands: `-terminalCommand bash`,
+      `-terminalCommand "auth fred"` and `-terminalCommand "sync --office /elsewhere"` show
+      the refusal and start no process (`ps -ax | grep '[f]o --office'` shows none);
+      `-terminalCommand doctor` runs and ends with `Finished successfully`.
+- [ ] Closing the terminal sheet while a command waits for input stops it (no `fo auth`
+      process remains), and quitting the app leaves no `fo serve` either.
+- [ ] The unified log (categories `settings` and `terminal`) and `ps` output never contain
+      a key, token, account name, email or path.

@@ -1,0 +1,23 @@
+{
+  "ready": true,
+  "default": "claude",
+  "deep": false,
+  "engines": [
+    {
+      "name": "claude",
+      "usable": true,
+      "version": "2.1.0",
+      "reason": null,
+      "message": null,
+      "defaults": {"model": "claude-fable-5-1", "effort": "medium", "max_budget_usd": 2.0, "enabled": true}
+    },
+    {
+      "name": "codex",
+      "usable": false,
+      "version": null,
+      "reason": "runner_missing",
+      "message": "Install Codex and sign in to chat with advisors.",
+      "defaults": {"model": "gpt-5.6-sol", "effort": "high", "max_budget_usd": 1.5, "enabled": true}
+    }
+  ]
+}
