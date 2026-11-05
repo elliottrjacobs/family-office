@@ -15,6 +15,9 @@ struct SettingsView: View {
             GeneralSettings()
                 .tabItem { Label("General", systemImage: "gearshape") }
                 .tag("general")
+            EnginesSettings()
+                .tabItem { Label("Engines", systemImage: "cpu") }
+                .tag("engines")
             DevicesSettings()
                 .tabItem { Label("Devices", systemImage: "iphone") }
                 .tag("devices")

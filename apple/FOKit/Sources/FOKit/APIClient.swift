@@ -66,6 +66,22 @@ public final class APIClient: Sendable {
         try await get("api/onboarding")
     }
 
+    /// `GET /api/runner`: every engine, usable or why not, as the server sees it.
+    public func runner() async throws -> RunnerStatus {
+        try await get("api/runner")
+    }
+
+    /// `GET /api/models`: the curated model list per engine and the office's defaults.
+    public func models() async throws -> ModelCatalog {
+        try await get("api/models")
+    }
+
+    /// `GET /api/config`: `office.toml` settings and the names of stored secrets, with every
+    /// secret value masked by the server.
+    public func config() async throws -> JSONValue {
+        try await get("api/config")
+    }
+
     /// `GET /api/devices`: the paired phones. Needs the launch cookie.
     public func devices() async throws -> [Device] {
         let list: DeviceList = try await get("api/devices")

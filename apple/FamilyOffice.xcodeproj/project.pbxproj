@@ -18,6 +18,7 @@
 		5E2FAA7FCCC64A4624688C4F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EDA4080F851A9F3BC3747D0F /* Assets.xcassets */; };
 		5E6399652BCD96FC2BA96C9B /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 139169067359077E6B6143DF /* SwiftTerm */; };
 		60335F1EF79EFAD851E79E6F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95A587E11C352EB3B99F5F72 /* SettingsView.swift */; };
+		65606E6474CBA55926352E9C /* Engines.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3614B3A98352883F7D2BEA46 /* Engines.swift */; };
 		6CED8F7D5DCB440ED53986E6 /* Advanced.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4B5E063180DDB30A3DB489D /* Advanced.swift */; };
 		91378C1A63F90401039036EB /* Power.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38848154291730D953B09475 /* Power.swift */; };
 		960333C3B7E8D61D550E65CC /* General.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D7DF61CB85479892FEAC887 /* General.swift */; };
@@ -36,6 +37,7 @@
 		19DF1F5CD0CDC2D99FB12140 /* FoCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoCommand.swift; sourceTree = "<group>"; };
 		32C2EDB32D9059747ECC130A /* LoginItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginItem.swift; sourceTree = "<group>"; };
 		33AE1144D1A1DE4243A0D101 /* SessionPrimer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionPrimer.swift; sourceTree = "<group>"; };
+		3614B3A98352883F7D2BEA46 /* Engines.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines.swift; sourceTree = "<group>"; };
 		38848154291730D953B09475 /* Power.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Power.swift; sourceTree = "<group>"; };
 		5D7DF61CB85479892FEAC887 /* General.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = General.swift; sourceTree = "<group>"; };
 		60CB6B1463BABBFA338078C9 /* Devices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Devices.swift; sourceTree = "<group>"; };
@@ -132,6 +134,7 @@
 			children = (
 				C4B5E063180DDB30A3DB489D /* Advanced.swift */,
 				60CB6B1463BABBFA338078C9 /* Devices.swift */,
+				3614B3A98352883F7D2BEA46 /* Engines.swift */,
 				5D7DF61CB85479892FEAC887 /* General.swift */,
 				95A587E11C352EB3B99F5F72 /* SettingsView.swift */,
 			);
@@ -253,6 +256,7 @@
 				54E9EDD44038A83E722C14BC /* CommandLineTool.swift in Sources */,
 				A08AE86CED19175E230F3B61 /* ContentView.swift in Sources */,
 				373192AA3A4EA75429AEDD7B /* Devices.swift in Sources */,
+				65606E6474CBA55926352E9C /* Engines.swift in Sources */,
 				0DF7F3EB82E89DA4FD2E6F46 /* FamilyOfficeApp.swift in Sources */,
 				33B67A29C2E66B7732A4B1DA /* FoCommand.swift in Sources */,
 				E779D0418A3D6D1080DB559A /* FoTerminalView.swift in Sources */,
