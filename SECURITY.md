@@ -21,6 +21,15 @@ converted to safe errors before display. Raw payloads must not be logged.
 
 ## Companion app
 
+Exposures the Mac and phone apps add, each described in full below:
+
+| Exposure | Where it is described |
+|---|---|
+| Web search and fetch for runs at context level `none` | [Advisor runs](#advisor-runs), "Web access at context level `none`" |
+| Research provider keys in `secrets/<provider>.json` | [Third parties](#third-parties), "Research provider keys" |
+| Device tokens held by a paired phone, used over the tailnet | [Device tokens](#device-tokens) |
+| Codex read confinement is command-based, so the engine ships disabled | [Advisor runs](#advisor-runs), "Codex engine" |
+
 `fo serve` binds 127.0.0.1 unless `--host` names another address, which prints a
 warning. A loopback port is still reachable by DNS-rebinding web pages and by
 other users of the machine, so every route, static files included, requires a

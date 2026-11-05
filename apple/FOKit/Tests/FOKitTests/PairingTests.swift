@@ -36,10 +36,10 @@ final class PairingTests: XCTestCase {
     func testDecodeChecksVersionAndScheme() throws {
         let good = PairingPayload(tailnetName: tailnet, code: code)
         XCTAssertEqual(try PairingPayload.decode(good.encoded()), good)
-        XCTAssertThrowsError(try PairingPayload.decode(#"{"v":2,"url":"https://x.ts.net","code":"A"}"#)) {
+        XCTAssertThrowsError(try PairingPayload.decode(#"{"v":2,"url":"https://example-mac.tail0000.ts.net","code":"A"}"#)) {
             XCTAssertEqual($0 as? PairingPayload.DecodeError, .unsupportedVersion(2))
         }
-        XCTAssertThrowsError(try PairingPayload.decode(#"{"v":1,"url":"http://x.ts.net","code":"A"}"#)) {
+        XCTAssertThrowsError(try PairingPayload.decode(#"{"v":1,"url":"http://example-mac.tail0000.ts.net","code":"A"}"#)) {
             XCTAssertEqual($0 as? PairingPayload.DecodeError, .invalid("url"))
         }
         XCTAssertThrowsError(try PairingPayload.decode("ABCD2345")) {

@@ -80,3 +80,32 @@ def test_skill_lint_ties_the_research_command_to_the_untrusted_text_phrase(tmp_p
         f"{source / 'stray' / 'SKILL.md'}: mentions fo research without declaring the "
         "research command",
     ]
+
+
+def test_identifier_lint(tmp_path):
+    module = script("lint_identifiers")
+    assert (
+        module.violations(
+            module.subprocess.check_output(["git", "ls-files"], cwd=ROOT).decode().split("\n"), ROOT
+        )
+        == []
+    )
+    udid = "-".join(["0123ABCD", "4567", "89AB", "CDEF", "0123456789AB"])
+    tld = "ts" + ".net"
+    cgnat = ".".join(["100", "101", "102", "103"])
+    home = "/" + "Users" + "/someone/Projects"
+    planted = tmp_path / "notes.md"
+    planted.write_text(
+        "ok machine.your-tailnet.ts.net and example-mac.tail0000.ts.net and *.ts.net\n"
+        f"bad office.tail9999.{tld}\n"
+        f"bad {cgnat}\n"
+        "fine 192.168.1.1 and 100.63.0.1 and 100.128.0.1\n"
+        f"bad {udid}\n"
+        f"bad {home}\n"
+    )
+    hits = module.violations(["notes.md"], tmp_path)
+    assert [hit.split(": ")[0] for hit in hits] == [f"notes.md:{n}" for n in (2, 3, 5, 6)]
+    assert f"office.tail9999.{tld}" in hits[0]
+    allowed = module.scan_text("SECURITY.md", f"range {cgnat}\n")
+    assert allowed == []
+    assert module.scan_text("docs/x.md", cgnat)

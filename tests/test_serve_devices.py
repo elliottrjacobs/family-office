@@ -12,7 +12,7 @@ from fo.serve.devices import CODE_ATTEMPTS, Devices
 from tests.offices import synthetic
 from tests.serving import Client, serving
 
-TAILNET = "box.example.ts.net"
+TAILNET = "machine.your-tailnet.ts.net"
 OWNER = {"Tailscale-User-Login": "owner@example.com", "Tailscale-User-Name": "Owner"}
 GUEST = {"Tailscale-User-Login": "guest@example.com"}
 

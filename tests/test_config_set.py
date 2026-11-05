@@ -75,8 +75,8 @@ def test_values_are_typed_by_the_schema():
         "b@example.test",
     ]
     assert config_value("serve.allowed_logins", "[]") == []
-    assert config_value("serve.tailnet_name", "office.example-tailnet.ts.net") == (
-        "office.example-tailnet.ts.net"
+    assert config_value("serve.tailnet_name", "machine.your-tailnet.ts.net") == (
+        "machine.your-tailnet.ts.net"
     )
     assert config_value("serve.web_fetch_cap", "0") == 0
     assert config_value("providers.gemini.max_tasks_per_day", "3") == 3

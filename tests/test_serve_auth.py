@@ -4,7 +4,7 @@ from fo.serve.auth import Access
 from tests.offices import synthetic
 from tests.serving import serving
 
-TAILNET = "box.example.ts.net"
+TAILNET = "machine.your-tailnet.ts.net"
 
 
 @pytest.fixture
