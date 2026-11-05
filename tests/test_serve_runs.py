@@ -429,9 +429,15 @@ def test_run_files_are_private_scrubbed_and_pruned(office, tmp_path):
     folder = office / "cache/serve/runs"
     assert stat.S_IMODE(folder.stat().st_mode) == 0o700
     assert stat.S_IMODE((office / "cache/serve").stat().st_mode) == 0o700
-    files = sorted(folder.iterdir())
+    files = sorted(f for f in folder.iterdir() if f.is_file())
     assert {f.stem for f in files} == set(ids[1:])
     assert all(stat.S_IMODE(f.stat().st_mode) == 0o600 for f in files)
+    # Each run's own folder, for the guard hook's web log and a scratch workspace.
+    folders = sorted(f for f in folder.iterdir() if f.is_dir())
+    assert {f.name for f in folders} == set(ids[1:])
+    for run_folder in folders:
+        for path in (run_folder, run_folder / "workspace"):
+            assert stat.S_IMODE(path.stat().st_mode) == 0o700
     text = "".join(f.read_text() for f in files)
     assert "user:pass" not in text and "123456789012345" not in text
     assert "…2345" in text and "12345678" in text

@@ -16,12 +16,15 @@ effort, budget, enabled) come from [serve.engines.<name>] in office.toml, and
 
 Web access follows the context level: a run at level none, which reads no household
 data, may search and fetch; every launch and resume derives `web` from the level and
-the record keeps it.
+the record keeps it. Each run also has a folder, cache/serve/runs/<id>/, holding the
+guard hook's fetch counter and web.jsonl and a workspace/ for scratch files. Web
+entries are folded into the event log as `web` events and counted in `web_count`.
 """
 
 import json
 import os
 import re
+import shutil
 import signal
 import subprocess
 import threading
@@ -35,7 +38,7 @@ from fo.errors import OfficeError
 from fo.lock import probe
 from fo.notebook import decisions
 from fo.office import atomic_write, contained
-from fo.serve.runner import Runner, scrub
+from fo.serve.runner import WEB_LOG, Runner, scrub
 from fo.skills import registry
 from fo.store.jsonl import identifier, now
 
@@ -46,6 +49,7 @@ NOT_IN_CHAT = {
     "journal": "Record a decision with the form on the Decisions page.",
 }
 DEFAULTS = {"max_budget_usd": 2.0, "run_timeout_minutes": 30.0, "keep_runs": 50}
+WEB_FETCH_CAP = 20
 DEFAULT_ENGINE = "claude"
 EFFORTS = ("low", "medium", "high")
 # What an engine runs with when office.toml names nothing; models.json recommends the same.
@@ -74,6 +78,10 @@ def run_settings(root):
         if isinstance(item, bool) or not isinstance(item, int | float) or item <= 0:
             raise OfficeError("invalid_config", f"[serve] {key} must be a positive number.")
         result[key] = type(default)(item)
+    cap = value.get("web_fetch_cap", WEB_FETCH_CAP) if isinstance(value, dict) else WEB_FETCH_CAP
+    if isinstance(cap, bool) or not isinstance(cap, int) or cap < 0:
+        raise OfficeError("invalid_config", "[serve] web_fetch_cap must be 0 or more.")
+    result["web_fetch_cap"] = cap
     return result
 
 
@@ -185,6 +193,14 @@ class RunManager:
         if not RUN_ID.fullmatch(run_id or ""):
             raise OfficeError("unknown_run", "No such run.")
         return self.folder(root) / f"{run_id}{suffix}"
+
+    def run_folder(self, root, run_id):
+        """The run's own 0700 folder: the hook's web log and counter, and workspace/."""
+        path = self.path(root, run_id, "")
+        for directory in (path, path / "workspace"):
+            directory.mkdir(exist_ok=True)
+            directory.chmod(0o700)
+        return path
 
     def save(self, root, record):
         record["updated"] = now()
@@ -335,6 +351,7 @@ class RunManager:
                     "subject": subject,
                     "level": level,
                     "web": web_allowed(level),
+                    "web_count": 0,
                     "deep": deep,
                     "status": "queued",
                     "runner": name,
@@ -454,13 +471,16 @@ class RunManager:
                 record.get("effort"),
                 web=web,
             )
+            env = runner.environment(
+                root, self.run_folder(root, record["id"]), web, config["web_fetch_cap"]
+            )
             process = subprocess.Popen(
                 argv,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 cwd=root,
-                env=runner.environment(root),
+                env=env,
                 text=True,
                 bufsize=1,
                 start_new_session=True,
@@ -513,6 +533,7 @@ class RunManager:
                         record["turns"] += event.get("turns") or 0
                         result = event
                     self.emit(root, record, event)
+                self.fold(root, record)
         except Exception:  # noqa: BLE001 - whatever breaks, the run is stopped and judged
             error = error or ("runner_failed", "The run stopped unexpectedly.")
             stop(process.pid, self.grace)
@@ -520,6 +541,25 @@ class RunManager:
             process.wait()
             timer.cancel()
         self.finish(root, record, process.returncode, result, error)
+
+    def fold(self, root, record):
+        """Emit web events for the hook's web.jsonl entries this record has not counted."""
+        path = self.path(root, record["id"], "") / WEB_LOG
+        if not path.is_file():
+            return
+        # Only whole lines: the hook may be mid-append.
+        lines = path.read_text(errors="replace").split("\n")[:-1]
+        for line in lines[record.get("web_count", 0) :]:
+            record["web_count"] = record.get("web_count", 0) + 1
+            try:
+                entry = json.loads(line)
+            except ValueError:
+                continue
+            if not isinstance(entry, dict) or entry.get("kind") not in ("fetch", "search"):
+                continue
+            value = entry.get("value")
+            if isinstance(value, str):
+                self.emit(root, record, {"kind": "web", "action": entry["kind"], "value": value})
 
     def capture(self, root, record, call, result):
         """Decision ids from successful `fo journal add` calls, confirmed in the notebook."""
@@ -535,6 +575,7 @@ class RunManager:
 
     def finish(self, root, record, exit_code, result, error):
         try:
+            self.fold(root, record)
             record["status"] = "verifying"
             self.emit(root, record, {"kind": "status", "status": "verifying"})
             try:
@@ -603,3 +644,4 @@ class RunManager:
         for record in finished[keep:]:
             for suffix in (".json", ".jsonl"):
                 self.path(root, record["id"], suffix).unlink(missing_ok=True)
+            shutil.rmtree(self.path(root, record["id"], ""), ignore_errors=True)

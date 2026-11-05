@@ -4,6 +4,8 @@ import json
 
 import pytest
 
+from fo.config import set_config
+from fo.serve import runs
 from fo.serve.runner_claude import DISALLOWED, TOOLS, WEB, ClaudeRunner
 from fo.serve.runs import RunManager
 from tests.offices import synthetic
@@ -100,3 +102,67 @@ def test_the_preview_and_the_run_routes_carry_web(office, tmp_path):
         settle(app.runs, office, record["id"])
         status, detail = client.get(f"/api/runs/{record['id']}")
         assert status == 200 and detail["web"] is True and detail["level"] == "none"
+        assert detail["web_count"] == 0
+
+
+def fetch(number):
+    # A public address literal, so the guard resolves nothing.
+    return {"fake": "hook", "tool": "WebFetch", "input": {"url": f"https://93.184.215.14/{number}"}}
+
+
+def search(query):
+    return {"fake": "hook", "tool": "WebSearch", "input": {"query": query}}
+
+
+def test_fetches_are_capped_logged_and_folded_into_the_run(office, tmp_path):
+    set_config(office, "serve.web_fetch_cap", "5")
+    lines = [
+        {"fake": "init"},
+        search("ACME 10-K 123456789012345"),
+        *[fetch(number) for number in range(1, 7)],
+        *COMPLETE[1:],
+    ]
+    manager, record, _ = launched(office, tmp_path, "none", lines)
+    assert record["status"] == "completed", record
+    events = manager.events(office, record["id"])
+    web = [(e["action"], e["value"]) for e in events if e["kind"] == "web"]
+    assert web == [
+        ("search", "ACME 10-K …2345"),
+        *[("fetch", f"https://93.184.215.14/{number}") for number in range(1, 6)],
+    ]
+    assert record["web_count"] == 6
+    result = next(e for e in events if e["kind"] == "result")
+    assert [d["name"] for d in result["denials"]] == ["WebFetch"]
+    assert result["denials"][0]["label"] == "Fetch https://93.184.215.14/6"
+    folder = office / "cache/serve/runs" / record["id"]
+    assert folder.stat().st_mode & 0o777 == 0o700
+    assert (folder / "workspace").is_dir()
+    assert (folder / "web-fetches").read_text() == "5"
+
+
+def test_the_hook_denies_web_tools_in_a_household_run(office, tmp_path):
+    lines = [{"fake": "init"}, search("ACME"), fetch(1), *COMPLETE[1:]]
+    manager, record, _ = launched(office, tmp_path, "household", lines)
+    events = manager.events(office, record["id"])
+    result = next(e for e in events if e["kind"] == "result")
+    assert [d["name"] for d in result["denials"]] == ["WebSearch", "WebFetch"]
+    assert not [e for e in events if e["kind"] == "web"] and record["web_count"] == 0
+    assert not (office / "cache/serve/runs" / record["id"] / "web.jsonl").exists()
+
+
+def test_the_runner_environment_tells_the_hook_about_the_run(office, tmp_path):
+    runner = ClaudeRunner(executable=["claude"])
+    env = runner.environment(office, tmp_path / "run", True, 7)
+    assert env["FO_SERVE_RUN_DIR"] == str(tmp_path / "run")
+    assert (env["FO_SERVE_WEB"], env["FO_SERVE_WEB_FETCH_CAP"]) == ("1", "7")
+    assert runner.environment(office)["FO_SERVE_WEB"] == "0"
+
+
+def test_pruning_removes_the_run_folder(office, tmp_path, monkeypatch):
+    manager, record, _ = launched(office, tmp_path, "none")
+    folder = office / "cache/serve/runs" / record["id"]
+    assert folder.is_dir()
+    settings = runs.run_settings(office)
+    monkeypatch.setattr(runs, "run_settings", lambda root: {**settings, "keep_runs": 0})
+    manager.prune(office)
+    assert not folder.exists() and manager.list(office) == []

@@ -171,3 +171,74 @@ def test_writes_under_reports_refuse_hidden_components(office, path):
     for tool in ("Write", "Edit", "MultiEdit"):
         assert call(tool, office, file_path=path), (tool, path)
         assert call(tool, office, file_path=str(office / path)), (tool, path)
+
+
+def resolver(table):
+    """A stand-in for DNS so no lookup leaves the test."""
+    return lambda host: table.get(host, [])
+
+
+@pytest.fixture
+def web_env(tmp_path):
+    folder = tmp_path / "run"
+    folder.mkdir()
+    return {"FO_SERVE_WEB": "1", "FO_SERVE_RUN_DIR": str(folder), "FO_SERVE_WEB_FETCH_CAP": "5"}
+
+
+def web(office, env, tool, names=None, **arguments):
+    event = {"tool_name": tool, "tool_input": arguments, "cwd": str(office)}
+    return decide(str(office), event, env=env, resolver=resolver(names or {}))
+
+
+@pytest.mark.parametrize(
+    ("url", "names", "code"),
+    [
+        ("http://127.0.0.1:4790/", {}, "loopback_address"),
+        ("https://machine.tail1234.ts.net/", {}, "tailnet_host"),
+        ("http://100.100.1.2/", {}, "cgnat_address"),
+        ("https://cgnat.example/", {"cgnat.example": ["100.64.0.9"]}, "cgnat_address"),
+        ("file:///etc/hosts", {}, "unsupported_scheme"),
+        ("https://user:pw@example.com/", {"example.com": ["93.184.215.14"]}, "credentials_in_url"),
+        ("http://10.0.0.5/", {}, "private_address"),
+        ("https://nowhere.example/", {}, "unresolvable_host"),
+    ],
+)
+def test_web_fetch_refuses_local_and_tailnet_urls(office, web_env, url, names, code):
+    reason = web(office, web_env, "WebFetch", names, url=url, prompt="x")
+    assert reason and reason.endswith(f"({code})"), reason
+    assert not os.path.exists(os.path.join(web_env["FO_SERVE_RUN_DIR"], "web.jsonl"))
+
+
+def test_web_fetch_and_search_pass_and_are_logged_scrubbed(office, web_env):
+    names = {"www.sec.gov": ["93.184.215.14"]}
+    assert web(office, web_env, "WebFetch", names, url="https://www.sec.gov/x", prompt="p") is None
+    assert web(office, web_env, "WebSearch", query="ACME 10-K 123456789012345") is None
+    log = os.path.join(web_env["FO_SERVE_RUN_DIR"], "web.jsonl")
+    with open(log) as stream:
+        entries = [json.loads(line) for line in stream.read().splitlines()]
+    assert [(e["kind"], e["value"]) for e in entries] == [
+        ("fetch", "https://www.sec.gov/x"),
+        ("search", "ACME 10-K …2345"),
+    ]
+    assert all(e["at"] for e in entries)
+    assert os.stat(log).st_mode & 0o777 == 0o600
+
+
+def test_web_fetches_stop_at_the_cap(office, web_env):
+    names = {"example.com": ["93.184.215.14"]}
+    for number in range(5):
+        assert web(office, web_env, "WebFetch", names, url=f"https://example.com/{number}") is None
+    reason = web(office, web_env, "WebFetch", names, url="https://example.com/6")
+    assert reason and reason.endswith("(web_fetch_cap)")
+    # Searches are logged but not capped.
+    assert web(office, web_env, "WebSearch", query="more") is None
+
+
+def test_web_tools_are_denied_outside_a_web_run(office, web_env):
+    for env in ({**web_env, "FO_SERVE_WEB": "0"}, {}, {"FO_SERVE_WEB": "1"}):
+        assert web(office, env, "WebSearch", query="ACME")
+        assert web(office, env, "WebFetch", url="https://93.184.215.14/")
+    off = {**web_env, "FO_SERVE_WEB": "0"}
+    assert web(office, off, "WebSearch", query="x").endswith("(web_off)")
+    none = {**web_env, "FO_SERVE_WEB_FETCH_CAP": "0"}
+    assert web(office, none, "WebFetch", url="https://93.184.215.14/").endswith("(web_fetch_cap)")
