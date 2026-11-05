@@ -91,7 +91,9 @@ class ClaudeRunner:
 
     def __init__(self, executable=None, python=None):
         if executable is None:
-            found = shutil.which("claude")
+            # The Mac app runs the server with a scrubbed PATH and names the CLI it found.
+            named = os.environ.get("FO_CLAUDE_EXECUTABLE", "").strip()
+            found = named if named and os.access(named, os.X_OK) else shutil.which("claude")
             executable = [found] if found else []
         self.executable = list(executable)
         self.python = python or sys.executable

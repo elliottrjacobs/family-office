@@ -52,7 +52,16 @@ def masked(value):
 
 
 def public_config(root: Path) -> dict:
-    return {"settings": read_config(root), "secrets": masked(read_secrets(root))}
+    """Settings plus which secrets exist, every value masked.
+
+    Keys `fo connect` stores in secrets/<provider>.json show up beside the keys.toml
+    entries so a client can tell which providers are connected without reading secrets/.
+    """
+    secrets = masked(read_secrets(root))
+    for provider in PROVIDERS:
+        if contained(root, f"secrets/{provider}.json").exists():
+            secrets[provider] = {"api_key": "***"}
+    return {"settings": read_config(root), "secrets": secrets}
 
 
 HOSTNAME = re.compile(

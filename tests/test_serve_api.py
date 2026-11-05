@@ -438,3 +438,17 @@ def test_watch_parent_stops_the_server_when_the_pid_is_gone():
     finally:
         module.parent_alive = original
     assert server.stopped
+
+
+def test_public_config_reports_keys_stored_by_fo_connect(office):
+    from fo.config import public_config
+
+    secrets = office / "secrets"
+    secrets.mkdir(mode=0o700, exist_ok=True)
+    path = secrets / "exa.json"
+    path.write_text('{"api_key": "SYNTHETIC-KEY-0000"}')
+    path.chmod(0o600)
+    reported = public_config(office)["secrets"]
+    assert reported["exa"] == {"api_key": "***"}
+    assert "SYNTHETIC" not in json.dumps(reported)
+    assert "firecrawl" not in reported

@@ -648,3 +648,16 @@ def test_fixtures_hold_no_home_paths_or_uuids():
             text = path.read_text(errors="ignore")
             assert not re.search(r"/(Users|home)/[^/\s]+", text), path
             assert not UUID.search(text), path
+
+
+def test_claude_runner_honors_the_executable_override(tmp_path, monkeypatch):
+    from fo.serve.runner_claude import ClaudeRunner
+
+    fake = tmp_path / "claude"
+    fake.write_text("#!/bin/sh\necho 2.1.283\n")
+    fake.chmod(0o755)
+    monkeypatch.setenv("FO_CLAUDE_EXECUTABLE", str(fake))
+    assert ClaudeRunner().executable == [str(fake)]
+    monkeypatch.setenv("FO_CLAUDE_EXECUTABLE", str(tmp_path / "missing"))
+    monkeypatch.setattr("fo.serve.runner_claude.shutil.which", lambda name: None)
+    assert ClaudeRunner().executable == []
