@@ -103,8 +103,8 @@ version in `pyproject.toml`).
 The app launches:
 
 ```text
-fo [--office PATH] serve --port 0 --app
-fo [--office PATH] serve --remote --app     # with Allow phone access over Tailscale on
+fo [--office PATH] serve --port 0 --app --parent-pid APP_PID
+fo [--office PATH] serve --remote --app --parent-pid APP_PID   # with phone access on
 ```
 
 with stdin closed, the working directory set to the home folder, and a scrubbed environment:
@@ -127,7 +127,7 @@ session cookie; it never sends the token in its own requests. `FOKit.APIClient` 
 with the cookie copied from the web view's store.
 
 Transitional fallback: until every supported `fo` has `--app`, the app checks `fo serve --help`
-for the flag and omits it when absent. A first stdout line that is not JSON then counts as no
+for the flag and omits it when absent; it does the same for `--parent-pid`. A first stdout line that is not JSON then counts as no
 handshake, and the app takes port and token from the printed `  Open: http://127.0.0.1:PORT/?t=TOKEN`
 line (`Handshake.parseOpenLine`). Remove both once the minimum supported version prints the
 handshake.
@@ -246,8 +246,9 @@ The launch cookie is marked `Secure` only on a landing reached through the tailn
 on loopback it is plain, because WebKit drops a `Secure` cookie set over `http://127.0.0.1`
 and the Mac's own web view would otherwise have no session with phone access on.
 
-The app passes `--parent-pid <its pid>` when it starts the server, so a server whose app
-died without a normal quit (a crash or SIGKILL) stops itself within a few seconds.
+The app passes `--parent-pid <its pid>` when it starts the server (when `fo serve --help`
+lists the flag), so a server whose app died without a normal quit (a crash or SIGKILL)
+stops itself within a few seconds.
 
 ## Restart behavior
 

@@ -45,8 +45,8 @@ final class ServerProcess {
     private var sawFirstLine = false
     private var pendingRestart: Task<Void, Never>?
     private var watchdog: Task<Void, Never>?
-    /// Executables already checked for version and `--app` support, by path.
-    private var checked: [String: Bool] = [:]
+    /// Executables already checked for version and `fo serve` flags, by path.
+    private var checked: [String: ServeFlags] = [:]
 
     var isRunning: Bool { process?.isRunning ?? false }
 
@@ -99,9 +99,9 @@ final class ServerProcess {
             return
         }
         Task {
-            let supportsApp: Bool
+            let flags: ServeFlags
             if let cached = checked[executable.path] {
-                supportsApp = cached
+                flags = cached
             } else {
                 switch await Self.preflight(executable) {
                 case .failure(let message):
@@ -109,16 +109,16 @@ final class ServerProcess {
                     onEvent?(.failed(message))
                     return
                 case .success(let value):
-                    supportsApp = value
+                    flags = value
                     checked[executable.path] = value
                 }
             }
             guard current == generation, !stopping else { return }
-            spawn(executable, supportsApp: supportsApp, generation: current)
+            spawn(executable, flags: flags, generation: current)
         }
     }
 
-    private func spawn(_ executable: URL, supportsApp: Bool, generation current: Int) {
+    private func spawn(_ executable: URL, flags: ServeFlags, generation current: Int) {
         let process = Process()
         process.executableURL = executable
         var arguments: [String] = []
@@ -133,8 +133,13 @@ final class ServerProcess {
             // Port 0 lets the system pick a free loopback port; the handshake reports it.
             arguments += ["--port", "0"]
         }
-        if supportsApp {
+        if flags.app {
             arguments.append("--app")
+        }
+        if flags.parentPid {
+            // The server polls this pid and stops itself when the app is gone, so a crash or
+            // SIGKILL of the app leaves no server behind.
+            arguments += ["--parent-pid", String(ProcessInfo.processInfo.processIdentifier)]
         }
         process.arguments = arguments
         process.environment = Self.environment(binDirectory: executable.deletingLastPathComponent())
@@ -335,12 +340,24 @@ final class ServerProcess {
         (Bundle.main.object(forInfoDictionaryKey: "FOExpectedVersion") as? String) ?? ""
     }
 
+    /// The optional `fo serve` flags this executable lists in `fo serve --help`.
+    struct ServeFlags: Equatable {
+        var app: Bool
+        var parentPid: Bool
+
+        init(help: String) {
+            app = help.contains("--app")
+            parentPid = help.contains("--parent-pid")
+        }
+    }
+
     enum Preflight {
-        case success(Bool)
+        case success(ServeFlags)
         case failure(String)
     }
 
-    /// Checks `fo --version` against `FOExpectedVersion` and whether `fo serve` knows `--app`.
+    /// Checks `fo --version` against `FOExpectedVersion` and which optional flags `fo serve`
+    /// knows (`--app`, `--parent-pid`).
     static func preflight(_ executable: URL) async -> Preflight {
         let environment = environment(binDirectory: executable.deletingLastPathComponent())
         guard let version = await capture(executable, ["--version"], environment) else {
@@ -353,9 +370,10 @@ final class ServerProcess {
                 "This app expects family-office \(expected), but the server reports "
                     + "\"\(reported)\". Install the matching version or rebuild the app.")
         }
-        // Remove with the Open-line fallback once every supported server has `--app`.
+        // Remove with the Open-line fallback once every supported server has `--app` and
+        // `--parent-pid`.
         let help = await capture(executable, ["serve", "--help"], environment) ?? ""
-        return .success(help.contains("--app"))
+        return .success(ServeFlags(help: help))
     }
 
     /// Runs a short command and returns its stdout, or nil on failure or after 30 seconds.
