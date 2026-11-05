@@ -38,6 +38,7 @@ final class ServerProcess {
     private var restarts = 0
     private var startedAt: Date?
     private var office: String?
+    private var remote = false
     private var stdoutBuffer = Data()
     private var stderrBuffer = Data()
     private var handshakeReceived = false
@@ -51,10 +52,14 @@ final class ServerProcess {
 
     // MARK: - Lifecycle
 
-    func start(office: String?) {
+    /// - Parameter remote: pass `--remote` and let the server take `[serve] port` from
+    ///   office.toml (default 4790), so `tailscale serve` can forward to a stable port. Without
+    ///   it the app asks for port 0 and the system picks a free loopback port.
+    func start(office: String?, remote: Bool = false) {
         pendingRestart?.cancel()
         pendingRestart = nil
         self.office = office
+        self.remote = remote
         stopping = false
         restarts = 0
         launch()
@@ -120,8 +125,14 @@ final class ServerProcess {
         if let office {
             arguments += ["--office", office]
         }
-        // Port 0 lets the system pick a free loopback port; the handshake reports it.
-        arguments += ["serve", "--port", "0"]
+        arguments.append("serve")
+        if remote {
+            // The configured port, so `tailscale serve --bg PORT` keeps pointing at it.
+            arguments.append("--remote")
+        } else {
+            // Port 0 lets the system pick a free loopback port; the handshake reports it.
+            arguments += ["--port", "0"]
+        }
         if supportsApp {
             arguments.append("--app")
         }

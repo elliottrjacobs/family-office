@@ -112,7 +112,16 @@ rm -f "$OUT"/python/bin/idle3* "$OUT"/python/bin/pydoc3*
 cat >"$OUT/bin/fo" <<'LAUNCHER'
 #!/bin/sh
 # family-office launcher inside the Mac app bundle.
-here="$(cd "$(dirname "$0")" && pwd -P)"
+# Follow links first: Settings > General installs /usr/local/bin/fo as a link to this file.
+self="$0"
+while [ -L "$self" ]; do
+  link="$(readlink "$self")"
+  case "$link" in
+    /*) self="$link" ;;
+    *) self="$(dirname "$self")/$link" ;;
+  esac
+done
+here="$(cd "$(dirname "$self")" && pwd -P)"
 unset PYTHONPATH PYTHONHOME PYTHONSTARTUP PYTHONUSERBASE PYTHONEXECUTABLE
 export PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1
 exec "$here/../venv/bin/fo" "$@"

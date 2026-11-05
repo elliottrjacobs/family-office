@@ -2,6 +2,9 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(AppState.self) private var state
+    #if DEBUG
+    @Environment(\.openSettings) private var openSettings
+    #endif
 
     var body: some View {
         @Bindable var state = state
@@ -26,6 +29,15 @@ struct ContentView: View {
         .sheet(isPresented: $state.showOfficeSheet) {
             OfficeSheet()
         }
+        #if DEBUG
+        // Development walkthroughs: `-openSettingsOnLaunch YES`, optionally with
+        // `-settingsTab devices`, opens Settings without clicking.
+        .task {
+            if UserDefaults.standard.bool(forKey: "openSettingsOnLaunch") {
+                openSettings()
+            }
+        }
+        #endif
     }
 }
 
