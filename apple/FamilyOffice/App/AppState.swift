@@ -39,6 +39,8 @@ final class AppState {
     let power = Power()
     /// Launch at login.
     let loginItem = LoginItem()
+    /// The `/usr/local/bin/fo` link, verified on launch.
+    let commandLineTool = CommandLineTool()
 
     /// One non-persistent website data store per launch, so the session cookie dies with the app.
     @ObservationIgnored let websiteDataStore = WKWebsiteDataStore.nonPersistent()

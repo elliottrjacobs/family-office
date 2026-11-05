@@ -30,6 +30,11 @@ struct FamilyOfficeApp: App {
             }
         }
 
+        Settings {
+            SettingsView()
+                .environment(delegate.state)
+        }
+
         // The always-on part: status at a glance while the window is closed.
         MenuBarExtra {
             MenuBarContent()
