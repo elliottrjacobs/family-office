@@ -1,0 +1,10 @@
+{
+  "id": "v1_fixture-task-0001",
+  "object": "interaction",
+  "status": "in_progress",
+  "created": "2026-11-04T12:00:00Z",
+  "updated": "2026-11-04T12:03:00Z",
+  "steps": [
+    {"type": "thought", "content": [{"type": "text", "text": "Planning the search."}]}
+  ]
+}

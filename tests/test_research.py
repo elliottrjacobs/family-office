@@ -298,3 +298,151 @@ def test_html_conversion_drops_attributes_and_keeps_structure():
         "https://example.com/",
     )
     assert text == "### Title\n\nOne mail\n\nTwo"
+
+
+GEMINI = "https://generativelanguage.googleapis.com/v1beta/interactions"
+TASK = "v1_fixture-task-0001"
+
+
+@pytest.fixture
+def clock(monkeypatch):
+    now = [0.0]
+    sleeps = []
+
+    def sleep(seconds):
+        sleeps.append(seconds)
+        now[0] += seconds
+
+    monkeypatch.setattr(research, "SLEEP", sleep)
+    monkeypatch.setattr(research, "CLOCK", lambda: now[0])
+    return sleeps
+
+
+def gemini_routes(table, polls):
+    """Submitting answers with the submitted fixture; each poll takes the next state."""
+    table[("POST", GEMINI)] = httpx.Response(200, json=fixture("gemini/submitted.json"))
+    queue = [fixture(f"gemini/{name}.json") for name in polls]
+
+    def poll(request):
+        return httpx.Response(200, json=queue.pop(0) if len(queue) > 1 else queue[0])
+
+    table[("GET", f"{GEMINI}/{TASK}")] = poll
+
+
+def report(root):
+    from fo.reports import report_path
+
+    return report_path(root, "research", "ACME")["path"]
+
+
+def test_deep_research_completing_on_the_third_poll_writes_an_inputs_part(office, routes, clock):
+    table, seen = routes
+    connect(office, "gemini")
+    gemini_routes(table, ["running", "running", "completed"])
+    pinned = report(office)
+    code, data = invoke(
+        "research",
+        "deep",
+        "How durable is ACME's position?",
+        "--report",
+        pinned,
+        "--office",
+        str(office),
+    )
+    assert code == 0, data
+    assert data["untrusted"] is True and data["source"] == "gemini-deep-research"
+    assert data["status"] == "completed" and data["task_id"] == TASK and data["resumed"] is False
+    assert [c["url"] for c in data["citations"]] == [
+        "https://example.com/acme/market-share",
+        "https://example.com/acme/contracts",
+    ]
+    assert "123456789012" not in data["text"] and "…9012" in data["text"]
+    part = data["part"]
+    assert part == pinned.removesuffix(".md") + ".parts/inputs/deep-research.md"
+    body = (office / part).read_text()
+    assert body.startswith("---\nuntrusted: true\nsource: gemini-deep-research\n")
+    assert f"task_id: {TASK}" in body and "# ACME competitive position" in body
+    assert "1. [Industrial tools market share](https://example.com/acme/market-share)" in body
+    assert "2. [ACME distributor contracts](https://example.com/acme/contracts)" in body
+    assert "123456789012" not in body
+    submits = [r for r in seen if r.method == "POST"]
+    assert len(submits) == 1 and len([r for r in seen if r.method == "GET"]) == 3
+    assert json.loads(submits[0].content) == {
+        "input": "How durable is ACME's position?",
+        "agent": "deep-research-preview-04-2026",
+        "background": True,
+    }
+    assert submits[0].headers["x-goog-api-key"] == "fixture-gemini-key"
+    assert submits[0].headers["api-revision"]
+    assert clock == [10.0, 15.0]
+
+
+def test_deep_research_times_out_with_the_task_id_and_then_resumes(office, routes, clock):
+    table, seen = routes
+    connect(office, "gemini")
+    gemini_routes(table, ["running"])
+    args = ["research", "deep", "ACME moat", "--timeout-minutes", "0.5", "--office", str(office)]
+    code, data = invoke(*args)
+    assert (code, data["reason"], data["task_id"]) == (1, "timed_out", TASK)
+    assert data["resumed"] is False and len(seen) == 4
+    gemini_routes(table, ["completed"])
+    code, data = invoke(*args)
+    assert code == 0 and data["status"] == "completed" and data["resumed"] is True
+    assert data["part"] is None
+    assert [r.method for r in seen[4:]] == ["GET"]
+
+
+def test_deep_research_timeout_defaults_to_the_run_limit_less_a_margin(office):
+    assert research.deep_settings(office)["minutes"] == 25
+    configure(office, "[providers.gemini]\nmax_tasks_per_day = 2")
+    assert research.deep_settings(office)["max_tasks"] == 2
+
+
+def test_deep_research_without_a_key_is_not_connected(office, routes):
+    code, data = invoke("research", "deep", "ACME moat", "--office", str(office))
+    assert (code, data["reason"]) == (1, "not_connected")
+    assert routes[1] == []
+
+
+def test_deep_research_daily_cap_refuses_a_second_task(office, routes, clock):
+    table, seen = routes
+    connect(office, "gemini")
+    configure(office, "[providers.gemini]\nmax_tasks_per_day = 1")
+    gemini_routes(table, ["completed"])
+    assert invoke("research", "deep", "ACME moat", "--office", str(office))[0] == 0
+    code, data = invoke("research", "deep", "BETA moat", "--office", str(office))
+    assert (code, data["reason"]) == (1, "rate_limited")
+    assert len([r for r in seen if r.method == "POST"]) == 1
+    # The finished task is reused without a new submission.
+    assert invoke("research", "deep", "ACME moat", "--office", str(office))[0] == 0
+    assert len([r for r in seen if r.method == "POST"]) == 1
+
+
+def test_a_failed_task_is_forgotten_so_a_retry_resubmits(office, routes, clock):
+    table, seen = routes
+    connect(office, "gemini")
+    failed = {**fixture("gemini/running.json"), "status": "failed"}
+    table[("POST", GEMINI)] = httpx.Response(200, json=fixture("gemini/submitted.json"))
+    table[("GET", f"{GEMINI}/{TASK}")] = httpx.Response(200, json=failed)
+    code, data = invoke("research", "deep", "ACME moat", "--office", str(office))
+    assert (code, data["reason"]) == (1, "research_failed")
+    gemini_routes(table, ["completed"])
+    assert invoke("research", "deep", "ACME moat", "--office", str(office))[0] == 0
+    assert len([r for r in seen if r.method == "POST"]) == 2
+
+
+def test_deep_research_refuses_a_report_outside_reports(office, routes):
+    connect(office, "gemini")
+    code, data = invoke(
+        "research", "deep", "ACME", "--report", "notebook/x.md", "--office", str(office)
+    )
+    assert (code, data["reason"]) == (1, "unsafe_path")
+    assert routes[1] == []
+
+
+def test_a_malformed_task_id_is_refused(office, routes):
+    table, _ = routes
+    connect(office, "gemini")
+    table[("POST", GEMINI)] = httpx.Response(200, json={"id": "../../models", "status": "x"})
+    code, data = invoke("research", "deep", "ACME", "--office", str(office))
+    assert (code, data["reason"]) == (1, "provider_error")

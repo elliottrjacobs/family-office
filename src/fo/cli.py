@@ -265,6 +265,29 @@ def research_fetch(ctx: typer.Context, url: str):
     run(ctx, lambda: research.fetch(root(ctx), url, ctx.obj["read_only"]))
 
 
+@research_app.command("deep")
+def research_deep(
+    ctx: typer.Context,
+    question: str,
+    report: str | None = typer.Option(
+        None, "--report", help="Save the result as an inputs part of this report."
+    ),
+    timeout_minutes: float | None = typer.Option(
+        None, "--timeout-minutes", help="Default: [serve] run_timeout_minutes less 5."
+    ),
+):
+    """A Gemini Deep Research task, submitted once and polled to a deadline."""
+    from fo import research
+
+    def execute():
+        writable(ctx)
+        return research.deep(root(ctx), question, report, timeout_minutes)
+
+    result = run(ctx, execute)
+    if result.get("reason") == "timed_out":
+        raise typer.Exit(1)
+
+
 @sync_app.callback()
 def sync_command(
     ctx: typer.Context,
