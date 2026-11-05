@@ -7,14 +7,27 @@ the office outside its private folders, writes under reports/, and subagent call
 otherwise leaves the decision to the permission rules. Every other tool call, and any
 error in the hook itself, is denied.
 
+WebSearch and WebFetch pass only in a run the runner marked web (FO_SERVE_WEB=1, at
+context level none). A fetch URL must pass fo.netguard, and fetches are capped per run
+by FO_SERVE_WEB_FETCH_CAP with a counter file in the run's folder (FO_SERVE_RUN_DIR,
+under cache/serve/runs/, which a run cannot read or write). Every search query and
+fetch URL that passes is appended, scrubbed, to web.jsonl in that folder; the run
+manager folds the entries into the run's event log. Each web denial ends with a stable
+reason code in parentheses.
+
 Run as `python -m fo.serve.guard OFFICE`; it reads the hook event JSON on stdin.
 """
 
+import fcntl
 import json
 import os
 import re
 import shlex
 import sys
+
+from fo import netguard
+from fo.serve.runner import FETCH_CAP, RUN_FOLDER, WEB_FLAG, WEB_LOG, scrub_text
+from fo.store.jsonl import now
 
 PRIVATE = ("secrets", "cache", "imports", "medical", ".git", ".fo.lock")
 # Grep and Glob are not offered to runs, and a search from the office root would reach
@@ -26,6 +39,9 @@ PATH_KEYS = {
     "MultiEdit": "file_path",
 }
 WRITES = {"Write", "Edit", "MultiEdit"}
+WEB = {"WebFetch", "WebSearch"}
+COUNTER = "web-fetches"
+VALUE_LIMIT = 2000
 OPERATOR = set("|;&<>()")
 # `$` may introduce an amount ($100, $1.5B) but never an expansion ($HOME, $(...), ${...}).
 EXPANSION = re.compile(r"\$(?![\d\s.,]|$)")
@@ -77,10 +93,69 @@ def path_denial(office, cwd, tool, arguments):
     return None
 
 
-def decide(office, event):
+def locked(path, update):
+    """Run update(file) under an exclusive lock on path, created 0600."""
+    fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_APPEND, 0o600)
+    with os.fdopen(fd, "r+") as stream:
+        fcntl.flock(stream, fcntl.LOCK_EX)
+        return update(stream)
+
+
+def take_fetch(folder, cap):
+    """Count one more fetch in the run, or False when the run has used its cap."""
+
+    def update(stream):
+        stream.seek(0)
+        used = int(stream.read().strip() or 0)
+        if used >= cap:
+            return False
+        stream.truncate(0)
+        stream.write(str(used + 1))
+        return True
+
+    return locked(os.path.join(folder, COUNTER), update)
+
+
+def log_web(folder, kind, value):
+    entry = {"kind": kind, "value": scrub_text(value[:VALUE_LIMIT]), "at": now()}
+    line = json.dumps(entry, ensure_ascii=False) + "\n"
+    locked(os.path.join(folder, WEB_LOG), lambda stream: stream.write(line))
+
+
+def web_denial(tool, arguments, env, resolver=None):
+    if env.get(WEB_FLAG) != "1":
+        return "Web search and fetch are on only at context level none (web_off)"
+    folder = env.get(RUN_FOLDER)
+    if not folder or not os.path.isdir(folder):
+        return "The run guard has no run folder to log web use in (web_unlogged)"
+    if tool == "WebSearch":
+        query = arguments.get("query")
+        if not isinstance(query, str) or not query.strip():
+            return "The search names no query (missing_query)"
+        log_web(folder, "search", query)
+        return None
+    url = arguments.get("url")
+    if not isinstance(url, str) or not url.strip():
+        return f"{netguard.REASONS['missing_host']} (missing_host)"
+    reason = netguard.reject(url, resolver)
+    if reason:
+        return f"{netguard.REASONS[reason]} ({reason})"
+    try:
+        cap = int(env.get(FETCH_CAP, "0"))
+    except ValueError:
+        cap = 0
+    if not take_fetch(folder, cap):
+        return f"This run has used its {cap} web fetches (web_fetch_cap)"
+    log_web(folder, "fetch", url)
+    return None
+
+
+def decide(office, event, env=None, resolver=None):
     """A denial reason, or None to let the permission rules decide."""
     tool = event.get("tool_name")
     arguments = event.get("tool_input") or {}
+    if tool in WEB:
+        return web_denial(tool, arguments, os.environ if env is None else env, resolver)
     if tool == "Bash":
         return command_denial(arguments.get("command", ""))
     if tool in PATH_KEYS:

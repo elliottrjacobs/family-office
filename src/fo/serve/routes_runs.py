@@ -5,6 +5,7 @@ import time
 from fo.brief import start
 from fo.errors import OfficeError
 from fo.reports import component
+from fo.serve.runs import web_allowed
 from fo.skills import registry
 
 # Preflight starts an engine twice and rarely changes; office defaults are read every time.
@@ -31,6 +32,7 @@ def preview(handler, params, query):
         "skill": info["name"],
         "subject": subject,
         "level": level,
+        "web": web_allowed(level),
         "deep_available": info["deep"] and runs.deep,
         "chat": info["name"] not in ("onboard", "journal"),
         **started,

@@ -17,14 +17,22 @@ export type Item =
   | { type: "steps"; seq: number; steps: Step[] }
   | { type: "decision"; seq: number; id: string }
 
+/** A web search (its query) or fetch (its URL) the run's guard let through. */
+export interface Visit {
+  seq: number
+  action: "fetch" | "search"
+  value: string
+}
+
 export interface Transcript {
   items: Item[]
   status: RunStatus | null
   last: number
   denied: number
+  web: Visit[]
 }
 
-export const empty: Transcript = { items: [], status: null, last: 0, denied: 0 }
+export const empty: Transcript = { items: [], status: null, last: 0, denied: 0, web: [] }
 
 /**
  * Pure and idempotent: an event at or below the last seen sequence number is ignored, so
@@ -83,6 +91,9 @@ export function apply(state: Transcript, event: RunEvent): Transcript {
       break
     case "result":
       next.denied = state.denied + event.denials.length
+      break
+    case "web":
+      next.web = [...state.web, { seq: event.seq, action: event.action, value: event.value }]
       break
   }
   return next

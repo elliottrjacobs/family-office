@@ -11,6 +11,12 @@ Events are plain dicts with a "kind":
   tool         id, name, label (a short description of the call), command or path
   tool_result  id, ok, output (truncated)
   result       ok, subtype, text, cost_usd, turns, session_id, denials
+  web          action ("fetch" or "search") and value (the URL or query), folded in by
+               the run manager from the guard hook's web.jsonl in the run folder
+
+`web` is true only at context level none: the runner then offers its web tools, and the
+guard hook, which reads FO_SERVE_RUN_DIR, FO_SERVE_WEB, and FO_SERVE_WEB_FETCH_CAP from
+the environment the runner builds, checks, caps, and logs each web call.
 """
 
 import json
@@ -21,6 +27,11 @@ from typing import Protocol
 from fo.store.jsonl import FORBIDDEN
 
 OUTPUT_LIMIT = 2000
+# What the runner's environment tells the guard hook about the run.
+RUN_FOLDER = "FO_SERVE_RUN_DIR"
+WEB_FLAG = "FO_SERVE_WEB"
+FETCH_CAP = "FO_SERVE_WEB_FETCH_CAP"
+WEB_LOG = "web.jsonl"
 
 
 class Runner(Protocol):
@@ -28,15 +39,25 @@ class Runner(Protocol):
 
     def preflight(self) -> dict: ...
 
-    def check(self, init: dict, skill: str) -> str | None: ...
+    def check(self, init: dict, skill: str, web: bool = False) -> str | None: ...
 
-    def settings(self, office) -> str: ...
+    def settings(self, office, web: bool = False) -> str: ...
 
     def command(
-        self, office, settings: str, budget: float, session=None, model=None, effort=None
+        self,
+        office,
+        settings: str,
+        budget: float,
+        session=None,
+        model=None,
+        effort=None,
+        *,
+        web: bool = False,
     ) -> list[str]: ...
 
-    def environment(self, office) -> dict: ...
+    def environment(
+        self, office, folder=None, web: bool = False, web_fetch_cap: int = 0
+    ) -> dict: ...
 
     def parse(self, line: str, office) -> list[dict]: ...
 

@@ -1,3 +1,4 @@
+import io
 import os
 import re
 from datetime import date
@@ -10,6 +11,8 @@ from fo.office import atomic_write, contained
 
 CLOSING = "Reply with corrections in your next task."
 MAX_BODY_BYTES = 2 * 1024 * 1024
+# A run's scratch workspace, where an engine without a scoped write tool drafts a body.
+WORKSPACE = re.compile(r"cache/serve/runs/[0-9A-Z]{26}/workspace/.+")
 
 
 def component(value):
@@ -289,6 +292,34 @@ def body_limit(root):
     return limit
 
 
+def body_file(root, path):
+    """A body file's bytes as a stream, read like stdin under the same size cap.
+
+    Headless runs cannot pipe stdin, so they draft the body to a file first. The file must
+    resolve, symlinks followed, under reports/ or under a run's workspace in
+    cache/serve/runs/<id>/workspace/; anything else in or outside the office is refused.
+    """
+    base = Path(root).resolve()
+    full = Path(os.path.realpath(base / os.path.expanduser(str(path))))
+    if not full.is_relative_to(base):
+        raise OfficeError("unsafe_path", "The body file is outside the office.")
+    relative = full.relative_to(base)
+    pieces = relative.parts
+    if not (
+        (len(pieces) >= 2 and pieces[0] == "reports") or WORKSPACE.fullmatch(relative.as_posix())
+    ):
+        raise OfficeError(
+            "unsafe_path", "Read the body from a file under reports/ or a run's workspace."
+        )
+    if not full.is_file():
+        raise OfficeError("body_file_missing", "The body file does not exist.")
+    try:
+        with full.open("rb") as stream:
+            return io.BytesIO(stream.read(body_limit(root) + 1))
+    except OSError as exc:
+        raise OfficeError("body_file_missing", "The body file could not be read.") from exc
+
+
 def write(root, stream, kind=None, subject=None, slug="report", part=None, report=None):
     """Write a report, or one of its parts, from a byte stream through a temp file and rename.
 
@@ -304,7 +335,7 @@ def write(root, stream, kind=None, subject=None, slug="report", part=None, repor
     if len(data) > limit:
         raise OfficeError("report_too_large", f"The report body exceeds {limit} bytes.")
     if not data.strip():
-        raise OfficeError("empty_report", "The report body on stdin is empty.")
+        raise OfficeError("empty_report", "The report body is empty.")
     try:
         text = data.decode("utf-8")
     except UnicodeDecodeError as exc:

@@ -171,13 +171,19 @@ def register(app):
         slug: str = "report",
         part: str | None = typer.Option(None, help="Write NAME.md in the part directory."),
         report: str | None = pin,
+        body_file: str | None = typer.Option(
+            None,
+            "--body-file",
+            help="Read the body from this file under reports/ or a run's workspace, not stdin.",
+        ),
     ):
-        """Write the report body from stdin to its allocated or pinned path."""
+        """Write the report body from stdin, or --body-file, to its allocated or pinned path."""
 
         def execute():
             writable(ctx)
-            stream = sys.stdin.buffer
-            return reports.write(root(ctx), stream, kind, subject, slug, part, report)
+            office = root(ctx)
+            stream = reports.body_file(office, body_file) if body_file else sys.stdin.buffer
+            return reports.write(office, stream, kind, subject, slug, part, report)
 
         run(ctx, execute)
 

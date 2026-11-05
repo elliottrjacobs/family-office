@@ -185,7 +185,17 @@ asked about. Runs are capped in `office.toml`:
 max_budget_usd = 2.0       # per run, in Claude usage
 run_timeout_minutes = 30
 keep_runs = 50             # run logs kept under cache/serve/runs/
+web_fetch_cap = 20         # web fetches per run at level none
 ```
+
+Web search and fetch follow the context level. At level `none`, where a run reads
+no household data, the advisor may search the web and fetch pages; at `household`
+and `full` both are off, and the launch panel says which applies before you start.
+Every fetch is checked against the same deny list as `fo research fetch` (nothing
+on this machine, the local network, or the tailnet, and no URL carrying a password),
+fetches stop at `web_fetch_cap`, and the run view lists the sites visited, searches
+by query and fetches by host with the full URL on hover. See
+[SECURITY.md](SECURITY.md) for what this exposes.
 
 Each run goes to an engine. Claude Code is the engine this version runs; the
 launch panel lists the engines `fo serve` can run, with one that is missing,
@@ -262,7 +272,10 @@ returned (`--report PATH`), or allocates one from `--kind` and `--subject` the w
 directory instead. It writes only under `reports/`, never into a dotted directory
 or file there, caps the body at 2 MB (`max_body_bytes` under `[reports]`), writes
 through a temp file and rename, and prints the path and byte count. Skills and
-advisor runs use it in place of a file-writing tool.
+advisor runs use it in place of a file-writing tool. `--body-file PATH` reads the
+body from a file instead of stdin, under the same cap, for headless runs that cannot
+pipe: the file must resolve under `reports/` or a run's scratch workspace,
+`cache/serve/runs/<id>/workspace/`, or the command refuses it (`unsafe_path`).
 
 `fo config set KEY VALUE` changes one setting in `office.toml` under the office
 lock, keeps every other line and comment as it was, and refuses anything outside

@@ -1,5 +1,5 @@
 {
-  "note": "Claude Code permission rules for headless advisor runs. Defence in depth: fo refuses restricted commands under FO_SERVE_RUN, and the fo.serve.guard hook confines every tool call. tests/test_serve_runs.py checks this against the office settings fo init writes and the commands fo refuses.",
+  "note": "Claude Code permission rules for headless advisor runs. WebSearch and WebFetch are decided per launch by context level (--tools and --disallowedTools, plus an allow rule at level none) and checked by the guard hook. Defence in depth: fo refuses restricted commands under FO_SERVE_RUN, and the fo.serve.guard hook confines every tool call. tests/test_serve_runs.py checks this against the office settings fo init writes and the commands fo refuses.",
   "allow": [
     "Bash(fo *)",
     "Read(./**)",
@@ -21,8 +21,6 @@
     "Edit(office.toml)",
     "Edit(.claude/**)",
     "Edit(.agents/**)",
-    "WebFetch",
-    "WebSearch",
     "NotebookEdit",
     "Bash(python *)",
     "Bash(python3 *)",

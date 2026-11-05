@@ -100,7 +100,15 @@ def main():
     if pinned:
         # A resume names the report it continues; the skill and subject follow from it.
         skill, subject = pinned.split("/")[1:3]
-    state = {"report": None, "meta": None, "decisions": [], "text": "", "count": 0}
+    offered = flags[flags.index("--tools") + 1].split(",") if "--tools" in flags else None
+    state = {
+        "report": None,
+        "meta": None,
+        "decisions": [],
+        "denials": [],
+        "text": "",
+        "count": 0,
+    }
     for raw in script.read_text().splitlines():
         line = json.loads(raw)
         action = line.get("fake")
@@ -115,7 +123,8 @@ def main():
                     "session_id": session,
                     "cwd": "/office",
                     "model": "fake-model",
-                    "tools": line.get("tools", TOOLS),
+                    # Like Claude Code, report the tools --tools offered.
+                    "tools": line.get("tools", offered or TOOLS),
                     "mcp_servers": line.get("mcp_servers", []),
                     "permissionMode": line.get("mode", "dontAsk"),
                     "slash_commands": line.get("slash_commands", SKILLS),
@@ -191,6 +200,26 @@ def main():
                     "message": {"content": [{"type": "text", "text": line["text"]}]},
                 }
             )
+        elif action == "hook":
+            # Run the guard hook from --settings as Claude Code would, then the tool or
+            # a permission denial.
+            settings = json.loads(flags[flags.index("--settings") + 1])
+            command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+            event = {"tool_name": line["tool"], "tool_input": line["input"], "cwd": str(Path.cwd())}
+            out = subprocess.run(
+                command, shell=True, input=json.dumps(event), capture_output=True, text=True
+            ).stdout
+            decision = json.loads(out)["hookSpecificOutput"] if out.strip() else {}
+            if decision.get("permissionDecision") == "deny":
+                state["denials"].append(
+                    {
+                        "tool_name": line["tool"],
+                        "tool_use_id": f"toolu_fake{state['count']:04d}",
+                        "tool_input": line["input"],
+                    }
+                )
+            else:
+                tool(state["count"], line["tool"], line["input"], line.get("output", "ok"))
         elif action == "sleep":
             time.sleep(line["seconds"])
         elif action == "exit":
@@ -205,7 +234,7 @@ def main():
                     "session_id": session,
                     "total_cost_usd": 0.01,
                     "num_turns": 3,
-                    "permission_denials": line.get("denials", []),
+                    "permission_denials": line.get("denials", state["denials"]),
                 }
             )
     sys.exit(0)
