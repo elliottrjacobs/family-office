@@ -17,13 +17,16 @@ import { Robot } from "@/avatars/Robot"
 | `advisor` | `AdvisorId` | required | Which robot: `cio`, `cfo`, `planner`, `tax`, `research`, `diligence`, `scout`, `macro`, `options`, `technicals`, `risk`, `realestate`, `ventures`. Use `advisorIdFor(skillName)` to map skill names (`plan` is the planner); it returns `null` for skills without a robot. |
 | `size` | `number` | `64` | Width and height in pixels. At 40 or less the blur filters and the screen sheen are left out, and the eye glow becomes a solid lighter circle, so small robots stay crisp. |
 | `appearance` | `Appearance` | the stored look | Draws this look instead of the stored one. The customize preview passes its draft here. Without it the robot reads `fo.avatar.v1.<advisor>` and re-renders whenever that look is saved or reset. |
-| `state` | `RobotState` | `"idle"` | The pose: `idle`, `thinking`, `reading`, `writing`, `speaking`, `done`, `error`, `sleeping`. This unit draws the static pose; animation arrives with the state mapping (U19). |
-| `live` | `boolean` | `false` | Marks a robot that may animate. Exposed as `data-live`; it changes nothing yet. |
+| `state` | `RobotState` | `"idle"` | The pose: `idle`, `thinking`, `reading`, `writing`, `speaking`, `done`, `error`, `sleeping`. `stateFromRun` in `states.ts` picks it from a run. |
+| `live` | `boolean` | `false` | Animates the state (see States and animation). Without it, and always under `prefers-reduced-motion: reduce`, the robot is its static pose. |
+| `speed` | `number` | the look's `speed` | Animation speed multiplier, 0 to 2. 0 pauses the animation. |
+| `level` | `number` | `0` | Speaking amplitude, 0 to 1, from `useSpeakingLevel`; it opens the mouth while speaking. |
 | `className` | `string` | none | Passed to the `<svg>`. |
 
 The `<svg>` has `role="img"` and `aria-label="<Advisor name> <state>"`, for example
-"Real estate thinking". It carries `data-advisor`, `data-state`, `data-live` and
-`data-finish`, and the speed as the CSS custom property `--fo-avatar-speed`. Its
+"Real estate thinking". It carries `data-advisor`, `data-state`, `data-live` (`"true"`
+only while it animates) and `data-finish`, and the speed as the CSS custom property
+`--fo-avatar-speed`. Its
 background is transparent. Groups are named for animation: `data-part` is `head`,
 `ears`, `antenna`, `eyes`, `mouth`, `details` or `sleep`, and the lighting layers
 carry `data-layer` (`shadow`, `shell`, `specular`, `rim`, `screen`, `sheen`,
@@ -91,6 +94,43 @@ blocked or corrupted storage gives the default look, and a save that storage ref
 returns `false`. `subscribe(advisorId, listener)` notifies on save and reset (and on
 a save in another tab), and `useAppearance(advisorId)` builds on
 `useSyncExternalStore`, so every mounted robot for an advisor updates together.
+
+## States and animation
+
+`states.ts` maps a run and the events the app has received to a state with
+`stateFromRun(run, events, { serverReachable })`, a pure function:
+
+| Condition | State |
+|---|---|
+| The server is unreachable | `sleeping` |
+| No run, or a finished run older than 8 s | `idle` |
+| `queued` or `verifying`, or `running` with no tool call yet in this turn | `thinking` |
+| The latest call is an `fo` command or a Read, Grep or Glob | `reading` |
+| The latest call is `fo report write`, or a Write or Edit under `reports/` | `writing` |
+| A top-level `delta` arrived within the last 1.5 s | `speaking` |
+| `completed` | `done` |
+| `failed` | `error` |
+| `cancelled`, `partial` or `awaiting_input` | `idle` |
+
+A turn starts at the latest `user` event, and a `status` event in the stream wins over
+the run record. `useAvatarState` wraps the function and re-renders when a window closes.
+`useSpeakingLevel(events)` turns each new delta into an amplitude (longer deltas raise it
+higher) that decays to zero over 300 ms on animation frames; it stays 0 under reduced
+motion. `useReducedMotion()` reads the media query.
+
+`animations.css`, imported by `Robot.tsx`, holds the keyframes. A live robot gets the
+classes `fo-avatar-live` and `fo-avatar-<state>` (and `fo-avatar-paused` at speed 0),
+and every rule sits inside `@media (prefers-reduced-motion: no-preference)`. Animations
+move the `data-part` groups with the individual `translate`, `rotate` and `scale`
+properties, so they compose with each other and with the groups' SVG transforms; every
+duration is divided by `--fo-avatar-rate`. Idle blinks every 3 to 5 s and looks around
+every 4 to 7 s, tilting the head 2 degrees, with a gentle bob; each instance's periods and
+delays come from its id, so robots on one page blink out of step. Thinking drifts the eyes
+up and right and pulses the three dots; reading sweeps a scan line (`data-anim="scan"`,
+invisible when static) down the screen; writing fills the progress bar
+(`data-anim="fill"`) and starts over; speaking scales the mouth by `--fo-avatar-level`
+and jitters its bars; done bounces once; error shakes once into its tilted pose; sleeping
+breathes and drifts its z's.
 
 ## Rendering
 

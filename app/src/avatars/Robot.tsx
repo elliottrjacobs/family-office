@@ -26,7 +26,10 @@ import {
   SLEEP_Z,
 } from "@/avatars/parts"
 import { boxOf, SHAPES } from "@/avatars/shapes"
+import { useReducedMotion } from "@/avatars/states"
 import { useAppearance } from "@/avatars/store"
+
+import "./animations.css"
 
 /** At or below this pixel size the robot drops blur filters and the screen sheen. */
 export const COMPACT_SIZE = 40
@@ -55,13 +58,42 @@ export type RobotProps = {
   /** A look to show instead of the advisor's stored one (used by the customize preview). */
   appearance?: Appearance
   state?: RobotState
-  /** Whether the robot may animate (U19); this unit renders the state's static pose. */
+  /** Whether the robot animates. Static robots, and every robot under reduced motion, show the pose only. */
   live?: boolean
+  /** Animation speed multiplier, 0 to 2; defaults to the appearance's speed. 0 pauses. */
+  speed?: number
+  /** Speaking amplitude, 0 to 1, from `useSpeakingLevel`. */
+  level?: number
   className?: string
 }
 
-export function Robot({ advisor, size = 64, appearance, state = "idle", live = false, className }: RobotProps) {
+/** Lowest rate the CSS divides durations by; speed 0 pauses instead. */
+export const MIN_RATE = 0.05
+
+/** Deterministic per-instance timing in [0, 1) from the instance id, so robots blink out of step. */
+function seeded(id: string, salt: number): number {
+  let hash = 2166136261 ^ salt
+  for (let i = 0; i < id.length; i++) {
+    hash ^= id.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return ((hash >>> 0) % 10007) / 10007
+}
+
+const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value))
+
+export function Robot({
+  advisor,
+  size = 64,
+  appearance,
+  state = "idle",
+  live = false,
+  speed,
+  level = 0,
+  className,
+}: RobotProps) {
   const stored = useAppearance(advisor)
+  const reduced = useReducedMotion()
   const look = appearance ?? stored
   const id = `fo-av-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`
   const compact = size <= COMPACT_SIZE
@@ -82,7 +114,28 @@ export function Robot({ advisor, size = 64, appearance, state = "idle", live = f
   const screenBox = boxOf(def.screen)
   const glintY = screenBox.y - LIGHT.glint.above
   const [tiltX, tiltY] = LIGHT.tiltOrigin
-  const style = { "--fo-avatar-speed": look.speed } as CSSProperties
+  const rate = clamp(speed ?? look.speed, 0, 2)
+  const animated = live && !reduced
+  const style = { "--fo-avatar-speed": rate } as Record<string, number | string>
+  if (animated) {
+    const blink = 3 + seeded(id, 1) * 2
+    const lookPeriod = 4 + seeded(id, 2) * 3
+    Object.assign(style, {
+      "--fo-avatar-rate": Math.max(rate, MIN_RATE),
+      "--fo-avatar-level": clamp(Number.isFinite(level) ? level : 0, 0, 1),
+      "--fo-blink-period": `${blink.toFixed(2)}s`,
+      "--fo-blink-delay": `${(-seeded(id, 3) * blink).toFixed(2)}s`,
+      "--fo-look-period": `${lookPeriod.toFixed(2)}s`,
+      "--fo-look-delay": `${(-seeded(id, 4) * lookPeriod).toFixed(2)}s`,
+    })
+  }
+  const classes = [
+    animated ? `fo-avatar-live fo-avatar-${state}` : null,
+    animated && rate === 0 ? "fo-avatar-paused" : null,
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ")
 
   return (
     <svg
@@ -91,11 +144,11 @@ export function Robot({ advisor, size = 64, appearance, state = "idle", live = f
       height={size}
       role="img"
       aria-label={`${ADVISORS[advisor].name} ${state}`}
-      className={className}
-      style={style}
+      className={classes || undefined}
+      style={style as CSSProperties}
       data-advisor={advisor}
       data-state={state}
-      data-live={live ? "true" : "false"}
+      data-live={animated ? "true" : "false"}
       data-finish={look.finish}
     >
       <defs>
