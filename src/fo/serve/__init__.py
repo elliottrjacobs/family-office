@@ -49,6 +49,7 @@ def prepare(office=None, port=None, host=None, remote=False, read_only=False, ap
     # Imported here so the run guard hook, also in this package, starts quickly.
     from fo.serve.auth import Access
     from fo.serve.runner_claude import DEEP, ClaudeRunner
+    from fo.serve.runner_codex import CodexRunner
     from fo.serve.runs import RunManager
     from fo.serve.server import App, Locator, make_server
 
@@ -81,7 +82,11 @@ def prepare(office=None, port=None, host=None, remote=False, read_only=False, ap
         allowed_logins=list(config.get("allowed_logins", [])),
     )
     # Engines by name; another engine is one more entry here.
-    runs = None if read_only else RunManager({"claude": ClaudeRunner()}, deep=DEEP)
+    runs = (
+        None
+        if read_only
+        else RunManager({"claude": ClaudeRunner(), "codex": CodexRunner()}, deep=DEEP)
+    )
     app = App(locator, access, read_only, runs=runs)
     try:
         server = make_server(app, bind, port)

@@ -42,6 +42,7 @@ only-include = ["src/fo", "skills", "agents", "README.md", "SECURITY.md", "LICEN
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["gate: runs the real Codex against a synthetic office; needs FO_CODEX_GATE=1"]
 
 [tool.ruff]
 target-version = "py312"
