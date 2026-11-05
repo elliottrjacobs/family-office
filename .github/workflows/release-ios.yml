@@ -1,0 +1,127 @@
+# Archives the iPhone app (scheme FamilyOfficePhone) and uploads it to TestFlight.
+#
+# Without the signing secrets this workflow only builds the app for the simulator, so forks and
+# tags cut before the Apple credentials exist still get a green build. Secrets, all required for
+# signing and upload (base64 for the three files):
+#   IOS_CERT_P12              Apple Distribution certificate and private key (.p12), base64
+#   IOS_CERT_PASSWORD         password of that .p12
+#   IOS_PROVISIONING_PROFILE  App Store provisioning profile for com.familyoffice.phone, base64
+#   ASC_KEY_ID                App Store Connect API key id
+#   ASC_ISSUER_ID             App Store Connect issuer id
+#   ASC_KEY_P8                the API key (AuthKey_<id>.p8) contents, base64
+# Upload uses `xcrun altool --upload-app` with the API key, so no third-party action receives
+# the credentials. The Mac app is released by release-mac.yml.
+name: Release iOS
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: release-ios-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    env:
+      IOS_CERT_P12: ${{ secrets.IOS_CERT_P12 }}
+      IOS_CERT_PASSWORD: ${{ secrets.IOS_CERT_PASSWORD }}
+      IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate the Xcode project
+        working-directory: apple
+        run: xcodegen generate
+      - name: Check for signing secrets
+        id: gate
+        run: |
+          missing=""
+          for name in IOS_CERT_P12 IOS_CERT_PASSWORD IOS_PROVISIONING_PROFILE ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8; do
+            if [ -z "${!name}" ]; then missing="$missing $name"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=TestFlight upload skipped::Missing secrets:$missing. Building for the simulator only."
+          else
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Without secrets: prove the app still builds.
+      - name: Build for the simulator
+        if: steps.gate.outputs.signed != 'true'
+        run: >-
+          xcodebuild -project apple/FamilyOffice.xcodeproj -scheme FamilyOfficePhone
+          -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+
+      # With secrets: sign, archive, export and upload.
+      - name: Import the certificate and provisioning profile
+        if: steps.gate.outputs.signed == 'true'
+        run: |
+          keychain="$RUNNER_TEMP/release.keychain-db"
+          keychain_password="$(uuidgen)"
+          echo "::add-mask::$keychain_password"
+          echo "$IOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          echo "$IOS_PROVISIONING_PROFILE" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$RUNNER_TEMP/cert.p12" -P "$IOS_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          security set-key-partition-list -S apple-tool:,apple: -k "$keychain_password" "$keychain"
+          security list-keychains -d user -s "$keychain" login.keychain-db
+          security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
+          uuid="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")"
+          {
+            echo "PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")"
+            echo "TEAM_ID=$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$RUNNER_TEMP/profile.plist")"
+          } >> "$GITHUB_ENV"
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$uuid.mobileprovision"
+      - name: Archive
+        if: steps.gate.outputs.signed == 'true'
+        run: >-
+          xcodebuild archive -project apple/FamilyOffice.xcodeproj -scheme FamilyOfficePhone
+          -configuration Release -destination 'generic/platform=iOS'
+          -archivePath "$RUNNER_TEMP/FamilyOfficePhone.xcarchive"
+          CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="$TEAM_ID"
+          CODE_SIGN_IDENTITY="Apple Distribution" PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME"
+          CURRENT_PROJECT_VERSION="${{ github.run_number }}"
+      - name: Export for App Store Connect
+        if: steps.gate.outputs.signed == 'true'
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>export</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>provisioningProfiles</key>
+            <dict><key>com.familyoffice.phone</key><string>$PROFILE_NAME</string></dict>
+            <key>uploadSymbols</key><true/>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/FamilyOfficePhone.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export"
+      - name: Upload to TestFlight
+        if: steps.gate.outputs.signed == 'true'
+        run: |
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          echo "$ASC_KEY_P8" | base64 --decode > "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          xcrun altool --upload-app --type ios --file "$RUNNER_TEMP/export/FamilyOfficePhone.ipa" \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+      - name: Clean up signing material
+        if: always() && steps.gate.outputs.signed == 'true'
+        run: |
+          security delete-keychain "$RUNNER_TEMP/release.keychain-db" || true
+          rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/profile.mobileprovision" \
+            "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
