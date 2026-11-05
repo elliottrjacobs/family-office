@@ -164,6 +164,30 @@ run_timeout_minutes = 30
 keep_runs = 50             # run logs kept under cache/serve/runs/
 ```
 
+Each run goes to an engine. Claude Code is the engine this version runs; the
+launch panel lists the engines `fo serve` can run, with one that is missing,
+outdated, or turned off shown disabled and the reason beside it. Model and effort are
+chosen per run: the panel offers a curated list of model ids for the engine
+(shipped in the package, so it can change in a patch release), an Other field
+for any id the engine accepts, and an effort of low, medium, or high. A model
+fo does not list is passed through as is; an id the engine rejects fails the
+run with the engine's message. The panel starts from the office's defaults and
+remembers your last choice per advisor for the browser session, and the run
+view names the engine and model it used. The defaults live in `office.toml`,
+set through `fo config set` (below), and a change shows on the next request
+without restarting `fo serve`:
+
+```toml
+[serve.engines]
+default = "claude"         # the engine a run uses when the launch names none
+
+[serve.engines.claude]
+model = "claude-fable-5-1"  # the curated recommendation when unset
+effort = "high"            # low, medium, or high
+max_budget_usd = 2.0       # per run on this engine; [serve] max_budget_usd when unset
+enabled = true             # false turns the engine off for chat
+```
+
 A run that recorded decisions but stopped before its report verified shows as
 partial; Resume continues the same report. Stopping `fo serve` stops a run in
 progress and keeps what it recorded. Onboarding stays an interview in the
