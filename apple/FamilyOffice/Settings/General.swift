@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Settings > General: office folder, launch at login, keep awake, and the command line tool.
+/// Settings > General: office folder, launch at login, keep awake, the command line tool and updates.
 struct GeneralSettings: View {
     @Environment(AppState.self) private var state
 
@@ -11,6 +11,7 @@ struct GeneralSettings: View {
             PhoneAccessSection()
             powerSection
             commandLineSection
+            updatesSection
         }
         .formStyle(.grouped)
         .onAppear {
@@ -119,6 +120,27 @@ struct GeneralSettings: View {
             )
             .font(.caption)
             .foregroundStyle(power.failure == nil ? Color.secondary : Color.orange)
+        }
+    }
+
+    private var updatesSection: some View {
+        let updater = state.updater
+        return Section("Updates") {
+            Toggle(
+                "Check for updates automatically",
+                isOn: Binding(
+                    get: { updater.automaticallyChecks },
+                    set: { updater.setAutomaticallyChecks($0) })
+            )
+            .disabled(!updater.configured)
+            HStack {
+                Text(updater.statusText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Check Now") { updater.checkForUpdates() }
+                    .disabled(!updater.configured || !updater.canCheckForUpdates)
+            }
         }
     }
 

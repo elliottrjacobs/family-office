@@ -23,6 +23,11 @@ packages:
   SwiftTerm:
     url: https://github.com/migueldeicaza/SwiftTerm
     exactVersion: 1.10.1
+  # In-app updates from GitHub Releases (R5): the Check for Updates menu item, scheduled checks,
+  # and EdDSA verification of each download against SUPublicEDKey. MIT; pinned to an exact release.
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: 2.10.1
 targets:
   FamilyOffice:
     type: application
@@ -37,6 +42,8 @@ targets:
         product: FOKit
       - package: SwiftTerm
         product: SwiftTerm
+      - package: Sparkle
+        product: Sparkle
     info:
       path: FamilyOffice/Info.plist
       properties:
@@ -53,6 +60,14 @@ targets:
         # The web view talks to fo serve over plain HTTP on 127.0.0.1 only.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+        # Sparkle: the appcast attached to the latest GitHub Release, checked daily by default.
+        SUFeedURL: https://github.com/elliottrjacobs/family-office/releases/latest/download/appcast.xml
+        SUEnableAutomaticChecks: true
+        # PLACEHOLDER. Paste the real EdDSA public key here once the release keypair exists: run
+        # Sparkle's generate_keys once, keep the private key only as the CI secret
+        # SPARKLE_PRIVATE_KEY, never in the repo (RELEASING.md, one-time setup). While this value is
+        # the placeholder the app does not start the updater (App/Updater.swift).
+        SUPublicEDKey: SPARKLE_PUBLIC_ED_KEY_PLACEHOLDER
     settings:
       base:
         PRODUCT_NAME: FamilyOffice
