@@ -146,6 +146,30 @@ mechanical investment verdict. Library thresholds are editable through private
 income divided by net working capital plus net fixed assets; it is not a generic
 company-reported ROIC or a complete ranked Magic Formula portfolio.
 
+## Mac app
+
+The Family Office Mac app wraps everything below in one window: the dashboard, the
+advisors, and a terminal for `fo`, with no Python or Node to install. Download the
+latest `.dmg` from the GitHub Releases page, drag the app to Applications, and open
+it. A setup dialog walks you through choosing or creating your office folder, picking
+an engine, and connecting accounts; credentials and provider consent stay in the
+terminal pane. New versions arrive as new signed releases.
+
+It needs macOS 14 or later, and Claude Code or Codex installed and signed in
+(Codex ships disabled until you turn it on in Settings). Advisor runs go through
+your own account with that tool and are billed there; the app has no account or
+subscription of its own.
+
+Your office stays on the Mac, and nothing phones home: no telemetry and no analytics.
+The iPhone app reaches the Mac only over your own tailnet, after a one-time pairing
+with a code shown in the Mac app's Settings > Devices; see
+[Reach it from your phone](#reach-it-from-your-phone). To build the apps from
+source, see [docs/development/apple.md](docs/development/apple.md).
+
+Each advisor's robot avatar can be customized (color, shape, trim, finish and more)
+from the advisor's page, and the playground at `/playground/robots` shows every
+combination.
+
 ## Companion app (optional)
 
 `fo serve` opens a dashboard for your office in a browser on the same machine:
