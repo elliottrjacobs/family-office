@@ -35,7 +35,7 @@ const RAINBOW =
   "conic-gradient(from 180deg, #E5484D, #F07A2B, #E3A21A, #7C9A2E, #1F9D63, #0EA5B7, #2E9CEB, #6457F0, #A94FD6, #E84593, #E5484D)"
 
 /** The ring on a selected swatch: a gap in the page colour, then the foreground. */
-export const SELECTED_RING = "outline-2 outline-offset-2 outline-foreground"
+export const SELECTED_RING = "outline-2 outline-offset-2 outline-solid outline-foreground"
 
 export function SwatchRow({
   value,
@@ -75,7 +75,8 @@ export function SwatchRow({
     refs.current[index]?.focus()
   }
 
-  const dimension = size === "lg" ? "size-9" : "size-6"
+  // On the phone the swatches share the width in rows of eight, up to 40 px each.
+  const dimension = size === "lg" ? "aspect-square w-full max-w-10 justify-self-center" : "size-6"
   const swatch = (index: number, name: string, background: string) => {
     const checked = index === selected
     return (
@@ -113,7 +114,7 @@ export function SwatchRow({
       <div
         role="radiogroup"
         aria-label={label}
-        className={cn("flex flex-wrap", size === "lg" ? "gap-x-3 gap-y-3" : "gap-x-2.5 gap-y-2.5")}
+        className={cn(size === "lg" ? "grid grid-cols-8 gap-2.5" : "flex flex-wrap gap-2")}
       >
         {SWATCHES.map((s, index) => swatch(index, s.name, s.hex))}
         {swatch(SWATCHES.length, "Custom color", RAINBOW)}

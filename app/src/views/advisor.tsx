@@ -9,6 +9,7 @@ import { advisorIdFor } from "@/avatars/appearance"
 import { LiveAdvisorAvatar, publishRun } from "@/components/advisor-avatar"
 import { AdvisorInspector, useInspectorShown } from "@/components/advisor-inspector"
 import { AdvisorIcon, advisorName, GROUP_LABELS } from "@/components/advisor-icon"
+import { AppearanceSheet } from "@/components/appearance-sheet"
 import { CommandLine } from "@/components/command-line"
 import { RecordDecision } from "@/components/decision-actions"
 import { LaunchPanel } from "@/components/launch-panel"
@@ -241,7 +242,14 @@ export function AdvisorPage({ name }: { name: string }) {
   return (
     <Page className={inspector ? "max-w-6xl" : undefined}>
       <div className="mb-6 flex items-start gap-3">
-        {robot ? (
+        {robot && mobile ? (
+          <AppearanceSheet
+            advisorId={robot}
+            className="rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <LiveAdvisorAvatar advisor={robot} size={48} label />
+          </AppearanceSheet>
+        ) : robot ? (
           <LiveAdvisorAvatar advisor={robot} size={48} label />
         ) : (
           <AdvisorIcon name={advisor.name} group={advisor.group} className="size-10 [&_svg]:size-5" />

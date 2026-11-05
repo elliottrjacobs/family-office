@@ -102,7 +102,7 @@ export function AppearancePreview({
         className
       )}
       style={{
-        background: `radial-gradient(ellipse at 50% 40%, color-mix(in oklch, ${look.shell} 16%, var(--card)), color-mix(in oklch, ${look.shell} 6%, var(--muted)))`,
+        background: `radial-gradient(ellipse at 50% 40%, color-mix(in oklab, ${look.shell} 16%, var(--card)), color-mix(in oklab, ${look.shell} 7%, var(--muted)))`,
       }}
       data-preview
     >
@@ -190,7 +190,7 @@ function Pills<T extends string>({
             >
               {option.dot && (
                 <span
-                  className="size-2.5 shrink-0 rounded-full shadow-[inset_0_0_0_1px_rgb(0_0_0/0.12)]"
+                  className="size-2.5 shrink-0 rounded-full ring-1 ring-black/15 ring-inset dark:ring-white/20"
                   style={{ background: option.dot }}
                   aria-hidden
                 />
