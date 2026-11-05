@@ -22,6 +22,11 @@ packages:
   SwiftTerm:
     url: https://github.com/migueldeicaza/SwiftTerm
     exactVersion: 1.10.1
+  # In-app updates from GitHub Releases (R5): the Check for Updates menu item, scheduled checks,
+  # and EdDSA verification of each download against SUPublicEDKey. MIT; pinned to an exact release.
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: 2.10.1
 targets:
   FamilyOffice:
     type: application
@@ -36,6 +41,8 @@ targets:
         product: FOKit
       - package: SwiftTerm
         product: SwiftTerm
+      - package: Sparkle
+        product: Sparkle
     info:
       path: FamilyOffice/Info.plist
       properties:
