@@ -100,6 +100,7 @@ def main():
     if pinned:
         # A resume names the report it continues; the skill and subject follow from it.
         skill, subject = pinned.split("/")[1:3]
+    offered = flags[flags.index("--tools") + 1].split(",") if "--tools" in flags else None
     state = {"report": None, "meta": None, "decisions": [], "text": "", "count": 0}
     for raw in script.read_text().splitlines():
         line = json.loads(raw)
@@ -115,7 +116,8 @@ def main():
                     "session_id": session,
                     "cwd": "/office",
                     "model": "fake-model",
-                    "tools": line.get("tools", TOOLS),
+                    # Like Claude Code, report the tools --tools offered.
+                    "tools": line.get("tools", offered or TOOLS),
                     "mcp_servers": line.get("mcp_servers", []),
                     "permissionMode": line.get("mode", "dontAsk"),
                     "slash_commands": line.get("slash_commands", SKILLS),

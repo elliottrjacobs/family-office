@@ -591,8 +591,6 @@ def test_profile_covers_office_settings_and_restricted_commands(tmp_path):
         "Read(medical/**)",
         "Read(.git/**)",
         "Read(store.sqlite*)",
-        "WebFetch",
-        "WebSearch",
         "Bash(curl *)",
         "Bash(wget *)",
         "Bash(python *)",
@@ -602,6 +600,8 @@ def test_profile_covers_office_settings_and_restricted_commands(tmp_path):
         "Bash(git push *)",
     ]
     assert set(required) <= set(rules["deny"])
+    # The web tools are decided per launch by context level, not by the static profile.
+    assert not {"WebFetch", "WebSearch"} & set(rules["deny"] + rules["allow"])
     assert all(
         rule.startswith(("Bash(fo ", "Read(./", "Edit(./reports/", "Write(./reports/"))
         for rule in rules["allow"]

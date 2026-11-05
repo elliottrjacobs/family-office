@@ -2,11 +2,13 @@
 
 Every run loads only the office's own project settings plus a run profile passed with
 --settings: no user settings, no MCP server (an empty strict config), only the Bash,
-Read, Write, Edit, and Task tools, and permission prompts answered "deny". The profile
+Read, Write, Edit, and Task tools, and permission prompts answered "deny". A run at
+context level none, which reads no household data, also gets WebSearch and WebFetch; at
+every other level both stay disallowed. The profile
 carries the fo.serve.guard PreToolUse hook, which confines each tool call to fo
 commands, reads inside the office, and writes under reports/. The environment is
 scrubbed to what login needs, with FO_SERVE_RUN set so fo refuses other offices and
-restricted commands. The prompt goes on stdin, never on the command line.
+restricted commands, and with the run's folder, web policy, and fetch cap for the hook. The prompt goes on stdin, never on the command line.
 
 Verified against Claude Code 2.1.283 on a synthetic office (2026-10-15): project skills
 and worker agents load with --setting-sources project; --restricted would confine file
@@ -29,7 +31,7 @@ from pathlib import Path
 
 from fo.errors import OfficeError
 from fo.office import RUN_MARKER
-from fo.serve.runner import OUTPUT_LIMIT, profile
+from fo.serve.runner import FETCH_CAP, OUTPUT_LIMIT, RUN_FOLDER, WEB_FLAG, profile
 
 MINIMUM = (2, 1, 283)
 # Every flag here is part of the isolation; a version that lacks one may not run.
@@ -55,6 +57,8 @@ MODE = "dontAsk"
 # A --deep research run on a synthetic office completed with all five workers confined.
 DEEP = True
 TOOLS = ("Bash", "Read", "Write", "Edit", "Task")
+# Offered only to runs at context level none; the guard hook checks every call.
+WEB = ("WebSearch", "WebFetch")
 DISALLOWED = ("WebFetch", "WebSearch", "NotebookEdit")
 # Login needs these; nothing else from the server's environment reaches the run.
 PASSED = (
@@ -71,6 +75,10 @@ PASSED = (
     "NO_PROXY",
     "NODE_EXTRA_CA_CERTS",
 )
+
+
+def tools(web):
+    return (*TOOLS, *WEB) if web else TOOLS
 
 
 def version(text):
@@ -121,12 +129,12 @@ class ClaudeRunner:
             )
         return {"runner": self.name, "version": ".".join(map(str, found))}
 
-    def check(self, init, skill):
+    def check(self, init, skill, web=False):
         """Why the started session is not isolated as launched, or None when it is."""
         problems = []
         if init["mcp_servers"]:
             problems.append("MCP servers were loaded")
-        extra = sorted(set(init["tools"]) - set(TOOLS))
+        extra = sorted(set(init["tools"]) - set(tools(web)))
         if extra:
             problems.append("unexpected tools " + ", ".join(extra))
         if init["permission_mode"] != MODE:
@@ -137,13 +145,15 @@ class ClaudeRunner:
             ("The run did not start isolated: " + "; ".join(problems) + ".") if problems else None
         )
 
-    def settings(self, office):
+    def settings(self, office, web=False):
         """The run profile plus the guard hook, as the JSON --settings takes."""
         hook = shlex.join([self.python, "-I", "-m", "fo.serve.guard", str(office)])
         rules = profile()
+        # dontAsk refuses a tool no rule allows; the hook still checks every web call.
+        allow = [*rules["allow"], *(WEB if web else ())]
         return json.dumps(
             {
-                "permissions": {"allow": rules["allow"], "deny": rules["deny"]},
+                "permissions": {"allow": allow, "deny": rules["deny"]},
                 "hooks": {
                     "PreToolUse": [
                         {"matcher": "*", "hooks": [{"type": "command", "command": hook}]}
@@ -152,7 +162,9 @@ class ClaudeRunner:
             }
         )
 
-    def command(self, office, settings, budget, session=None, model=None, effort=None):
+    def command(
+        self, office, settings, budget, session=None, model=None, effort=None, *, web=False
+    ):
         argv = [
             *self.executable,
             "--print",
@@ -170,9 +182,9 @@ class ClaudeRunner:
             "--mcp-config",
             '{"mcpServers":{}}',
             "--tools",
-            ",".join(TOOLS),
+            ",".join(tools(web)),
             "--disallowedTools",
-            ",".join(DISALLOWED),
+            ",".join(name for name in DISALLOWED if not (web and name in WEB)),
             "--settings",
             settings,
             "--max-budget-usd",
@@ -186,7 +198,8 @@ class ClaudeRunner:
             argv += ["--resume", session]
         return argv
 
-    def environment(self, office):
+    def environment(self, office, folder=None, web=False, web_fetch_cap=0):
+        """The scrubbed environment; folder, web, and the cap are read by the guard hook."""
         env = {key: os.environ[key] for key in PASSED if key in os.environ}
         # fo resolves to this server's own interpreter, so a run cannot reach another version.
         paths = [str(Path(self.python).parent)]
@@ -194,6 +207,10 @@ class ClaudeRunner:
             paths.append(str(Path(self.executable[0]).parent))
         env["PATH"] = os.pathsep.join([*dict.fromkeys(paths), "/usr/bin", "/bin"])
         env["FO_OFFICE"] = env[RUN_MARKER] = str(office)
+        if folder is not None:
+            env[RUN_FOLDER] = str(folder)
+        env[WEB_FLAG] = "1" if web else "0"
+        env[FETCH_CAP] = str(int(web_fetch_cap))
         return env
 
     def parse(self, line, office):
@@ -289,6 +306,10 @@ def tool(block, office, nested):
         event["label"] = f"{name} {event['path']}"
     elif name in ("Task", "Agent"):
         event["label"] = arguments.get("description") or arguments.get("subagent_type") or name
+    elif name == "WebFetch":
+        event["label"] = f"Fetch {str(arguments.get('url', ''))[:160]}"
+    elif name == "WebSearch":
+        event["label"] = f"Search {str(arguments.get('query', ''))[:160]}"
     else:
         event["label"] = name
     return event

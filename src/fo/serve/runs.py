@@ -13,6 +13,10 @@ resumes on its original report path.
 Runs go to an engine: a runner registered by name. Each engine's defaults (model,
 effort, budget, enabled) come from [serve.engines.<name>] in office.toml, and
 [serve.engines] default names the engine a launch uses when it names none.
+
+Web access follows the context level: a run at level none, which reads no household
+data, may search and fetch; every launch and resume derives `web` from the level and
+the record keeps it.
 """
 
 import json
@@ -114,6 +118,11 @@ def engine_settings(root):
             "enabled": enabled,
         }
     return {"default": default, "engines": engines}
+
+
+def web_allowed(level):
+    """Web search and fetch are on only at context level none."""
+    return level == "none"
 
 
 def start_time(pid):
@@ -325,6 +334,7 @@ class RunManager:
                     "skill": skill,
                     "subject": subject,
                     "level": level,
+                    "web": web_allowed(level),
                     "deep": deep,
                     "status": "queued",
                     "runner": name,
@@ -432,14 +442,17 @@ class RunManager:
 
     def run(self, root, record, prompt, session, config):
         runner = self.runners.get(record.get("engine") or record.get("runner"))
+        # Derived again on every launch and resume; a stored flag never widens a run.
+        web = record["web"] = web_allowed(record["level"])
         try:
             argv = runner.command(
                 root,
-                runner.settings(root),
+                runner.settings(root, web=web),
                 config["max_budget_usd"],
                 session,
                 record.get("model"),
                 record.get("effort"),
+                web=web,
             )
             process = subprocess.Popen(
                 argv,
@@ -481,8 +494,8 @@ class RunManager:
                     if kind == "init":
                         record["session_id"] = event.get("session_id") or record["session_id"]
                         record["reported_model"] = event.get("model")
-                        problem = runner.check(event, record["skill"])
-                        event = {k: event[k] for k in ("kind", "session_id", "model")}
+                        problem = runner.check(event, record["skill"], web=web)
+                        event = {k: event[k] for k in ("kind", "session_id", "model", "tools")}
                         if problem and error is None:
                             error = ("runner_isolation", problem)
                             stop(process.pid, self.grace)
