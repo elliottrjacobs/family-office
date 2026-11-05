@@ -10,12 +10,15 @@ public enum WaitStatus {
     }
 }
 
-/// The only `fo` commands the embedded terminal runs (plan R30): `setup`, `auth <provider>`,
-/// `sync` and `doctor`. Anything else is refused here, before a process exists, and the
+/// The only `fo` commands the embedded terminal runs (plan R30): `setup` (optionally
+/// `--offline`), `auth <provider>`, `sync` and `doctor`. Anything else is refused here, before a process exists, and the
 /// terminal never starts a shell.
 public enum TerminalCommand: Sendable, Equatable, Identifiable {
     /// `fo --office PATH setup PATH [--provider P]`: creates the office and connects accounts.
     case setup(provider: String?)
+    /// `fo --office PATH setup PATH --offline`: creates the office with no accounts connected,
+    /// for the setup dialog, which connects them in a later step.
+    case setupOffline
     /// `fo --office PATH auth PROVIDER`: the CLI's hidden prompts and, for Schwab, the
     /// browser consent page.
     case auth(String)
@@ -33,6 +36,8 @@ public enum TerminalCommand: Sendable, Equatable, Identifiable {
         switch words {
         case ["setup"]:
             self = .setup(provider: nil)
+        case ["setup", "--offline"]:
+            self = .setupOffline
         case let w where w.count == 3 && w[0] == "setup" && w[1] == "--provider"
             && Self.authProviders.contains(w[2]):
             self = .setup(provider: w[2])
@@ -52,6 +57,7 @@ public enum TerminalCommand: Sendable, Equatable, Identifiable {
         switch self {
         case .setup(let provider?): return ["setup", "--provider", provider]
         case .setup(nil): return ["setup"]
+        case .setupOffline: return ["setup", "--offline"]
         case .auth(let provider): return ["auth", provider]
         case .sync: return ["sync"]
         case .doctor: return ["doctor"]
@@ -69,6 +75,8 @@ public enum TerminalCommand: Sendable, Equatable, Identifiable {
             var arguments = ["--office", office, "setup", office]
             if let provider { arguments += ["--provider", provider] }
             return arguments
+        case .setupOffline:
+            return ["--office", office, "setup", office, "--offline"]
         default:
             return ["--office", office] + words
         }
@@ -77,6 +85,7 @@ public enum TerminalCommand: Sendable, Equatable, Identifiable {
     public var title: String {
         switch self {
         case .setup: return "Set up the office"
+        case .setupOffline: return "Create the office"
         case .auth(let provider): return "Connect \(provider == "schwab" ? "Schwab" : provider == "simplefin" ? "SimpleFIN" : provider)"
         case .sync: return "Sync accounts"
         case .doctor: return "Check the office"
@@ -99,6 +108,8 @@ public enum TerminalCommand: Sendable, Equatable, Identifiable {
             return "fo auth \(provider) asks for its credentials; typing stays hidden."
         case .setup:
             return "fo setup creates the office and asks for each account's credentials."
+        case .setupOffline:
+            return "fo setup --offline creates the office folder with no accounts connected yet."
         case .sync:
             return "fo sync refreshes every connected account."
         case .doctor:

@@ -29,7 +29,8 @@ final class AppState {
     /// Bumped for every new handshake and every manual reload; the web view reloads on change.
     private(set) var pageGeneration = 0
     private(set) var officePath: String?
-    var showOfficeSheet = false
+    /// The setup dialog on screen, if any.
+    var setup: SetupModel?
     /// Runs the server with `--remote` on the configured port, for `tailscale serve`.
     private(set) var phoneAccess: Bool
 
@@ -112,12 +113,31 @@ final class AppState {
         Task {
             // The server should run the CLIs the app finds, so look before the first start.
             await detectEngines(restart: false)
-            if officePath == nil {
-                showOfficeSheet = true
-            } else {
+            openSetup(manual: false)
+            if officePath != nil {
                 startServer()
             }
         }
+    }
+
+    /// Opens the setup dialog: at launch only when `SetupVersion` says steps are due, from
+    /// Help > Set Up Family Office… always. A stored office with `office.toml` is the
+    /// existing profile, which starts at the engine step.
+    func openSetup(manual: Bool) {
+        guard setup == nil else { return }
+        let profile = SetupProfile.detect(officePath: officePath) { FileManager.default.fileExists(atPath: $0) }
+        let steps = SetupFlow.steps(
+            profile: profile, stored: SetupVersion.stored, current: SetupVersion.current, manual: manual,
+            newSince: SetupVersion.newSince)
+        guard !steps.isEmpty else {
+            setupLog.info("setup: not shown; version \(SetupVersion.current, privacy: .public) is finished")
+            return
+        }
+        setup = SetupModel(flow: SetupFlow(steps: steps, profile: profile), manual: manual)
+    }
+
+    func closeSetup() {
+        setup = nil
     }
 
     /// Finds `claude` and `codex` the way Settings > Engines does and names them in the
@@ -191,7 +211,7 @@ final class AppState {
         pageGeneration += 1
     }
 
-    /// Placeholder office chooser until the setup dialog unit replaces it.
+    /// File > Choose Office Folder…: switch to another folder without the setup dialog.
     func chooseOffice() {
         let panel = NSOpenPanel()
         panel.title = "Choose the office folder"
@@ -212,7 +232,6 @@ final class AppState {
         } else {
             defaults.removeObject(forKey: Self.officePathKey)
         }
-        showOfficeSheet = false
         if server.isRunning {
             restartServer()
         } else {

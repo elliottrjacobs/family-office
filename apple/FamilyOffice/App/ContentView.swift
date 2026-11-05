@@ -26,8 +26,9 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: state.banner)
-        .sheet(isPresented: $state.showOfficeSheet) {
-            OfficeSheet()
+        .sheet(item: $state.setup) { model in
+            SetupDialog(model: model)
+                .interactiveDismissDisabled()
         }
         #if DEBUG
         // Development walkthroughs: `-openSettingsOnLaunch YES`, optionally with
@@ -66,34 +67,5 @@ private struct BannerView: View {
         .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.separator))
         .shadow(radius: 4, y: 2)
         .accessibilityElement(children: .combine)
-    }
-}
-
-/// First-launch placeholder: asks for the office folder. The setup dialog unit replaces it.
-private struct OfficeSheet: View {
-    @Environment(AppState.self) private var state
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Choose your office folder")
-                .font(.title2.weight(.semibold))
-            Text(
-                "Family Office keeps everything in one folder on this Mac. Choose an existing "
-                    + "office, or create an empty folder and set it up from the dashboard."
-            )
-            .fixedSize(horizontal: false, vertical: true)
-            HStack {
-                Button("Not Now") {
-                    state.setOffice(nil)
-                }
-                Spacer()
-                Button("Choose Folder…") {
-                    state.chooseOffice()
-                }
-                .keyboardShortcut(.defaultAction)
-            }
-        }
-        .padding(24)
-        .frame(width: 440)
     }
 }

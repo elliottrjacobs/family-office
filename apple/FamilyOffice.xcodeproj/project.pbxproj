@@ -7,19 +7,25 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0517375A2DFB328A89E1B38F /* SetupVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 752AA5EBBA439628E264F451 /* SetupVersion.swift */; };
 		0DF7F3EB82E89DA4FD2E6F46 /* FamilyOfficeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2032A6EDA81D65E9BD20C53 /* FamilyOfficeApp.swift */; };
 		150DA21D7E1A8E7E77F120BC /* MenuBarContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0904B005B7B3E86F909B3F98 /* MenuBarContent.swift */; };
 		154C15F10AF51AD9414599D0 /* FOKit in Frameworks */ = {isa = PBXBuildFile; productRef = DF481BCC8A9E78BF50EE3A43 /* FOKit */; };
 		1A3FA6FCF443B6C825160E4B /* LoginItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32C2EDB32D9059747ECC130A /* LoginItem.swift */; };
+		1D4CE369F1995DEB4B45EA22 /* ResearchStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01CDCD783763EB0C438341B8 /* ResearchStep.swift */; };
 		33B67A29C2E66B7732A4B1DA /* FoCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19DF1F5CD0CDC2D99FB12140 /* FoCommand.swift */; };
 		373192AA3A4EA75429AEDD7B /* Devices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60CB6B1463BABBFA338078C9 /* Devices.swift */; };
+		3860A8FEE5DF52796696696D /* SetupDialog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DEDE8765C2A676131D74782 /* SetupDialog.swift */; };
 		4E3A3795CBC5545660BE84B0 /* OfficeMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC4C85F8472D4356BE515CDE /* OfficeMonitor.swift */; };
 		54E9EDD44038A83E722C14BC /* CommandLineTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAE0D2830BDC0809F45D06F2 /* CommandLineTool.swift */; };
+		556A9A1706D1F6AA444DFCDC /* DoneStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22496DA5F3C91F1300911F64 /* DoneStep.swift */; };
 		5E2FAA7FCCC64A4624688C4F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EDA4080F851A9F3BC3747D0F /* Assets.xcassets */; };
 		5E6399652BCD96FC2BA96C9B /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 139169067359077E6B6143DF /* SwiftTerm */; };
 		60335F1EF79EFAD851E79E6F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95A587E11C352EB3B99F5F72 /* SettingsView.swift */; };
 		65606E6474CBA55926352E9C /* Engines.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3614B3A98352883F7D2BEA46 /* Engines.swift */; };
 		6CED8F7D5DCB440ED53986E6 /* Advanced.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4B5E063180DDB30A3DB489D /* Advanced.swift */; };
+		75698D259BFE3D75FB23811B /* EngineStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 464CA3B67249DEB8F2E3772D /* EngineStep.swift */; };
+		8617C0378A3E9DCA5B5BDEDD /* OfficeStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0494D817EC2F211054FC1431 /* OfficeStep.swift */; };
 		91378C1A63F90401039036EB /* Power.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38848154291730D953B09475 /* Power.swift */; };
 		960333C3B7E8D61D550E65CC /* General.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D7DF61CB85479892FEAC887 /* General.swift */; };
 		A08AE86CED19175E230F3B61 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDB05CCEBE3E59E588B3820 /* ContentView.swift */; };
@@ -27,22 +33,36 @@
 		B39989793D39ADE71FC85ABF /* SessionPrimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33AE1144D1A1DE4243A0D101 /* SessionPrimer.swift */; };
 		BE1949BA0CFCAC03F10371C0 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = D27071BAA7837ECF5683851F /* AppState.swift */; };
 		CA148CF3D917A99FE68FD429 /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 171CC6CFE0D9A2E1CD994202 /* WebView.swift */; };
+		CB080669FE29CA693777061F /* PhoneStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11891E94ED9FC8A2CE641902 /* PhoneStep.swift */; };
+		D3F290559CE3D0A1DE395BB9 /* AccountsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4247B886178B5C75D2BF031C /* AccountsStep.swift */; };
 		DD14BD79C8C051E144E1E97C /* Connectors.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93C6564389DE3756255199B /* Connectors.swift */; };
 		E779D0418A3D6D1080DB559A /* FoTerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F63710ECEC5EEA4FEEED35A1 /* FoTerminalView.swift */; };
+		F4B655E61D21A97D488F4AA1 /* WelcomeStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 017F594AE1EEEACB77146E6F /* WelcomeStep.swift */; };
+		FC4BF2B42B60432C52709729 /* SetupModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 450FA972BCEDB55C287AB50C /* SetupModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		017F594AE1EEEACB77146E6F /* WelcomeStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeStep.swift; sourceTree = "<group>"; };
+		01CDCD783763EB0C438341B8 /* ResearchStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResearchStep.swift; sourceTree = "<group>"; };
+		0494D817EC2F211054FC1431 /* OfficeStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficeStep.swift; sourceTree = "<group>"; };
 		059D7D4AF22E4755566DDB86 /* ServerProcess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerProcess.swift; sourceTree = "<group>"; };
 		0904B005B7B3E86F909B3F98 /* MenuBarContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarContent.swift; sourceTree = "<group>"; };
+		11891E94ED9FC8A2CE641902 /* PhoneStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneStep.swift; sourceTree = "<group>"; };
 		171CC6CFE0D9A2E1CD994202 /* WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
 		19DF1F5CD0CDC2D99FB12140 /* FoCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoCommand.swift; sourceTree = "<group>"; };
+		22496DA5F3C91F1300911F64 /* DoneStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoneStep.swift; sourceTree = "<group>"; };
 		32C2EDB32D9059747ECC130A /* LoginItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginItem.swift; sourceTree = "<group>"; };
 		33AE1144D1A1DE4243A0D101 /* SessionPrimer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionPrimer.swift; sourceTree = "<group>"; };
 		3614B3A98352883F7D2BEA46 /* Engines.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines.swift; sourceTree = "<group>"; };
 		38848154291730D953B09475 /* Power.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Power.swift; sourceTree = "<group>"; };
+		4247B886178B5C75D2BF031C /* AccountsStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountsStep.swift; sourceTree = "<group>"; };
+		450FA972BCEDB55C287AB50C /* SetupModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupModel.swift; sourceTree = "<group>"; };
+		464CA3B67249DEB8F2E3772D /* EngineStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineStep.swift; sourceTree = "<group>"; };
 		5D7DF61CB85479892FEAC887 /* General.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = General.swift; sourceTree = "<group>"; };
+		5DEDE8765C2A676131D74782 /* SetupDialog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupDialog.swift; sourceTree = "<group>"; };
 		60CB6B1463BABBFA338078C9 /* Devices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Devices.swift; sourceTree = "<group>"; };
 		6722F6BDC19655D23C302C60 /* FOKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FOKit; path = FOKit; sourceTree = SOURCE_ROOT; };
+		752AA5EBBA439628E264F451 /* SetupVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupVersion.swift; sourceTree = "<group>"; };
 		95A587E11C352EB3B99F5F72 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A2032A6EDA81D65E9BD20C53 /* FamilyOfficeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyOfficeApp.swift; sourceTree = "<group>"; };
 		A93C6564389DE3756255199B /* Connectors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Connectors.swift; sourceTree = "<group>"; };
@@ -76,6 +96,7 @@
 				6556A613027B59E3F852E0A3 /* App */,
 				EEEAB7FAB87B3237C5442CBB /* MenuBar */,
 				E8B5D70D5F82A0EA9A75BC7B /* Settings */,
+				8FF7A461A9BCF7972A206D69 /* Setup */,
 				8D587B4A06F1F56A78C7BEE4 /* Terminal */,
 			);
 			path = FamilyOffice;
@@ -93,6 +114,7 @@
 				38848154291730D953B09475 /* Power.swift */,
 				059D7D4AF22E4755566DDB86 /* ServerProcess.swift */,
 				33AE1144D1A1DE4243A0D101 /* SessionPrimer.swift */,
+				752AA5EBBA439628E264F451 /* SetupVersion.swift */,
 				171CC6CFE0D9A2E1CD994202 /* WebView.swift */,
 			);
 			path = App;
@@ -112,6 +134,22 @@
 				6722F6BDC19655D23C302C60 /* FOKit */,
 			);
 			name = Packages;
+			sourceTree = "<group>";
+		};
+		8FF7A461A9BCF7972A206D69 /* Setup */ = {
+			isa = PBXGroup;
+			children = (
+				4247B886178B5C75D2BF031C /* AccountsStep.swift */,
+				22496DA5F3C91F1300911F64 /* DoneStep.swift */,
+				464CA3B67249DEB8F2E3772D /* EngineStep.swift */,
+				0494D817EC2F211054FC1431 /* OfficeStep.swift */,
+				11891E94ED9FC8A2CE641902 /* PhoneStep.swift */,
+				01CDCD783763EB0C438341B8 /* ResearchStep.swift */,
+				5DEDE8765C2A676131D74782 /* SetupDialog.swift */,
+				450FA972BCEDB55C287AB50C /* SetupModel.swift */,
+				017F594AE1EEEACB77146E6F /* WelcomeStep.swift */,
+			);
+			path = Setup;
 			sourceTree = "<group>";
 		};
 		A2FAAE20F1754E2993474B2D /* Products */ = {
@@ -254,12 +292,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D3F290559CE3D0A1DE395BB9 /* AccountsStep.swift in Sources */,
 				6CED8F7D5DCB440ED53986E6 /* Advanced.swift in Sources */,
 				BE1949BA0CFCAC03F10371C0 /* AppState.swift in Sources */,
 				54E9EDD44038A83E722C14BC /* CommandLineTool.swift in Sources */,
 				DD14BD79C8C051E144E1E97C /* Connectors.swift in Sources */,
 				A08AE86CED19175E230F3B61 /* ContentView.swift in Sources */,
 				373192AA3A4EA75429AEDD7B /* Devices.swift in Sources */,
+				556A9A1706D1F6AA444DFCDC /* DoneStep.swift in Sources */,
+				75698D259BFE3D75FB23811B /* EngineStep.swift in Sources */,
 				65606E6474CBA55926352E9C /* Engines.swift in Sources */,
 				0DF7F3EB82E89DA4FD2E6F46 /* FamilyOfficeApp.swift in Sources */,
 				33B67A29C2E66B7732A4B1DA /* FoCommand.swift in Sources */,
@@ -268,11 +309,18 @@
 				1A3FA6FCF443B6C825160E4B /* LoginItem.swift in Sources */,
 				150DA21D7E1A8E7E77F120BC /* MenuBarContent.swift in Sources */,
 				4E3A3795CBC5545660BE84B0 /* OfficeMonitor.swift in Sources */,
+				8617C0378A3E9DCA5B5BDEDD /* OfficeStep.swift in Sources */,
+				CB080669FE29CA693777061F /* PhoneStep.swift in Sources */,
 				91378C1A63F90401039036EB /* Power.swift in Sources */,
+				1D4CE369F1995DEB4B45EA22 /* ResearchStep.swift in Sources */,
 				A7EFF0FE6E81566518B6C338 /* ServerProcess.swift in Sources */,
 				B39989793D39ADE71FC85ABF /* SessionPrimer.swift in Sources */,
 				60335F1EF79EFAD851E79E6F /* SettingsView.swift in Sources */,
+				3860A8FEE5DF52796696696D /* SetupDialog.swift in Sources */,
+				FC4BF2B42B60432C52709729 /* SetupModel.swift in Sources */,
+				0517375A2DFB328A89E1B38F /* SetupVersion.swift in Sources */,
 				CA148CF3D917A99FE68FD429 /* WebView.swift in Sources */,
+				F4B655E61D21A97D488F4AA1 /* WelcomeStep.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

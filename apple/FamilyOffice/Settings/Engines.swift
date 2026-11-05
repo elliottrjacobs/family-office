@@ -159,10 +159,16 @@ final class EnginesModel {
 }
 
 /// Settings > Engines: Claude Code and Codex as found on this Mac and as the server sees
-/// them, install and sign-in steps when missing, and the per-engine defaults.
+/// them, install and sign-in steps when missing, and the per-engine defaults. The setup
+/// dialog's engine step shows the same view with its own model, so it can summarize the
+/// choice.
 struct EnginesSettings: View {
     @Environment(AppState.self) private var state
-    @State private var model = EnginesModel()
+    @State private var model: EnginesModel
+
+    init(model: EnginesModel = EnginesModel()) {
+        _model = State(initialValue: model)
+    }
 
     var body: some View {
         Form {

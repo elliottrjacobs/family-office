@@ -28,6 +28,9 @@ struct FamilyOfficeApp: App {
                 }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
             }
+            CommandGroup(after: .help) {
+                SetupMenuButton(state: delegate.state)
+            }
         }
 
         Settings {
@@ -44,6 +47,19 @@ struct FamilyOfficeApp: App {
                 .environment(delegate.state)
         }
         .menuBarExtraStyle(.menu)
+    }
+}
+
+/// Help > Set Up Family Office…: brings the main window forward and opens the dialog.
+private struct SetupMenuButton: View {
+    let state: AppState
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button("Set Up Family Office…") {
+            openWindow(id: "main")
+            state.openSetup(manual: true)
+        }
     }
 }
 
