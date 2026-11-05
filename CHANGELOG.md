@@ -32,6 +32,65 @@
 - Long-term lots use the one-year anniversary. Skills have distinct descriptions.
 - Faster large imports; CI enforces test coverage.
 
+### Added
+
+- Family Office Mac app (`apple/`): a SwiftUI shell with the dashboard in a web view, a
+  bundled Python and the `fo` CLI, menu bar status, launch at login, keep awake, Settings
+  (General, Engines, Connectors, Devices, Advanced), an embedded terminal, a setup dialog
+  and a Home checklist. Signed, notarized builds ship as a DMG with Sparkle updates, built
+  by the release workflow. `fo serve --app` prints a one-line JSON handshake and
+  `--parent-pid` stops the server when the app dies.
+- Family Office iPhone app: pairs once with a five-minute code from the Mac over the
+  tailnet, keeps a revocable device token in the Keychain, and shows the dashboard. A
+  release workflow archives it for TestFlight when the signing secrets exist.
+- Device tokens and pairing routes in `fo serve --remote`, with `/api/devices` to list and
+  revoke, and an optional Tailscale login allowlist.
+- `fo connect` stores research provider keys in `secrets/`. `fo research search` (Exa),
+  `fo research fetch` (Firecrawl, or a direct fetch behind a network guard) and
+  `fo research deep` (Gemini Deep Research) return text marked `untrusted`; research
+  skills list their sources and the verifier checks them.
+- Advisor runs can use web search and fetch at context level `none`, with a deny list,
+  a per-run fetch cap and every URL logged as "sites visited".
+- A second engine: Codex runs beside Claude Code, with engine, model and effort chosen
+  per run and recorded. Codex ships disabled (`[serve.engines.codex] enabled = false`)
+  because its read confinement is command-based; see SECURITY.md.
+- `fo report write` and `fo config set` give runs and the app a route for the writes they
+  lacked.
+- Advisor avatars: thirteen default robots, animated by what the advisor is doing, a
+  per-advisor customize panel (Mac inspector, phone sheet), and a playground at
+  `/playground/robots` with a committed screenshot set in `docs/explainers/robots/`.
+- `scripts/lint_identifiers.py`, run in CI, fails on tailnet hostnames, CGNAT addresses,
+  UDID-shaped strings and absolute home paths outside documented placeholders.
+
+### Changed
+
+- Exa results are not cached on disk by default (`cache_hours = 0`), because Exa's terms
+  restrict storing results; set hours per provider to opt in. Firecrawl keeps a 24-hour
+  cache.
+- `fo serve` applies the tailnet login allowlist only to requests that arrive through the
+  tailnet name; on loopback the launch cookie is the gate, so the Mac app keeps working
+  with `--remote` and `allowed_logins` both on.
+- The launch cookie is `Secure` only on a landing reached through the tailnet name.
+- The Mac app names the Claude CLI with `FO_CLAUDE_EXECUTABLE`, and the config route lists
+  which provider keys exist (masked) so Connectors shows what is connected.
+- `fo config set` accepts `serve.max_budget_usd`, `serve.run_timeout_minutes` and
+  `serve.keep_runs`.
+
+### Fixed
+
+- The Mac app's own web view no longer loses its session when phone access is on, and a
+  server whose app crashed stops within seconds.
+
+### Security
+
+- Closed SEC-26 and SEC-27 in the advisor-run guard: restricted `fo` commands are
+  refused after a `--` separator and with `--install-completion`, hidden folders under
+  `reports/` cannot be written, and a run cannot record a correction with another
+  run's source.
+- New exposures, described in SECURITY.md: web access at level `none`, research provider
+  keys in `secrets/`, device tokens over the tailnet, and the Codex command-based read
+  barrier (the reason Codex ships disabled).
+
 ## 2.0.0a1 — 2026-09-13
 
 Clean rebuild of family-office with fresh repository history.
