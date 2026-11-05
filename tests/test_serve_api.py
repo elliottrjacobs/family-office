@@ -285,3 +285,46 @@ def test_locator_requires_an_initialized_office(tmp_path):
         Locator(tmp_path).root()
     with pytest.raises(OfficeError):
         Locator(None).root()
+
+
+def engine_app(office, tmp_path, lines=None):
+    from fo.serve.runs import RunManager
+    from tests.test_serve_runs import COMPLETE, runner_for
+
+    runner, folder = runner_for(tmp_path, lines or COMPLETE, "engine-script")
+    return serving(office, tmp_path, runs=RunManager({"claude": runner})), folder
+
+
+def test_engine_status_reads_office_defaults_on_every_request(office, tmp_path):
+    from fo.config import set_config
+
+    served, _ = engine_app(office, tmp_path)
+    with served as (app, client):
+        before = tree(office)
+        data = client.get("/api/runner")[1]
+        assert data["default"] == "claude" and data["ready"] is True
+        assert [e["name"] for e in data["engines"]] == ["claude"]
+        assert_unchanged(before, tree(office))
+        set_config(office, "serve.engines.claude.model", "claude-opus-5-5")
+        set_config(office, "serve.engines.claude.max_budget_usd", "4.5")
+        set_config(office, "serve.engines.default", "codex")
+        data = client.get("/api/runner")[1]
+        assert data["default"] == "codex"
+        assert data["engines"][0]["defaults"]["model"] == "claude-opus-5-5"
+        assert data["engines"][0]["defaults"]["max_budget_usd"] == 4.5
+
+
+def test_a_disabled_engine_is_reported_and_refused(office, tmp_path):
+    from fo.config import set_config
+
+    set_config(office, "serve.engines.claude.enabled", "false")
+    served, _ = engine_app(office, tmp_path)
+    with served as (app, client):
+        data = client.get("/api/runner")[1]
+        assert data["ready"] is False and data["reason"] == "engine_disabled"
+        engine = data["engines"][0]
+        assert (engine["usable"], engine["reason"]) == (False, "engine_disabled")
+        assert "office.toml" in engine["message"]
+        status, refused = client.post("/api/runs", {"skill": "research", "subject": "BETA"})
+        assert (status, refused["reason"]) == (503, "engine_disabled")
+        assert app.runs.list(office) == []

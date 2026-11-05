@@ -283,7 +283,7 @@ def test_a_partial_run_resumes_on_its_report_without_duplicate_decisions(office,
         ],
         "second",
     )
-    manager.runner = second
+    manager.runners["claude"] = second
     with pytest.raises(OfficeError):
         manager.message(office, record["id"], "x" * 9000)
     manager.message(office, record["id"], "")

@@ -79,7 +79,8 @@ def prepare(office=None, port=None, host=None, remote=False, read_only=False, ap
         tailnet_name=tailnet,
         allowed_logins=list(config.get("allowed_logins", [])),
     )
-    runs = None if read_only else RunManager(ClaudeRunner(), deep=DEEP)
+    # Engines by name; another engine is one more entry here.
+    runs = None if read_only else RunManager({"claude": ClaudeRunner()}, deep=DEEP)
     app = App(locator, access, read_only, runs=runs)
     try:
         server = make_server(app, bind, port)

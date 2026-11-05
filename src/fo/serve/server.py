@@ -40,6 +40,7 @@ STATUS = {
     "runner_missing": 503,
     "runner_outdated": 503,
     "runner_unsupported": 503,
+    "engine_disabled": 503,
     "device_not_found": 404,
     "invalid_pairing_code": 403,
     "invalid_devices": 500,
@@ -100,7 +101,8 @@ class App:
     log_lines: list | None = None
     # Advisor chat and write actions; None in --read-only mode, where those routes do not exist.
     runs: object | None = None
-    runner_status: tuple | None = None
+    # Each engine's last preflight, by name: (monotonic time, result, refusal).
+    runner_status: dict = field(default_factory=dict)
     # Paired phones, kept in the office's secrets/devices.json.
     devices: Devices | None = None
 
