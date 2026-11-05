@@ -36,6 +36,7 @@
 		CB080669FE29CA693777061F /* PhoneStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11891E94ED9FC8A2CE641902 /* PhoneStep.swift */; };
 		D3F290559CE3D0A1DE395BB9 /* AccountsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4247B886178B5C75D2BF031C /* AccountsStep.swift */; };
 		DD14BD79C8C051E144E1E97C /* Connectors.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93C6564389DE3756255199B /* Connectors.swift */; };
+		DDF0182F521A05F417C284C0 /* Updater.swift in Sources */ = {isa = PBXBuildFile; fileRef = 749D0F64F6DEE7E8EA8CB6B1 /* Updater.swift */; };
 		E779D0418A3D6D1080DB559A /* FoTerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F63710ECEC5EEA4FEEED35A1 /* FoTerminalView.swift */; };
 		F4A9A769F3E160D2858873C1 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = B440CF2305BACFAAA85B737E /* Sparkle */; };
 		F4B655E61D21A97D488F4AA1 /* WelcomeStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 017F594AE1EEEACB77146E6F /* WelcomeStep.swift */; };
@@ -63,6 +64,7 @@
 		5DEDE8765C2A676131D74782 /* SetupDialog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupDialog.swift; sourceTree = "<group>"; };
 		60CB6B1463BABBFA338078C9 /* Devices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Devices.swift; sourceTree = "<group>"; };
 		6722F6BDC19655D23C302C60 /* FOKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FOKit; path = FOKit; sourceTree = SOURCE_ROOT; };
+		749D0F64F6DEE7E8EA8CB6B1 /* Updater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Updater.swift; sourceTree = "<group>"; };
 		752AA5EBBA439628E264F451 /* SetupVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupVersion.swift; sourceTree = "<group>"; };
 		95A587E11C352EB3B99F5F72 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A2032A6EDA81D65E9BD20C53 /* FamilyOfficeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyOfficeApp.swift; sourceTree = "<group>"; };
@@ -119,6 +121,7 @@
 				059D7D4AF22E4755566DDB86 /* ServerProcess.swift */,
 				33AE1144D1A1DE4243A0D101 /* SessionPrimer.swift */,
 				752AA5EBBA439628E264F451 /* SetupVersion.swift */,
+				749D0F64F6DEE7E8EA8CB6B1 /* Updater.swift */,
 				171CC6CFE0D9A2E1CD994202 /* WebView.swift */,
 			);
 			path = App;
@@ -325,6 +328,7 @@
 				3860A8FEE5DF52796696696D /* SetupDialog.swift in Sources */,
 				FC4BF2B42B60432C52709729 /* SetupModel.swift in Sources */,
 				0517375A2DFB328A89E1B38F /* SetupVersion.swift in Sources */,
+				DDF0182F521A05F417C284C0 /* Updater.swift in Sources */,
 				CA148CF3D917A99FE68FD429 /* WebView.swift in Sources */,
 				F4B655E61D21A97D488F4AA1 /* WelcomeStep.swift in Sources */,
 			);

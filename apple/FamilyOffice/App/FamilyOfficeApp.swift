@@ -12,6 +12,9 @@ struct FamilyOfficeApp: App {
                 .frame(minWidth: 900, minHeight: 600)
         }
         .commands {
+            CommandGroup(after: .appInfo) {
+                CheckForUpdatesButton(updater: delegate.state.updater)
+            }
             CommandGroup(after: .newItem) {
                 Button("Choose Office Folder…") {
                     delegate.state.chooseOffice()
@@ -47,6 +50,18 @@ struct FamilyOfficeApp: App {
                 .environment(delegate.state)
         }
         .menuBarExtraStyle(.menu)
+    }
+}
+
+/// Family Office > Check for Updates…, under About in the app menu.
+private struct CheckForUpdatesButton: View {
+    let updater: Updater
+
+    var body: some View {
+        Button("Check for Updates…") {
+            updater.checkForUpdates()
+        }
+        .disabled(!updater.configured || !updater.canCheckForUpdates)
     }
 }
 

@@ -35,5 +35,11 @@
 	<string>MIT License</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/elliottrjacobs/family-office/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>SPARKLE_PUBLIC_ED_KEY_PLACEHOLDER</string>
 </dict>
 </plist>
