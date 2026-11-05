@@ -29,7 +29,7 @@ def no_dns(host):
         ("http://localhost:4790/", "localhost_host"),
         ("http://LOCALHOST./", "localhost_host"),
         ("http://app.localhost/", "localhost_host"),
-        ("http://machine.tail1234.ts.net/", "tailnet_host"),
+        ("http://machine.your-tailnet.ts.net/", "tailnet_host"),
         ("http://127.0.0.1:4790/", "loopback_address"),
         ("http://[::1]/", "loopback_address"),
         ("http://[::ffff:127.0.0.1]/", "loopback_address"),

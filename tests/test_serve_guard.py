@@ -194,7 +194,7 @@ def web(office, env, tool, names=None, **arguments):
     ("url", "names", "code"),
     [
         ("http://127.0.0.1:4790/", {}, "loopback_address"),
-        ("https://machine.tail1234.ts.net/", {}, "tailnet_host"),
+        ("https://machine.your-tailnet.ts.net/", {}, "tailnet_host"),
         ("http://100.100.1.2/", {}, "cgnat_address"),
         ("https://cgnat.example/", {"cgnat.example": ["100.64.0.9"]}, "cgnat_address"),
         ("file:///etc/hosts", {}, "unsupported_scheme"),

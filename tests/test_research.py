@@ -248,7 +248,7 @@ def test_redirect_to_a_name_resolving_privately_is_refused(office, routes, monke
         "http://127.0.0.1:4790/",
         "file:///etc/hosts",
         "https://user:pw@example.com/",
-        "http://machine.tail1234.ts.net/",
+        "http://machine.your-tailnet.ts.net/",
         "http://100.100.1.2/",
     ],
 )
