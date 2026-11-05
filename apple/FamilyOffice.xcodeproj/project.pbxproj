@@ -7,13 +7,16 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		03F15F4726FB08660E1F651C /* ConnectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 641829AEF5F3F977A7B05AB9 /* ConnectionView.swift */; };
 		0DF7F3EB82E89DA4FD2E6F46 /* FamilyOfficeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2032A6EDA81D65E9BD20C53 /* FamilyOfficeApp.swift */; };
 		132CF3014C8F041CFB3BB32E /* FOKit in Frameworks */ = {isa = PBXBuildFile; productRef = CE4D5C51CD12FC9DEF870C6C /* FOKit */; };
 		150DA21D7E1A8E7E77F120BC /* MenuBarContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0904B005B7B3E86F909B3F98 /* MenuBarContent.swift */; };
 		154C15F10AF51AD9414599D0 /* FOKit in Frameworks */ = {isa = PBXBuildFile; productRef = DF481BCC8A9E78BF50EE3A43 /* FOKit */; };
 		1A3FA6FCF443B6C825160E4B /* LoginItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32C2EDB32D9059747ECC130A /* LoginItem.swift */; };
+		1AE7F4EB97022464B77AB46A /* PairingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B93143984659F2590680491 /* PairingView.swift */; };
 		33B67A29C2E66B7732A4B1DA /* FoCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19DF1F5CD0CDC2D99FB12140 /* FoCommand.swift */; };
 		373192AA3A4EA75429AEDD7B /* Devices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60CB6B1463BABBFA338078C9 /* Devices.swift */; };
+		448563699DDD1E9CD7E7C775 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 346CE7785F209554B306F270 /* QRScannerView.swift */; };
 		4E3A3795CBC5545660BE84B0 /* OfficeMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC4C85F8472D4356BE515CDE /* OfficeMonitor.swift */; };
 		54E9EDD44038A83E722C14BC /* CommandLineTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAE0D2830BDC0809F45D06F2 /* CommandLineTool.swift */; };
 		5E2FAA7FCCC64A4624688C4F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EDA4080F851A9F3BC3747D0F /* Assets.xcassets */; };
@@ -22,6 +25,7 @@
 		65606E6474CBA55926352E9C /* Engines.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3614B3A98352883F7D2BEA46 /* Engines.swift */; };
 		68F573CFCD42BBA29758805F /* FamilyOfficePhoneApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA42C5E2EF304216F870710 /* FamilyOfficePhoneApp.swift */; };
 		6CED8F7D5DCB440ED53986E6 /* Advanced.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4B5E063180DDB30A3DB489D /* Advanced.swift */; };
+		73B0B1D40A0D5E2E91A003AA /* PairingInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5D8043A7F552FEDDBA6052F /* PairingInput.swift */; };
 		91378C1A63F90401039036EB /* Power.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38848154291730D953B09475 /* Power.swift */; };
 		960333C3B7E8D61D550E65CC /* General.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D7DF61CB85479892FEAC887 /* General.swift */; };
 		A08AE86CED19175E230F3B61 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDB05CCEBE3E59E588B3820 /* ContentView.swift */; };
@@ -30,8 +34,10 @@
 		B39989793D39ADE71FC85ABF /* SessionPrimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33AE1144D1A1DE4243A0D101 /* SessionPrimer.swift */; };
 		BE1949BA0CFCAC03F10371C0 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = D27071BAA7837ECF5683851F /* AppState.swift */; };
 		CA148CF3D917A99FE68FD429 /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 171CC6CFE0D9A2E1CD994202 /* WebView.swift */; };
+		CDE4E2C11F337A398BEA1297 /* PhoneModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C12F6A9ACE83036437A85A9A /* PhoneModel.swift */; };
 		DD14BD79C8C051E144E1E97C /* Connectors.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93C6564389DE3756255199B /* Connectors.swift */; };
 		E779D0418A3D6D1080DB559A /* FoTerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F63710ECEC5EEA4FEEED35A1 /* FoTerminalView.swift */; };
+		F84480924652590F2529599D /* OfficeWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F4D8BCAFCBB24713AB0DF05 /* OfficeWebView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -41,20 +47,26 @@
 		19DF1F5CD0CDC2D99FB12140 /* FoCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoCommand.swift; sourceTree = "<group>"; };
 		32C2EDB32D9059747ECC130A /* LoginItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginItem.swift; sourceTree = "<group>"; };
 		33AE1144D1A1DE4243A0D101 /* SessionPrimer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionPrimer.swift; sourceTree = "<group>"; };
+		346CE7785F209554B306F270 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 		3614B3A98352883F7D2BEA46 /* Engines.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines.swift; sourceTree = "<group>"; };
 		38848154291730D953B09475 /* Power.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Power.swift; sourceTree = "<group>"; };
 		5D7DF61CB85479892FEAC887 /* General.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = General.swift; sourceTree = "<group>"; };
 		60CB6B1463BABBFA338078C9 /* Devices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Devices.swift; sourceTree = "<group>"; };
+		641829AEF5F3F977A7B05AB9 /* ConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionView.swift; sourceTree = "<group>"; };
 		6722F6BDC19655D23C302C60 /* FOKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FOKit; path = FOKit; sourceTree = SOURCE_ROOT; };
+		6F4D8BCAFCBB24713AB0DF05 /* OfficeWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficeWebView.swift; sourceTree = "<group>"; };
+		7B93143984659F2590680491 /* PairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingView.swift; sourceTree = "<group>"; };
 		95A587E11C352EB3B99F5F72 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A2032A6EDA81D65E9BD20C53 /* FamilyOfficeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyOfficeApp.swift; sourceTree = "<group>"; };
 		A93C6564389DE3756255199B /* Connectors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Connectors.swift; sourceTree = "<group>"; };
 		AAA42C5E2EF304216F870710 /* FamilyOfficePhoneApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyOfficePhoneApp.swift; sourceTree = "<group>"; };
+		C12F6A9ACE83036437A85A9A /* PhoneModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneModel.swift; sourceTree = "<group>"; };
 		C4B5E063180DDB30A3DB489D /* Advanced.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Advanced.swift; sourceTree = "<group>"; };
 		CCDB05CCEBE3E59E588B3820 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		D27071BAA7837ECF5683851F /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		DC4C85F8472D4356BE515CDE /* OfficeMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficeMonitor.swift; sourceTree = "<group>"; };
 		E277E30FB23377735CA86E95 /* FamilyOfficePhone.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FamilyOfficePhone.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E5D8043A7F552FEDDBA6052F /* PairingInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingInput.swift; sourceTree = "<group>"; };
 		E5DC09F534FFB02944E5D76A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E710C853BC711C93653AC6FF /* FamilyOffice.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FamilyOffice.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EDA4080F851A9F3BC3747D0F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -112,6 +124,15 @@
 			path = App;
 			sourceTree = "<group>";
 		};
+		7DFF54E280879B55E799474F /* Pairing */ = {
+			isa = PBXGroup;
+			children = (
+				E5D8043A7F552FEDDBA6052F /* PairingInput.swift */,
+				7B93143984659F2590680491 /* PairingView.swift */,
+			);
+			path = Pairing;
+			sourceTree = "<group>";
+		};
 		8D587B4A06F1F56A78C7BEE4 /* Terminal */ = {
 			isa = PBXGroup;
 			children = (
@@ -137,6 +158,30 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		A9D11DA3CF14B1E3DD081760 /* Web */ = {
+			isa = PBXGroup;
+			children = (
+				6F4D8BCAFCBB24713AB0DF05 /* OfficeWebView.swift */,
+			);
+			path = Web;
+			sourceTree = "<group>";
+		};
+		BCC1E94EC1FB084F985DD125 /* Connection */ = {
+			isa = PBXGroup;
+			children = (
+				641829AEF5F3F977A7B05AB9 /* ConnectionView.swift */,
+			);
+			path = Connection;
+			sourceTree = "<group>";
+		};
+		BF0E3FFCE165F1846BA74471 /* Scanner */ = {
+			isa = PBXGroup;
+			children = (
+				346CE7785F209554B306F270 /* QRScannerView.swift */,
+			);
+			path = Scanner;
+			sourceTree = "<group>";
+		};
 		C065893454D3822806443615 = {
 			isa = PBXGroup;
 			children = (
@@ -152,6 +197,10 @@
 			children = (
 				E5DC09F534FFB02944E5D76A /* Assets.xcassets */,
 				E0428C6603C7FD7B546DBE1A /* App */,
+				BCC1E94EC1FB084F985DD125 /* Connection */,
+				7DFF54E280879B55E799474F /* Pairing */,
+				BF0E3FFCE165F1846BA74471 /* Scanner */,
+				A9D11DA3CF14B1E3DD081760 /* Web */,
 			);
 			path = FamilyOfficePhone;
 			sourceTree = "<group>";
@@ -160,6 +209,7 @@
 			isa = PBXGroup;
 			children = (
 				AAA42C5E2EF304216F870710 /* FamilyOfficePhoneApp.swift */,
+				C12F6A9ACE83036437A85A9A /* PhoneModel.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -345,7 +395,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				03F15F4726FB08660E1F651C /* ConnectionView.swift in Sources */,
 				68F573CFCD42BBA29758805F /* FamilyOfficePhoneApp.swift in Sources */,
+				F84480924652590F2529599D /* OfficeWebView.swift in Sources */,
+				73B0B1D40A0D5E2E91A003AA /* PairingInput.swift in Sources */,
+				1AE7F4EB97022464B77AB46A /* PairingView.swift in Sources */,
+				CDE4E2C11F337A398BEA1297 /* PhoneModel.swift in Sources */,
+				448563699DDD1E9CD7E7C775 /* QRScannerView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
