@@ -18,17 +18,17 @@ export interface DecisionForm {
 }
 
 export const close = (id: string, outcome: Outcome, note: string) =>
-  post<Record<string, unknown>>(`/api/decisions/${id}/close`, { outcome, note })
+  post<Record<string, unknown>>(`/api/decisions/${encodeURIComponent(id)}/close`, { outcome, note })
 
 export const reopen = (id: string, reason: string) =>
-  post<Record<string, unknown>>(`/api/decisions/${id}/reopen`, { reason })
+  post<Record<string, unknown>>(`/api/decisions/${encodeURIComponent(id)}/reopen`, { reason })
 
 export const judge = (id: string, until: string, note: string) =>
-  post<Record<string, unknown>>(`/api/decisions/${id}/judge`, { until, note })
+  post<Record<string, unknown>>(`/api/decisions/${encodeURIComponent(id)}/judge`, { until, note })
 
 export const record = (form: DecisionForm) => post<{ id: string }>("/api/decisions", form)
 
 export const correct = (text: string, scope: string) =>
   post<Correction>("/api/corrections", { text, scope })
 
-export const retire = (id: string) => post<Correction>(`/api/corrections/${id}/retire`, {})
+export const retire = (id: string) => post<Correction>(`/api/corrections/${encodeURIComponent(id)}/retire`, {})
