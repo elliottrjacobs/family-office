@@ -1,0 +1,336 @@
+/*
+ * Advisor robot animations (U19). Only a live robot carries the classes below, and only
+ * when the viewer has not asked for reduced motion; otherwise the robot is its static pose
+ * and a state change is an instant swap.
+ *
+ * Every animation moves a named group (`data-part`) with the individual transform
+ * properties `translate`, `rotate` and `scale`, which compose with each other and with
+ * the groups' own SVG transforms. Durations and delays are divided by `--fo-avatar-rate`
+ * (the appearance speed, floored above zero); speed 0 pauses everything.
+ *
+ * Per instance, Robot.tsx sets:
+ *   --fo-avatar-rate     speed, at least 0.05
+ *   --fo-avatar-level    speaking amplitude, 0 to 1
+ *   --fo-blink-period    3 to 5 s     --fo-blink-delay  0 to -5 s
+ *   --fo-look-period     4 to 7 s     --fo-look-delay   0 to -7 s
+ */
+
+@media (prefers-reduced-motion: no-preference) {
+  .fo-avatar-live [data-part="head"],
+  .fo-avatar-live [data-part="sleep"] {
+    transform-box: view-box;
+    transform-origin: 50px 88px;
+  }
+
+  .fo-avatar-live [data-part="eyes"],
+  .fo-avatar-live [data-part="mouth"],
+  .fo-avatar-live [data-part="mouth"] > *,
+  .fo-avatar-live [data-part="sleep"] > text {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .fo-avatar-paused,
+  .fo-avatar-paused * {
+    animation-play-state: paused !important;
+  }
+
+  /* Idle: blink, look around with a small head tilt, and a gentle bob. */
+
+  .fo-avatar-idle [data-part="head"] {
+    animation:
+      fo-avatar-bob calc(3.2s / var(--fo-avatar-rate)) ease-in-out infinite,
+      fo-avatar-tilt calc(var(--fo-look-period) / var(--fo-avatar-rate)) ease-in-out
+        calc(var(--fo-look-delay) / var(--fo-avatar-rate)) infinite;
+  }
+
+  .fo-avatar-idle [data-part="eyes"] {
+    animation:
+      fo-avatar-blink calc(var(--fo-blink-period) / var(--fo-avatar-rate)) linear
+        calc(var(--fo-blink-delay) / var(--fo-avatar-rate)) infinite,
+      fo-avatar-look calc(var(--fo-look-period) / var(--fo-avatar-rate)) ease-in-out
+        calc(var(--fo-look-delay) / var(--fo-avatar-rate)) infinite;
+  }
+
+  /* Thinking: eyes drift up and to the right, three dots pulse in turn. */
+
+  .fo-avatar-thinking [data-part="eyes"] {
+    animation:
+      fo-avatar-blink calc(var(--fo-blink-period) / var(--fo-avatar-rate)) linear
+        calc(var(--fo-blink-delay) / var(--fo-avatar-rate)) infinite,
+      fo-avatar-ponder calc(2.6s / var(--fo-avatar-rate)) ease-in-out infinite alternate;
+  }
+
+  .fo-avatar-thinking [data-part="mouth"] > circle {
+    animation: fo-avatar-pulse calc(1.2s / var(--fo-avatar-rate)) ease-in-out infinite;
+  }
+  .fo-avatar-thinking [data-part="mouth"] > circle:nth-child(2) {
+    animation-delay: calc(0.2s / var(--fo-avatar-rate));
+  }
+  .fo-avatar-thinking [data-part="mouth"] > circle:nth-child(3) {
+    animation-delay: calc(0.4s / var(--fo-avatar-rate));
+  }
+
+  /* Reading: a scan line sweeps down the screen while the eyes follow the lines. */
+
+  .fo-avatar-reading [data-anim="scan"] {
+    animation: fo-avatar-scan calc(1.8s / var(--fo-avatar-rate)) ease-in-out infinite;
+  }
+
+  .fo-avatar-reading [data-part="eyes"] {
+    animation: fo-avatar-skim calc(1.8s / var(--fo-avatar-rate)) ease-in-out infinite;
+  }
+
+  /* Writing: the progress bar fills and starts over. */
+
+  .fo-avatar-writing [data-anim="fill"] {
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation: fo-avatar-fill calc(2.4s / var(--fo-avatar-rate)) ease-in-out infinite;
+  }
+
+  .fo-avatar-writing [data-part="eyes"] {
+    animation: fo-avatar-blink calc(var(--fo-blink-period) / var(--fo-avatar-rate)) linear
+      calc(var(--fo-blink-delay) / var(--fo-avatar-rate)) infinite;
+  }
+
+  /* Speaking: the mouth opens with the amplitude, its bars jitter like an equalizer. */
+
+  .fo-avatar-speaking [data-part="mouth"] {
+    scale: 1 calc(0.3 + var(--fo-avatar-level, 0) * 0.7);
+    transition: scale 80ms linear;
+  }
+
+  .fo-avatar-speaking [data-part="mouth"] > rect {
+    animation: fo-avatar-eq calc(0.42s / var(--fo-avatar-rate)) ease-in-out infinite alternate;
+  }
+  .fo-avatar-speaking [data-part="mouth"] > rect:nth-child(2n) {
+    animation-duration: calc(0.34s / var(--fo-avatar-rate));
+    animation-delay: calc(-0.1s / var(--fo-avatar-rate));
+  }
+  .fo-avatar-speaking [data-part="mouth"] > rect:nth-child(3n) {
+    animation-duration: calc(0.5s / var(--fo-avatar-rate));
+    animation-delay: calc(-0.2s / var(--fo-avatar-rate));
+  }
+
+  .fo-avatar-speaking [data-part="eyes"] {
+    animation: fo-avatar-blink calc(var(--fo-blink-period) / var(--fo-avatar-rate)) linear
+      calc(var(--fo-blink-delay) / var(--fo-avatar-rate)) infinite;
+  }
+
+  /* Done: one happy bounce, then still. */
+
+  .fo-avatar-done [data-part="head"] {
+    animation: fo-avatar-bounce calc(0.8s / var(--fo-avatar-rate)) ease-out 1 both;
+  }
+
+  /* Error: a short shake, then the tilted pose the static head already has. */
+
+  .fo-avatar-error [data-part="head"] {
+    animation: fo-avatar-shake calc(0.5s / var(--fo-avatar-rate)) ease-in-out 1 both;
+  }
+
+  /* Sleeping: slow breathing and drifting z's. */
+
+  .fo-avatar-sleeping [data-part="head"] {
+    animation: fo-avatar-breathe calc(4.5s / var(--fo-avatar-rate)) ease-in-out infinite;
+  }
+
+  .fo-avatar-sleeping [data-part="sleep"] > text {
+    animation: fo-avatar-drift calc(3.6s / var(--fo-avatar-rate)) ease-out infinite;
+  }
+  .fo-avatar-sleeping [data-part="sleep"] > text:nth-child(2) {
+    animation-delay: calc(-1.8s / var(--fo-avatar-rate));
+  }
+}
+
+@keyframes fo-avatar-bob {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -1px;
+  }
+}
+
+/* The blink sits at the end of the period, so the delay decides when it lands. */
+@keyframes fo-avatar-blink {
+  0%,
+  94%,
+  100% {
+    scale: 1 1;
+  }
+  97% {
+    scale: 1 0.1;
+  }
+}
+
+@keyframes fo-avatar-look {
+  0%,
+  40%,
+  100% {
+    translate: 0 0;
+  }
+  48%,
+  62% {
+    translate: 2.5px -0.5px;
+  }
+  70%,
+  82% {
+    translate: -2.5px 0;
+  }
+}
+
+@keyframes fo-avatar-tilt {
+  0%,
+  40%,
+  100% {
+    rotate: 0deg;
+  }
+  48%,
+  62% {
+    rotate: 2deg;
+  }
+  70%,
+  82% {
+    rotate: -2deg;
+  }
+}
+
+@keyframes fo-avatar-ponder {
+  from {
+    translate: 0 0;
+  }
+  to {
+    translate: 1.2px -1.2px;
+  }
+}
+
+@keyframes fo-avatar-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+    scale: 0.85;
+  }
+  40% {
+    opacity: 1;
+    scale: 1.15;
+  }
+}
+
+@keyframes fo-avatar-scan {
+  0% {
+    opacity: 0;
+    translate: 0 0;
+  }
+  15% {
+    opacity: 0.7;
+  }
+  85% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+    translate: 0 var(--fo-scan, 0px);
+  }
+}
+
+@keyframes fo-avatar-skim {
+  0%,
+  100% {
+    translate: -1.5px 0;
+  }
+  50% {
+    translate: 1.5px 0;
+  }
+}
+
+@keyframes fo-avatar-fill {
+  0% {
+    scale: 0.02 1;
+    opacity: 1;
+  }
+  80% {
+    scale: var(--fo-fill, 1) 1;
+    opacity: 1;
+  }
+  92% {
+    scale: var(--fo-fill, 1) 1;
+    opacity: 0;
+  }
+  100% {
+    scale: 0.02 1;
+    opacity: 0;
+  }
+}
+
+@keyframes fo-avatar-eq {
+  from {
+    scale: 1 0.45;
+  }
+  to {
+    scale: 1 1.15;
+  }
+}
+
+@keyframes fo-avatar-bounce {
+  0% {
+    translate: 0 0;
+  }
+  30% {
+    translate: 0 -5px;
+  }
+  55% {
+    translate: 0 0;
+  }
+  75% {
+    translate: 0 -1.5px;
+  }
+  100% {
+    translate: 0 0;
+  }
+}
+
+@keyframes fo-avatar-shake {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  20% {
+    translate: -2px 0;
+  }
+  40% {
+    translate: 2px 0;
+  }
+  60% {
+    translate: -1.5px 0;
+  }
+  80% {
+    translate: 1px 0;
+  }
+}
+
+@keyframes fo-avatar-breathe {
+  0%,
+  100% {
+    scale: 1;
+  }
+  50% {
+    scale: 1.025;
+  }
+}
+
+@keyframes fo-avatar-drift {
+  0% {
+    opacity: 0;
+    translate: 0 3px;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    translate: 3px -6px;
+  }
+}
