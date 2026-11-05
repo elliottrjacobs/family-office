@@ -16,6 +16,7 @@
 		4E3A3795CBC5545660BE84B0 /* OfficeMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC4C85F8472D4356BE515CDE /* OfficeMonitor.swift */; };
 		54E9EDD44038A83E722C14BC /* CommandLineTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAE0D2830BDC0809F45D06F2 /* CommandLineTool.swift */; };
 		5E2FAA7FCCC64A4624688C4F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EDA4080F851A9F3BC3747D0F /* Assets.xcassets */; };
+		5E6399652BCD96FC2BA96C9B /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 139169067359077E6B6143DF /* SwiftTerm */; };
 		60335F1EF79EFAD851E79E6F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95A587E11C352EB3B99F5F72 /* SettingsView.swift */; };
 		6CED8F7D5DCB440ED53986E6 /* Advanced.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4B5E063180DDB30A3DB489D /* Advanced.swift */; };
 		91378C1A63F90401039036EB /* Power.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38848154291730D953B09475 /* Power.swift */; };
@@ -55,6 +56,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				154C15F10AF51AD9414599D0 /* FOKit in Frameworks */,
+				5E6399652BCD96FC2BA96C9B /* SwiftTerm in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -153,6 +155,7 @@
 			name = FamilyOffice;
 			packageProductDependencies = (
 				DF481BCC8A9E78BF50EE3A43 /* FOKit */,
+				139169067359077E6B6143DF /* SwiftTerm */,
 			);
 			productName = FamilyOffice;
 			productReference = E710C853BC711C93653AC6FF /* FamilyOffice.app */;
@@ -182,6 +185,7 @@
 			mainGroup = C065893454D3822806443615;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				899A635AEE14A15FB4979D0F /* XCRemoteSwiftPackageReference "SwiftTerm" */,
 				89F3EC8B00F072B00B51CCEE /* XCLocalSwiftPackageReference "FOKit" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -458,7 +462,23 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		899A635AEE14A15FB4979D0F /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/migueldeicaza/SwiftTerm";
+			requirement = {
+				kind = exactVersion;
+				version = 1.10.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
+		139169067359077E6B6143DF /* SwiftTerm */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 899A635AEE14A15FB4979D0F /* XCRemoteSwiftPackageReference "SwiftTerm" */;
+			productName = SwiftTerm;
+		};
 		DF481BCC8A9E78BF50EE3A43 /* FOKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FOKit;

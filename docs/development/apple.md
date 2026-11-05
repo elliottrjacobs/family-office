@@ -24,6 +24,21 @@ Requirements: Xcode 16 or later (Swift 6), macOS 14 or later, `uv`, and
 [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`) when you change the
 project.
 
+## Dependencies
+
+The app has one third-party Swift package:
+
+| Package | Version | License | Used for |
+| ------- | ------- | ------- | -------- |
+| [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) | 1.10.1 (exact) | MIT | the embedded terminal (`Terminal/`) |
+
+It is declared in `project.yml` with `exactVersion`, and
+`FamilyOffice.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` pins its
+revision; commit both. SwiftPM also resolves SwiftTerm's own `swift-argument-parser`
+dependency, which only its `termcast` tool uses and which is not linked into the app.
+SwiftTerm 1.11 and later add a SwiftPM build-tool plugin that `xcodebuild` refuses to run
+unless plugin validation is skipped, so stay on 1.10.x until that is acceptable for CI.
+
 ## Generate the project
 
 Edit `apple/project.yml`, never the `.xcodeproj`, then:
