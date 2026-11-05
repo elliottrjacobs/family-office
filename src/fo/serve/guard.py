@@ -64,12 +64,16 @@ def path_denial(office, cwd, tool, arguments):
     relative = os.path.relpath(full, office)
     if relative == ".." or relative.startswith(".." + os.sep) or os.path.isabs(relative):
         return "Advisor runs read and write only inside the office."
-    first = relative.split(os.sep)[0]
+    first, *rest = relative.split(os.sep)
     # macOS volumes usually ignore case, so SECRETS/ opens secrets/.
     if first.casefold() in PRIVATE or first.casefold().startswith("store.sqlite"):
         return "That part of the office is private to fo."
     if tool in WRITES and first != "reports":
         return "Advisor runs write only under reports/."
+    # A .claude/, .git/, or other hidden entry under reports/ would be committed and read
+    # by later sessions that have no guard, such as settings, hooks, or git config.
+    if tool in WRITES and any(part.startswith(".") for part in rest):
+        return "Advisor runs cannot write hidden files or folders under reports/."
     return None
 
 

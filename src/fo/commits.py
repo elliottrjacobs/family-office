@@ -1,9 +1,12 @@
+import os
 import shutil
 import subprocess
 
 from fo.config import read_config
 from fo.errors import OfficeError
 from fo.office import git
+
+HIDDEN = "Hidden files or folders under reports/ cannot be committed."
 
 
 def scan_history(root):
@@ -29,8 +32,9 @@ def scan_history(root):
 
 def commit_office(root, include_data=False):
     allowed = ["notebook", "reports"] + (["data"] if include_data else [])
-    status = git(root, "status", "--porcelain", "-z").stdout.split("\0")
-    for row in status:
+    # Every untracked file is listed, so a hidden file inside a new folder is seen too.
+    status = git(root, "status", "--porcelain", "-z", "--untracked-files=all").stdout
+    for row in status.split("\0"):
         if not row:
             continue
         path = row[3:]
@@ -39,6 +43,16 @@ def commit_office(root, include_data=False):
                 "dirty_office",
                 "Unrelated office changes must be committed or resolved before publication.",
             )
+        # Hidden entries under reports/ (.claude/, .git/, ...) would reach later sessions.
+        if path.startswith("reports/") and any(
+            part.startswith(".") for part in path.split("/")[1:]
+        ):
+            raise OfficeError("unsafe_path", HIDDEN)
+    # Git never lists a .git entry, but one under reports/ can turn a folder into a nested
+    # repository that `git add` records as a gitlink.
+    for _, directories, files in os.walk(root / "reports"):
+        if ".git" in directories or ".git" in files:
+            raise OfficeError("unsafe_path", HIDDEN)
     paths = [p for p in allowed if (root / p).exists()]
     git(root, "add", "--", *paths)
     changed = git(root, "diff", "--cached", "--quiet", check=False).returncode != 0
