@@ -15,6 +15,9 @@ from fo.office import atomic_write, contained
 def notification(message):
     if platform.system() != "Darwin":
         return {"sent": False, "reason": "unsupported_platform"}
+    if message.startswith("-"):
+        # osascript reads a leading "-" argument as an option, such as another -e line.
+        raise OfficeError("invalid_request", "A notification cannot start with a hyphen.")
     script = (
         'on run argv\ndisplay notification (item 1 of argv) with title "Family Office"\nend run'
     )

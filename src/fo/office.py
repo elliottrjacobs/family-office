@@ -41,10 +41,13 @@ def run_office(explicit: Path | None, args: list[str]) -> Path | None:
             raise OfficeError(
                 "serve_run_restricted", "An advisor run may use only the office it started in."
             )
+    # Click drops a "--" separator before dispatch, so the check drops it too; otherwise
+    # `fo -- sync` would hide the command word from the comparison below.
+    words = [arg for arg in args if arg != "--"]
     for command in RUN_RESTRICTED:
         first, *second = command.split()
-        if args[:1] == [first] and all(word in args[1:] for word in second):
-            if args != ["sync", "status"]:
+        if words[:1] == [first] and all(word in words[1:] for word in second):
+            if words != ["sync", "status"]:
                 raise OfficeError(
                     "serve_run_restricted",
                     "Advisor runs cannot set up, authenticate, sync, commit, schedule, "

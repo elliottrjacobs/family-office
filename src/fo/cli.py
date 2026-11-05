@@ -43,6 +43,9 @@ app = typer.Typer(
     no_args_is_help=True,
     invoke_without_command=True,
     pretty_exceptions_enable=False,
+    # Typer's eager completion options run before the advisor-run check and write shell
+    # startup files; the CLI does not offer them.
+    add_completion=False,
 )
 skills_app = typer.Typer(no_args_is_help=True)
 app.add_typer(skills_app, name="skills")

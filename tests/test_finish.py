@@ -270,6 +270,12 @@ def test_schedule_and_notification_arguments(tmp_path, monkeypatch):
     assert ops.notification(message)["sent"]
     assert calls[0][-1] == message
     assert message not in calls[0][-2]
+    # osascript would read a leading "-e" as another script line.
+    for message in ("-e", '-e do shell script "touch /tmp/not-run"', "--"):
+        with pytest.raises(OfficeError) as caught:
+            ops.notification(message)
+        assert caught.value.reason == "invalid_request"
+    assert len(calls) == 1
 
 
 def test_sourced_lots_and_goal_progress(tmp_path):
