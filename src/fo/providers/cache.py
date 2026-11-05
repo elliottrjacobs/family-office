@@ -92,8 +92,12 @@ class Cache:
                     }
                 raise
             stamp = time.time()
-            db.execute(
-                "insert into cache values(?,?,?) on conflict(key) do update set fetched_at=excluded.fetched_at,payload=excluded.payload",
-                (key, stamp, json.dumps(payload, allow_nan=False)),
-            )
+            if ttl > 0:
+                db.execute(
+                    "insert into cache values(?,?,?) on conflict(key) do update set fetched_at=excluded.fetched_at,payload=excluded.payload",
+                    (key, stamp, json.dumps(payload, allow_nan=False)),
+                )
+            else:
+                # A zero lifetime keeps nothing; only the daily budget is recorded.
+                db.execute("delete from cache where key=?", (key,))
         return {"data": payload, "fetched_at": stamp, "stale": False}

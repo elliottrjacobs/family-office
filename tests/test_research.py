@@ -88,6 +88,22 @@ def test_search_returns_ranked_untrusted_results_and_then_the_cache(office, rout
     assert (office / "cache/research/research.sqlite").is_file()
 
 
+def test_zero_cache_hours_keeps_no_results(office, routes):
+    import sqlite3
+
+    table, seen = routes
+    connect(office, "exa")
+    configure(office, "[providers.exa]\ncache_hours = 0")
+    table[EXA] = httpx.Response(200, json=fixture("exa-search.json"))
+    for _ in range(2):
+        data = invoke("research", "search", "ACME earnings", "--office", str(office))[1]
+        assert data["cached"] is False
+    assert len(seen) == 2
+    with sqlite3.connect(office / "cache/research/research.sqlite") as db:
+        assert db.execute("select count(*) from cache").fetchone() == (0,)
+        assert db.execute("select used from budgets").fetchone() == (2,)
+
+
 def test_long_numbers_and_credential_urls_are_masked(office, routes):
     table, _ = routes
     connect(office, "exa")
