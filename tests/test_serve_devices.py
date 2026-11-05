@@ -1,13 +1,16 @@
 """Device tokens and phone pairing, with synthetic offices and an injected clock."""
 
 import json
+import threading
 
 import pytest
 
+from fo import __version__
+from fo.serve import announce, prepare
 from fo.serve.auth import Access
 from fo.serve.devices import CODE_ATTEMPTS, Devices
 from tests.offices import synthetic
-from tests.serving import serving
+from tests.serving import Client, serving
 
 TAILNET = "box.example.ts.net"
 OWNER = {"Tailscale-User-Login": "owner@example.com", "Tailscale-User-Name": "Owner"}
@@ -350,3 +353,51 @@ def test_pairing_without_an_office_explains_itself(tmp_path, clock):
         assert (status, data["reason"]) == (404, "office_not_found")
         status, data = client.get("/api/devices", headers=OWNER)
         assert (status, data["reason"]) == (404, "office_not_found")
+
+
+def test_the_app_handshake_is_one_json_line_and_the_token_stays_out_of_the_log(
+    office, tmp_path, capsys
+):
+    server, lines = prepare(office, port=0, app_mode=True)
+    server.app.log_lines = []
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        assert announce(server, lines, app_mode=True) is False
+        first, *rest = capsys.readouterr().out.splitlines()
+        shake = json.loads(first)
+        assert shake == {
+            "port": server.server_address[1],
+            "token": server.app.access.token,
+            "office": str(office.resolve()),
+            "state": shake["state"],
+            "version": __version__,
+        }
+        assert shake["state"] in ("ready", "stale", "never_synced", "unconnected", "offline")
+        assert rest == lines and not any("Press Enter" in line for line in lines)
+        client = Client(server)
+        status, headers, _ = client.request("GET", "/?t=" + client.token, cookie=False)
+        assert status == 200 and "set-cookie" in headers
+        assert client.get("/api/status")[0] == 200
+    finally:
+        server.shutdown()
+        server.server_close()
+    log = server.app.log_lines
+    assert "GET / 200" in log and not any(shake["token"] in line for line in log)
+
+
+def test_the_handshake_reports_onboarding_without_an_office(tmp_path, capsys):
+    server, lines = prepare(tmp_path / "empty", port=0, app_mode=True)
+    try:
+        announce(server, lines, app_mode=True)
+        shake = json.loads(capsys.readouterr().out.splitlines()[0])
+        assert shake["office"] is None and shake["state"] == "uninitialized_path"
+    finally:
+        server.server_close()
+    # Without --app only the human-readable lines are printed.
+    server, lines = prepare(tmp_path / "empty", port=0)
+    try:
+        announce(server, lines)
+        out = capsys.readouterr().out.splitlines()
+        assert out == lines and not out[0].startswith("{")
+    finally:
+        server.server_close()
