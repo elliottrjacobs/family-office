@@ -64,9 +64,15 @@ class Access:
     def valid_token(self, value):
         return bool(value) and hmac.compare_digest(value.encode(), self.token.encode())
 
-    def cookie_header(self):
+    def cookie_header(self, headers=None):
+        """Secure only when the request came over the tailnet (HTTPS through tailscale serve).
+
+        A loopback request in --remote mode is plain HTTP, and WebKit drops a Secure cookie
+        set over it, which left the Mac app's own web view without a session.
+        """
         attributes = "HttpOnly; SameSite=Strict; Path=/"
-        return f"{COOKIE}={self.token}; {attributes}" + ("; Secure" if self.remote else "")
+        secure = self.on_tailnet(headers or {})
+        return f"{COOKIE}={self.token}; {attributes}" + ("; Secure" if secure else "")
 
     def check_host(self, headers):
         if headers.get("Host", "") not in self.hosts():

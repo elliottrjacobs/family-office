@@ -104,8 +104,14 @@ def test_remote_mode_enforces_allowed_logins(office, tmp_path):
         assert client.get("/api/status", headers=listed)[0] == 200
         assert client.get("/api/status")[0] == 200
         assert client.get("/api/status", headers=other)[0] == 200
+        # Loopback is plain HTTP even in --remote mode, and WebKit drops a Secure cookie set
+        # over it; only the landing reached through tailscale serve marks the cookie Secure.
         status, headers, _ = client.request("GET", "/?t=" + client.token, cookie=False)
-        assert "Secure" in headers["set-cookie"]
+        assert status == 200 and "Secure" not in headers["set-cookie"]
+        status, headers, _ = client.request(
+            "GET", "/?t=" + client.token, cookie=False, host=TAILNET, headers=listed
+        )
+        assert status == 200 and "Secure" in headers["set-cookie"]
         status, data = client.post(
             "/api/anything", host=TAILNET, headers={**listed, "Origin": f"https://{TAILNET}"}
         )

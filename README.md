@@ -268,7 +268,8 @@ advisor runs use it in place of a file-writing tool.
 lock, keeps every other line and comment as it was, and refuses anything outside
 this list with `invalid_key`, or a value of the wrong type with `invalid_value`:
 `serve.port` (1 to 65535, not 8182), `serve.tailnet_name`, `serve.allowed_logins`
-(a JSON array or comma-separated), `serve.web_fetch_cap`, `serve.engines.default`
+(a JSON array or comma-separated), `serve.web_fetch_cap`, `serve.max_budget_usd`,
+`serve.run_timeout_minutes`, `serve.keep_runs`, `serve.engines.default`
 (`claude` or `codex`), and for each engine `serve.engines.<claude|codex>.model`,
 `.effort` (`low`, `medium`, `high`), `.max_budget_usd`, and `.enabled`; then
 `providers.<name>.daily_limit` for `alphavantage`, `fred`, `edgar`, `exa`,

@@ -208,7 +208,8 @@ is non-empty, and releases it when either changes and on quit. `pmset -g asserti
   `fo --json --office PATH config set KEY VALUE` with the server's scrubbed environment; a
   refusal shows the CLI's `message` (for example `serve.port expects an integer from 1 to
   65535 other than 8182.`). A key the installed `fo config set` rejects with `invalid_key` is
-  shown as not settable yet instead of being written another way.
+  shown as not settable instead of being written another way; all five keys are settable
+  on the current server.
 
 ## Devices and Tailscale
 
@@ -241,11 +242,12 @@ reloads the devices list every three seconds and hides the code when a new devic
 The list shows name, paired date and last seen; Revoke confirms, then calls
 `DELETE /api/devices/{id}`.
 
-Known issue: `fo serve --remote` marks the launch cookie `Secure`, and WebKit does not store a
-`Secure` cookie from `http://127.0.0.1`, so with phone access on the Mac's own web view and
-the menu bar poller get no session (the status line reads "Server not reachable"). The fix
-belongs in the server: mark the cookie `Secure` only on requests that arrive over the tailnet
-name. Until then, turn phone access on only to pair and test the phone.
+The launch cookie is marked `Secure` only on a landing reached through the tailnet name;
+on loopback it is plain, because WebKit drops a `Secure` cookie set over `http://127.0.0.1`
+and the Mac's own web view would otherwise have no session with phone access on.
+
+The app passes `--parent-pid <its pid>` when it starts the server, so a server whose app
+died without a normal quit (a crash or SIGKILL) stops itself within a few seconds.
 
 ## Restart behavior
 

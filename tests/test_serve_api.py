@@ -413,3 +413,28 @@ def test_recommended_models_match_the_run_defaults_and_the_codex_config(office):
         assert all(m["id"] and m["label"] for m in entry["models"])
     codex = tomllib.loads((office / ".codex/config.toml").read_text())
     assert codex["model"] == ENGINE_DEFAULTS["codex"]["model"]
+
+
+def test_watch_parent_stops_the_server_when_the_pid_is_gone():
+    from fo.serve import parent_alive, watch_parent
+
+    class Server:
+        stopped = False
+
+        def shutdown(self):
+            self.stopped = True
+
+    server = Server()
+    import os
+
+    assert parent_alive(os.getpid())
+    pids = iter([True, True, False])
+    original = parent_alive
+    try:
+        import fo.serve as module
+
+        module.parent_alive = lambda pid: next(pids)
+        watch_parent(999999, server, interval=0)
+    finally:
+        module.parent_alive = original
+    assert server.stopped

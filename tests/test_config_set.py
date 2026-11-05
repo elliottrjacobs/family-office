@@ -212,3 +212,21 @@ def test_get_reports_an_unset_key(office):
         "value": None,
         "set": False,
     }
+
+
+def test_run_cap_keys_are_settable(office):
+    from fo.config import config_value, read_config
+
+    assert config_value("serve.max_budget_usd", "3.5") == 3.5
+    assert config_value("serve.run_timeout_minutes", "45") == 45.0
+    assert config_value("serve.keep_runs", "10") == 10
+    for key, bad in (
+        ("serve.max_budget_usd", "0"),
+        ("serve.run_timeout_minutes", "-1"),
+        ("serve.keep_runs", "-1"),
+    ):
+        with pytest.raises(OfficeError) as info:
+            config_value(key, bad)
+        assert info.value.reason == "invalid_value"
+    cli(office, "config", "set", "serve.keep_runs", "7")
+    assert read_config(office)["serve"]["keep_runs"] == 7

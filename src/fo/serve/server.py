@@ -257,7 +257,7 @@ class Handler(BaseHTTPRequestHandler):
             "<!doctype html><meta charset=utf-8><meta http-equiv=refresh content='0; url=/'>"
             "<title>Family Office</title><a href='/'>Continue to Family Office</a>",
             "text/html; charset=utf-8",
-            {"Set-Cookie": self.app.access.cookie_header()},
+            {"Set-Cookie": self.app.access.cookie_header(self.headers)},
         )
 
     def body(self):

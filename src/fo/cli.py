@@ -381,6 +381,11 @@ def serve_command(
     app_mode: bool = typer.Option(
         False, "--app", help="Print one JSON handshake line first, for the Mac app."
     ),
+    parent_pid: int | None = typer.Option(
+        None,
+        "--parent-pid",
+        help="Stop when this process is gone, so a crashed app leaves no server.",
+    ),
 ):
     """Start the companion web app for this office on 127.0.0.1."""
     from fo.serve import serve
@@ -395,6 +400,7 @@ def serve_command(
             open_browser,
             ctx.obj["read_only"],
             app_mode,
+            parent_pid,
         ),
     )
 

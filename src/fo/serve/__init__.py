@@ -9,6 +9,7 @@ import os
 import signal
 import sys
 import threading
+import time
 import webbrowser
 from pathlib import Path
 
@@ -135,6 +136,28 @@ def interrupt(signum, frame):
     raise KeyboardInterrupt
 
 
+def parent_alive(pid):
+    """Whether the process still exists; a zombie or a permission error counts as alive."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def watch_parent(pid, server, interval=2.0):
+    """Stop the server once the launching app is gone, so a crash leaves no orphan.
+
+    The Mac app passes its own pid; a quit still ends the server through SIGTERM, this
+    only covers the app dying without one.
+    """
+    while parent_alive(pid):
+        time.sleep(interval)
+    server.shutdown()
+
+
 def serve(
     office=None,
     port=None,
@@ -143,6 +166,7 @@ def serve(
     open_browser=False,
     read_only=False,
     app_mode=False,
+    parent_pid=None,
 ):
     server, lines = prepare(office, port, host, remote, read_only, app_mode)
     if threading.current_thread() is threading.main_thread():
@@ -157,6 +181,10 @@ def serve(
                 print(f"  Open: {link}", flush=True)
 
         threading.Thread(target=reprint, daemon=True).start()
+    if parent_pid is not None:
+        threading.Thread(
+            target=watch_parent, args=(parent_pid, server), daemon=True, name="parent-watch"
+        ).start()
     if open_browser:
         webbrowser.open(link)
     try:
