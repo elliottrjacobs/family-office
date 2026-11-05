@@ -11,6 +11,7 @@ import pytest
 
 from fo import notebook, serve
 from fo.brief import start
+from fo.config import set_config
 from fo.errors import OfficeError
 from fo.init import initialize
 from fo.lock import office_lock
@@ -283,7 +284,7 @@ def test_a_partial_run_resumes_on_its_report_without_duplicate_decisions(office,
         ],
         "second",
     )
-    manager.runner = second
+    manager.runners["claude"] = second
     with pytest.raises(OfficeError):
         manager.message(office, record["id"], "x" * 9000)
     manager.message(office, record["id"], "")
@@ -291,6 +292,7 @@ def test_a_partial_run_resumes_on_its_report_without_duplicate_decisions(office,
     prompt = (folder / "prompts.txt").read_text()
     assert f"--report {record['report']}" in prompt
     assert "fo start, fo report path, and fo report parts" in prompt
+    assert f"write the report through fo report write --report {record['report']}" in prompt
     argv = json.loads((folder / "argv.json").read_text())
     assert argv[argv.index("--resume") + 1] == "session-1"
     assert done["status"] == "completed", done
@@ -459,6 +461,89 @@ def test_preflight_refuses_old_or_incomplete_claude(tmp_path):
     with pytest.raises(OfficeError) as raised:
         ClaudeRunner(executable=[str(tmp_path / "missing-claude")]).preflight()
     assert raised.value.reason == "runner_missing"
+
+
+def test_preflight_refuses_a_claude_without_effort(tmp_path):
+    runner, folder = runner_for(tmp_path, [])
+    (folder / "missing").write_text("--effort")
+    with pytest.raises(OfficeError) as raised:
+        runner.preflight()
+    assert raised.value.reason == "runner_unsupported"
+    assert "--effort" in raised.value.message
+
+
+def test_a_launch_without_engine_uses_the_office_default(office, tmp_path):
+    runner, folder = runner_for(tmp_path, COMPLETE)
+    manager = RunManager({"claude": runner})
+    record = manager.launch(office, "research", "BETA", "household")
+    assert (record["engine"], record["model"], record["effort"]) == (
+        "claude",
+        "claude-fable-5-1",
+        "high",
+    )
+    done = settle(manager, office, record["id"])
+    assert done["reported_model"] == "fake-model"
+    argv = json.loads((folder / "argv.json").read_text())
+    assert argv[argv.index("--model") + 1] == "claude-fable-5-1"
+    assert argv[argv.index("--effort") + 1] == "high"
+    assert argv[argv.index("--max-budget-usd") + 1] == "2.00"
+
+
+def test_model_effort_and_the_engine_budget_reach_the_command(office, tmp_path):
+    set_config(office, "serve.engines.claude.max_budget_usd", "3.25")
+    set_config(office, "serve.engines.claude.effort", "low")
+    runner, folder = runner_for(tmp_path, COMPLETE)
+    manager = RunManager({"claude": runner})
+    record = manager.launch(
+        office, "research", "BETA", "household", model="claude-opus-5-5", effort="high"
+    )
+    settle(manager, office, record["id"])
+    argv = json.loads((folder / "argv.json").read_text())
+    assert argv[argv.index("--model") + 1] == "claude-opus-5-5"
+    assert argv[argv.index("--effort") + 1] == "high"
+    assert argv[argv.index("--max-budget-usd") + 1] == "3.25"
+    listed = manager.list(office)[0]
+    assert {k: listed[k] for k in ("engine", "model", "effort", "reported_model")} == {
+        "engine": "claude",
+        "model": "claude-opus-5-5",
+        "effort": "high",
+        "reported_model": "fake-model",
+    }
+    # A follow-up keeps the run's engine, model and effort.
+    manager.message(office, record["id"], "And the risks?")
+    settle(manager, office, record["id"])
+    argv = json.loads((folder / "argv.json").read_text())
+    assert argv[argv.index("--model") + 1] == "claude-opus-5-5"
+    assert argv[argv.index("--resume") + 1] == "session-1"
+
+
+@pytest.mark.parametrize(
+    ("options", "reason"),
+    [
+        ({"engine": "codex"}, "unknown_engine"),
+        ({"engine": "nobody"}, "unknown_engine"),
+        ({"model": ""}, "invalid_model"),
+        ({"model": "--dangerously-skip-permissions"}, "invalid_model"),
+        ({"model": "two words"}, "invalid_model"),
+        ({"effort": "max"}, "invalid_effort"),
+    ],
+)
+def test_a_launch_with_a_bad_engine_model_or_effort_is_refused(office, tmp_path, options, reason):
+    manager = RunManager({"claude": runner_for(tmp_path, COMPLETE)[0]})
+    with pytest.raises(OfficeError) as raised:
+        manager.launch(office, "research", "BETA", **options)
+    assert raised.value.reason == reason
+    assert manager.active is None and manager.list(office) == []
+
+
+def test_a_default_engine_that_is_not_registered_is_refused(office, tmp_path):
+    set_config(office, "serve.engines.default", "codex")
+    manager = RunManager({"claude": runner_for(tmp_path, COMPLETE)[0]})
+    with pytest.raises(OfficeError) as raised:
+        manager.launch(office, "research", "BETA")
+    assert raised.value.reason == "unknown_engine"
+    record = manager.launch(office, "research", "BETA", engine="claude")
+    assert settle(manager, office, record["id"])["engine"] == "claude"
 
 
 def test_a_failed_preflight_never_starts_a_run(office, tmp_path):

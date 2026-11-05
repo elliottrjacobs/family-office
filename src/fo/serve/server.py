@@ -16,7 +16,7 @@ from urllib.parse import parse_qsl, unquote, urlsplit
 from fo import __version__
 from fo.envelope import FAILED, encode, failure
 from fo.errors import OfficeError
-from fo.serve import onboarding, routes_devices
+from fo.serve import onboarding, routes_config, routes_devices
 from fo.serve.auth import Access, Denial
 from fo.serve.cache import ResponseCache
 from fo.serve.devices import Devices
@@ -40,6 +40,7 @@ STATUS = {
     "runner_missing": 503,
     "runner_outdated": 503,
     "runner_unsupported": 503,
+    "engine_disabled": 503,
     "device_not_found": 404,
     "invalid_pairing_code": 403,
     "invalid_devices": 500,
@@ -100,7 +101,8 @@ class App:
     log_lines: list | None = None
     # Advisor chat and write actions; None in --read-only mode, where those routes do not exist.
     runs: object | None = None
-    runner_status: tuple | None = None
+    # Each engine's last preflight, by name: (monotonic time, result, refusal).
+    runner_status: dict = field(default_factory=dict)
     # Paired phones, kept in the office's secrets/devices.json.
     devices: Devices | None = None
 
@@ -111,8 +113,8 @@ class App:
             self.access.devices = self.devices
 
     def routes(self):
-        # Device routes answer before the response cache, so their answers are never cached.
-        table = list(routes_devices.ROUTES)
+        # These routes answer before the response cache, so their answers are never cached.
+        table = list(routes_devices.ROUTES) + routes_config.ROUTES
         if self.runs is not None:
             from fo.serve import routes_runs, routes_write
 

@@ -25,6 +25,8 @@ FLAGS = [
     "--settings",
     "--resume",
     "--max-budget-usd",
+    "--model",
+    "--effort",
 ]
 SKILLS = ["briefing", "cio", "eli5", "research", "lynch", "journal", "onboard"]
 TOOLS = ["Task", "Bash", "Edit", "Read", "Write"]

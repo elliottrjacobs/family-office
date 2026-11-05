@@ -285,3 +285,131 @@ def test_locator_requires_an_initialized_office(tmp_path):
         Locator(tmp_path).root()
     with pytest.raises(OfficeError):
         Locator(None).root()
+
+
+def engine_app(office, tmp_path, lines=None):
+    from fo.serve.runs import RunManager
+    from tests.test_serve_runs import COMPLETE, runner_for
+
+    runner, folder = runner_for(tmp_path, lines or COMPLETE, "engine-script")
+    return serving(office, tmp_path, runs=RunManager({"claude": runner})), folder
+
+
+def test_engine_status_reads_office_defaults_on_every_request(office, tmp_path):
+    from fo.config import set_config
+
+    served, _ = engine_app(office, tmp_path)
+    with served as (app, client):
+        before = tree(office)
+        data = client.get("/api/runner")[1]
+        assert data["default"] == "claude" and data["ready"] is True
+        assert [e["name"] for e in data["engines"]] == ["claude"]
+        assert_unchanged(before, tree(office))
+        set_config(office, "serve.engines.claude.model", "claude-opus-5-5")
+        set_config(office, "serve.engines.claude.max_budget_usd", "4.5")
+        set_config(office, "serve.engines.default", "codex")
+        data = client.get("/api/runner")[1]
+        assert data["default"] == "codex"
+        assert data["engines"][0]["defaults"]["model"] == "claude-opus-5-5"
+        assert data["engines"][0]["defaults"]["max_budget_usd"] == 4.5
+
+
+def test_a_disabled_engine_is_reported_and_refused(office, tmp_path):
+    from fo.config import set_config
+
+    set_config(office, "serve.engines.claude.enabled", "false")
+    served, _ = engine_app(office, tmp_path)
+    with served as (app, client):
+        data = client.get("/api/runner")[1]
+        assert data["ready"] is False and data["reason"] == "engine_disabled"
+        engine = data["engines"][0]
+        assert (engine["usable"], engine["reason"]) == (False, "engine_disabled")
+        assert "office.toml" in engine["message"]
+        status, refused = client.post("/api/runs", {"skill": "research", "subject": "BETA"})
+        assert (status, refused["reason"]) == (503, "engine_disabled")
+        assert app.runs.list(office) == []
+
+
+def test_the_launch_body_carries_engine_model_and_effort(office, tmp_path):
+    from tests.test_serve_runs import settle
+
+    served, folder = engine_app(office, tmp_path)
+    with served as (app, client):
+        status, refused = client.post(
+            "/api/runs", {"skill": "research", "subject": "BETA", "engine": "codex"}
+        )
+        assert (status, refused["reason"]) == (400, "unknown_engine")
+        status, refused = client.post(
+            "/api/runs", {"skill": "research", "subject": "BETA", "effort": 3}
+        )
+        assert (status, refused["reason"]) == (400, "invalid_request")
+        status, record = client.post(
+            "/api/runs",
+            {
+                "skill": "research",
+                "subject": "BETA",
+                "engine": "claude",
+                "model": "claude-sonnet-5-5",
+                "effort": "medium",
+            },
+        )
+        assert status == 200
+        settle(app.runs, office, record["id"])
+        listed = client.get("/api/runs")[1][0]
+        detail = client.get(f"/api/runs/{record['id']}")[1]
+        for row in (listed, detail):
+            assert (row["engine"], row["model"], row["effort"]) == (
+                "claude",
+                "claude-sonnet-5-5",
+                "medium",
+            )
+            assert row["reported_model"] == "fake-model"
+        argv = json.loads((folder / "argv.json").read_text())
+        assert argv[argv.index("--model") + 1] == "claude-sonnet-5-5"
+        assert argv[argv.index("--effort") + 1] == "medium"
+
+
+def test_models_route_serves_the_curated_list_and_live_office_defaults(office, tmp_path):
+    from fo.config import set_config
+
+    served, _ = engine_app(office, tmp_path)
+    with served as (app, client):
+        before = tree(office)
+        status, data = client.get("/api/models")
+        assert status == 200
+        assert set(data) == {"engines", "default", "defaults"}
+        assert data["default"] == "claude"
+        claude = data["engines"]["claude"]
+        assert [m["id"] for m in claude["models"]] == [
+            "claude-fable-5-1",
+            "claude-opus-5-5",
+            "claude-sonnet-5-5",
+            "claude-haiku-5-5",
+        ]
+        assert claude["efforts"] == ["low", "medium", "high"]
+        assert data["defaults"]["claude"]["model"] == "claude-fable-5-1"
+        assert_unchanged(before, tree(office))
+        set_config(office, "serve.engines.default", "codex")
+        set_config(office, "serve.engines.codex.effort", "medium")
+        data = client.get("/api/models")[1]
+        assert data["default"] == "codex"
+        assert data["defaults"]["codex"]["effort"] == "medium"
+    with serving(office, tmp_path / "ro", read_only=True) as (app, client):
+        assert client.get("/api/models")[1]["default"] == "codex"
+
+
+def test_recommended_models_match_the_run_defaults_and_the_codex_config(office):
+    import tomllib
+
+    from fo.serve.routes_config import catalog
+    from fo.serve.runs import EFFORTS, ENGINE_DEFAULTS
+
+    engines = catalog()["engines"]
+    assert set(engines) == set(ENGINE_DEFAULTS)
+    for name, entry in engines.items():
+        recommended = [m["id"] for m in entry["models"] if m.get("recommended")]
+        assert recommended == [entry["models"][0]["id"]] == [ENGINE_DEFAULTS[name]["model"]]
+        assert tuple(entry["efforts"]) == EFFORTS
+        assert all(m["id"] and m["label"] for m in entry["models"])
+    codex = tomllib.loads((office / ".codex/config.toml").read_text())
+    assert codex["model"] == ENGINE_DEFAULTS["codex"]["model"]

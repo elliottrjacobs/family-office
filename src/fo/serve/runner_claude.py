@@ -48,6 +48,8 @@ FLAGS = (
     "--settings",
     "--resume",
     "--max-budget-usd",
+    "--model",
+    "--effort",
 )
 MODE = "dontAsk"
 # A --deep research run on a synthetic office completed with all five workers confined.
@@ -150,7 +152,7 @@ class ClaudeRunner:
             }
         )
 
-    def command(self, office, settings, budget, session=None):
+    def command(self, office, settings, budget, session=None, model=None, effort=None):
         argv = [
             *self.executable,
             "--print",
@@ -176,6 +178,10 @@ class ClaudeRunner:
             "--max-budget-usd",
             f"{budget:.2f}",
         ]
+        if model:
+            argv += ["--model", model]
+        if effort:
+            argv += ["--effort", effort]
         if session:
             argv += ["--resume", session]
         return argv

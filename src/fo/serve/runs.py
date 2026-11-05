@@ -9,6 +9,10 @@ Completion follows the report, not the exit code: a verified report is completed
 otherwise recorded decisions make it partial; otherwise an error or nonzero exit is
 failed; otherwise a clean exit with a final message is awaiting input. A partial run
 resumes on its original report path.
+
+Runs go to an engine: a runner registered by name. Each engine's defaults (model,
+effort, budget, enabled) come from [serve.engines.<name>] in office.toml, and
+[serve.engines] default names the engine a launch uses when it names none.
 """
 
 import json
@@ -22,7 +26,7 @@ from collections import deque
 
 from fo import reports
 from fo.brief import start
-from fo.config import read_config
+from fo.config import ENGINES, read_config
 from fo.errors import OfficeError
 from fo.lock import probe
 from fo.notebook import decisions
@@ -38,14 +42,23 @@ NOT_IN_CHAT = {
     "journal": "Record a decision with the form on the Decisions page.",
 }
 DEFAULTS = {"max_budget_usd": 2.0, "run_timeout_minutes": 30.0, "keep_runs": 50}
+DEFAULT_ENGINE = "claude"
+EFFORTS = ("low", "medium", "high")
+# What an engine runs with when office.toml names nothing; models.json recommends the same.
+ENGINE_DEFAULTS = {
+    "claude": {"model": "claude-fable-5-1", "effort": "high"},
+    "codex": {"model": "gpt-5.6-sol", "effort": "high"},
+}
 RUN_ID = re.compile(r"[0-9A-Z]{26}")
 JOURNAL = re.compile(r"(?:^|&&)\s*fo\b[^&]*\bjournal\s+add\b")
 DECISION = re.compile(r"\b[0-9A-HJKMNP-TV-Z]{26}\b")
 RESUME = (
     "Resume the interrupted report. Pass --report {path} to fo start, fo report path, "
     "and fo report parts so the work continues in the same file and part directory, "
-    "and record no decision twice."
+    "write the report through fo report write --report {path}, and record no decision twice."
 )
+# A model name reaches the engine as one argument; it must not read as a flag.
+MODEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/@\[\]-]{0,199}")
 MESSAGE_LIMIT = 8000
 
 
@@ -58,6 +71,49 @@ def run_settings(root):
             raise OfficeError("invalid_config", f"[serve] {key} must be a positive number.")
         result[key] = type(default)(item)
     return result
+
+
+def engine_settings(root):
+    """The default engine and each engine's model, effort, budget, and enabled flag."""
+    serve = read_config(root).get("serve", {})
+    tables = serve.get("engines", {}) if isinstance(serve, dict) else {}
+    if not isinstance(tables, dict):
+        raise OfficeError("invalid_config", "[serve.engines] in office.toml must be a table.")
+    default = tables.get("default", DEFAULT_ENGINE)
+    if not isinstance(default, str) or not default:
+        raise OfficeError("invalid_config", "[serve.engines] default must name an engine.")
+    budget = run_settings(root)["max_budget_usd"]
+    engines = {}
+    for name in ENGINES:
+        table = tables.get(name, {})
+        if not isinstance(table, dict):
+            raise OfficeError("invalid_config", f"[serve.engines.{name}] must be a table.")
+        fallback = ENGINE_DEFAULTS[name]
+        model = table.get("model", fallback["model"])
+        if not isinstance(model, str) or not model.strip():
+            raise OfficeError("invalid_config", f"[serve.engines.{name}] model must be text.")
+        effort = table.get("effort", fallback["effort"])
+        if effort not in EFFORTS:
+            raise OfficeError(
+                "invalid_config", f"[serve.engines.{name}] effort must be low, medium, or high."
+            )
+        cap = table.get("max_budget_usd", budget)
+        if isinstance(cap, bool) or not isinstance(cap, int | float) or cap <= 0:
+            raise OfficeError(
+                "invalid_config", f"[serve.engines.{name}] max_budget_usd must be positive."
+            )
+        enabled = table.get("enabled", True)
+        if not isinstance(enabled, bool):
+            raise OfficeError(
+                "invalid_config", f"[serve.engines.{name}] enabled must be true or false."
+            )
+        engines[name] = {
+            "model": model.strip(),
+            "effort": effort,
+            "max_budget_usd": float(cap),
+            "enabled": enabled,
+        }
+    return {"default": default, "engines": engines}
 
 
 def start_time(pid):
@@ -89,8 +145,11 @@ def stop(pid, grace):
 
 
 class RunManager:
-    def __init__(self, runner: Runner, grace=5.0, deep=False):
-        self.runner = runner
+    def __init__(self, runners: dict[str, Runner] | Runner, grace=5.0, deep=False):
+        # Engines by name; one runner alone registers under its own name.
+        if not isinstance(runners, dict):
+            runners = {runners.name: runners}
+        self.runners = dict(runners)
         self.grace = grace
         self.deep = deep
         self.mutex = threading.Lock()
@@ -159,6 +218,60 @@ class RunManager:
             self.changed.notify_all()
         return event
 
+    def engine(self, root, name=None):
+        """The usable runner for an engine, its office settings, and its name; else refuse."""
+        office = engine_settings(root)
+        name = name or office["default"]
+        runner = self.runners.get(name)
+        if runner is None:
+            raise OfficeError("unknown_engine", f"No engine named {name} is available.")
+        settings = office["engines"].get(name)
+        if settings is None or not settings["enabled"]:
+            raise OfficeError(
+                "engine_disabled",
+                f"The {name} engine is turned off in office.toml ([serve.engines.{name}]).",
+            )
+        runner.preflight()
+        return runner, settings, name
+
+    def status(self, root, probe_engine):
+        """Every registered engine: usable or why not, its version, and the office defaults.
+
+        probe_engine(name, runner) returns the preflight dict or raises its refusal; the
+        route passes a cached probe because preflight starts the engine twice.
+        """
+        office = engine_settings(root)
+        engines = []
+        for name, runner in self.runners.items():
+            defaults = office["engines"].get(name)
+            entry = {"name": name, "usable": False, "version": None, "reason": None}
+            entry["message"] = None
+            if defaults is not None and not defaults["enabled"]:
+                entry["reason"] = "engine_disabled"
+                entry["message"] = (
+                    f"The {name} engine is turned off in office.toml ([serve.engines.{name}])."
+                )
+            else:
+                try:
+                    entry["version"] = probe_engine(name, runner).get("version")
+                    entry["usable"] = True
+                except OfficeError as exc:
+                    entry["reason"], entry["message"] = exc.reason, exc.message
+            engines.append({**entry, "defaults": defaults})
+        usable = [e for e in engines if e["usable"]]
+        status = {
+            "ready": bool(usable),
+            "default": office["default"],
+            "deep": self.deep,
+            "engines": engines,
+        }
+        if not usable:
+            first = next((e for e in engines if e["name"] == office["default"]), None)
+            first = first or (engines[0] if engines else None)
+            status["reason"] = first["reason"] if first else "unknown_engine"
+            status["message"] = first["message"] if first else "No engine is available."
+        return status
+
     def running(self, run_id):
         return self.active is not None and self.active[1] == run_id
 
@@ -180,7 +293,9 @@ class RunManager:
 
     # Lifecycle ---------------------------------------------------------------------
 
-    def launch(self, root, skill, subject, level=None, deep=False):
+    def launch(
+        self, root, skill, subject, level=None, deep=False, engine=None, model=None, effort=None
+    ):
         advisor = next((a for a in registry()["skills"] if a["name"] == skill), None)
         if advisor is None:
             raise OfficeError("unknown_skill", "No such advisor.")
@@ -192,8 +307,13 @@ class RunManager:
             raise OfficeError("invalid_context", "This advisor does not read at that level.")
         if deep and not (advisor["deep"] and self.deep):
             raise OfficeError("deep_unavailable", "Deep mode is not available for this run.")
+        if model is not None and not MODEL.fullmatch(model):
+            raise OfficeError("invalid_model", "Name the model as one word, such as an id.")
+        if effort is not None and effort not in EFFORTS:
+            raise OfficeError("invalid_effort", "Effort is low, medium, or high.")
         config = run_settings(root)
-        self.runner.preflight()
+        _, settings, name = self.engine(root, engine)
+        config["max_budget_usd"] = settings["max_budget_usd"]
         with self.mutex:
             self.claim(root)
             try:
@@ -207,7 +327,11 @@ class RunManager:
                     "level": level,
                     "deep": deep,
                     "status": "queued",
-                    "runner": self.runner.name,
+                    "runner": name,
+                    "engine": name,
+                    "model": model or settings["model"],
+                    "effort": effort or settings["effort"],
+                    "reported_model": None,
                     "session_id": None,
                     "report": started["report"]["data"]["path"],
                     "report_written": False,
@@ -244,7 +368,8 @@ class RunManager:
             raise OfficeError("invalid_request", "Write a message to send.")
         partial = record["status"] == "partial"
         config = run_settings(root)
-        self.runner.preflight()
+        _, engine, _ = self.engine(root, record.get("engine") or record.get("runner"))
+        config["max_budget_usd"] = engine["max_budget_usd"]
         with self.mutex:
             self.claim(root)
             record["status"] = "queued"
@@ -306,9 +431,15 @@ class RunManager:
         self.thread.start()
 
     def run(self, root, record, prompt, session, config):
+        runner = self.runners.get(record.get("engine") or record.get("runner"))
         try:
-            argv = self.runner.command(
-                root, self.runner.settings(root), config["max_budget_usd"], session
+            argv = runner.command(
+                root,
+                runner.settings(root),
+                config["max_budget_usd"],
+                session,
+                record.get("model"),
+                record.get("effort"),
             )
             process = subprocess.Popen(
                 argv,
@@ -316,7 +447,7 @@ class RunManager:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 cwd=root,
-                env=self.runner.environment(root),
+                env=runner.environment(root),
                 text=True,
                 bufsize=1,
                 start_new_session=True,
@@ -345,11 +476,12 @@ class RunManager:
             except OSError:
                 pass
             for line in process.stdout:
-                for event in self.runner.parse(line, root):
+                for event in runner.parse(line, root):
                     kind = event["kind"]
                     if kind == "init":
                         record["session_id"] = event.get("session_id") or record["session_id"]
-                        problem = self.runner.check(event, record["skill"])
+                        record["reported_model"] = event.get("model")
+                        problem = runner.check(event, record["skill"])
                         event = {k: event[k] for k in ("kind", "session_id", "model")}
                         if problem and error is None:
                             error = ("runner_isolation", problem)

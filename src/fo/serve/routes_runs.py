@@ -7,7 +7,7 @@ from fo.errors import OfficeError
 from fo.reports import component
 from fo.skills import registry
 
-# The runner check shells out to claude twice; the answer rarely changes.
+# Preflight starts an engine twice and rarely changes; office defaults are read every time.
 RUNNER_TTL = 60.0
 KEEPALIVE = 15.0
 
@@ -38,15 +38,27 @@ def preview(handler, params, query):
 
 
 def runner(handler, params, query):
+    """Every engine: usable or why not, its version, and the office's defaults for it.
+
+    Only each engine's preflight is remembered, for RUNNER_TTL; [serve.engines] is read
+    on every request, so fo config set shows on the next poll without a restart.
+    """
     app = handler.app
-    cached = app.runner_status
-    if cached is None or time.monotonic() - cached[0] > RUNNER_TTL:
-        try:
-            status = {"ready": True, **app.runs.runner.preflight(), "deep": app.runs.deep}
-        except OfficeError as exc:
-            status = {"ready": False, "reason": exc.reason, "message": exc.message}
-        cached = app.runner_status = (time.monotonic(), status)
-    return cached[1]
+    probed = app.runner_status
+
+    def probe(name, engine):
+        cached = probed.get(name)
+        if cached is None or time.monotonic() - cached[0] > RUNNER_TTL:
+            try:
+                cached = (time.monotonic(), engine.preflight(), None)
+            except OfficeError as exc:
+                cached = (time.monotonic(), None, exc)
+            probed[name] = cached
+        if cached[2] is not None:
+            raise cached[2]
+        return cached[1]
+
+    return app.runs.status(app.locator.root(), probe)
 
 
 def text(body, key, required=True, limit=200):
@@ -69,6 +81,9 @@ def launch(handler, params, query):
         text(body, "subject"),
         text(body, "level", required=False),
         deep,
+        engine=text(body, "engine", required=False, limit=40),
+        model=text(body, "model", required=False),
+        effort=text(body, "effort", required=False, limit=10),
     )
 
 
