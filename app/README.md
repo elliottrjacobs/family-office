@@ -28,6 +28,24 @@ and Origin checks pass. Never point it at a server you do not own.
 Numbers arrive from the API as decimal strings and are parsed once in
 `src/api/office.ts`. Unknown values stay `null` and render as "unknown", never 0.
 
+## Robot screenshots
+
+The avatar screenshots in `docs/explainers/robots/` come from the playground at
+`/playground/robots` (see `src/avatars/README.md`). To regenerate them:
+
+```sh
+cd app
+npm ci
+npx playwright install chromium   # once per machine; only Chromium is needed
+npm run screenshots
+```
+
+The script starts the Vite dev server without the `/api` proxy (the playground makes no
+API calls and the script fails if one happens), captures each section at device scale
+factor 2 with reduced motion so every robot shows its static pose, and overwrites the
+PNGs. Look at them before committing. Playwright is a dev dependency only
+(Apache-2.0); it never reaches the build.
+
 ## Components and licenses
 
 Components are shadcn/ui (MIT) on Base UI (MIT), added with the shadcn CLI

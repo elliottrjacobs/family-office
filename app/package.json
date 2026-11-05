@@ -12,7 +12,8 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "screenshots": "node scripts/screenshot-robots.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.9.0",
