@@ -27,6 +27,7 @@
 		B39989793D39ADE71FC85ABF /* SessionPrimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33AE1144D1A1DE4243A0D101 /* SessionPrimer.swift */; };
 		BE1949BA0CFCAC03F10371C0 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = D27071BAA7837ECF5683851F /* AppState.swift */; };
 		CA148CF3D917A99FE68FD429 /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 171CC6CFE0D9A2E1CD994202 /* WebView.swift */; };
+		DD14BD79C8C051E144E1E97C /* Connectors.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93C6564389DE3756255199B /* Connectors.swift */; };
 		E779D0418A3D6D1080DB559A /* FoTerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F63710ECEC5EEA4FEEED35A1 /* FoTerminalView.swift */; };
 /* End PBXBuildFile section */
 
@@ -44,6 +45,7 @@
 		6722F6BDC19655D23C302C60 /* FOKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FOKit; path = FOKit; sourceTree = SOURCE_ROOT; };
 		95A587E11C352EB3B99F5F72 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A2032A6EDA81D65E9BD20C53 /* FamilyOfficeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyOfficeApp.swift; sourceTree = "<group>"; };
+		A93C6564389DE3756255199B /* Connectors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Connectors.swift; sourceTree = "<group>"; };
 		C4B5E063180DDB30A3DB489D /* Advanced.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Advanced.swift; sourceTree = "<group>"; };
 		CCDB05CCEBE3E59E588B3820 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		D27071BAA7837ECF5683851F /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
@@ -133,6 +135,7 @@
 			isa = PBXGroup;
 			children = (
 				C4B5E063180DDB30A3DB489D /* Advanced.swift */,
+				A93C6564389DE3756255199B /* Connectors.swift */,
 				60CB6B1463BABBFA338078C9 /* Devices.swift */,
 				3614B3A98352883F7D2BEA46 /* Engines.swift */,
 				5D7DF61CB85479892FEAC887 /* General.swift */,
@@ -254,6 +257,7 @@
 				6CED8F7D5DCB440ED53986E6 /* Advanced.swift in Sources */,
 				BE1949BA0CFCAC03F10371C0 /* AppState.swift in Sources */,
 				54E9EDD44038A83E722C14BC /* CommandLineTool.swift in Sources */,
+				DD14BD79C8C051E144E1E97C /* Connectors.swift in Sources */,
 				A08AE86CED19175E230F3B61 /* ContentView.swift in Sources */,
 				373192AA3A4EA75429AEDD7B /* Devices.swift in Sources */,
 				65606E6474CBA55926352E9C /* Engines.swift in Sources */,

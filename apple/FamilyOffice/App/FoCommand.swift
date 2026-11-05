@@ -18,8 +18,12 @@ struct FoCommandError: Error, Equatable {
 enum FoCommand {
     static let timeout: TimeInterval = 30
 
+    /// - Parameter stdin: bytes for the command's standard input (an API key for
+    ///   `fo connect`); never put a secret in `arguments`.
     @MainActor
-    static func run(office: String?, _ arguments: [String]) async -> Result<JSONValue, FoCommandError> {
+    static func run(
+        office: String?, _ arguments: [String], stdin: Data? = nil
+    ) async -> Result<JSONValue, FoCommandError> {
         guard let executable = ServerProcess.resolveExecutable() else { return .failure(.missing) }
         var full = ["--json"]
         if let office {
@@ -29,7 +33,8 @@ enum FoCommand {
         let result = await Subprocess.run(
             executable, full,
             environment: ServerProcess.environment(binDirectory: executable.deletingLastPathComponent()),
-            currentDirectory: FileManager.default.homeDirectoryForCurrentUser, timeout: timeout)
+            currentDirectory: FileManager.default.homeDirectoryForCurrentUser, stdin: stdin,
+            timeout: timeout)
         return interpret(result)
     }
 

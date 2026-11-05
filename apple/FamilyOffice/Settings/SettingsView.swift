@@ -18,6 +18,9 @@ struct SettingsView: View {
             EnginesSettings()
                 .tabItem { Label("Engines", systemImage: "cpu") }
                 .tag("engines")
+            ConnectorsSettings()
+                .tabItem { Label("Connectors", systemImage: "link") }
+                .tag("connectors")
             DevicesSettings()
                 .tabItem { Label("Devices", systemImage: "iphone") }
                 .tag("devices")

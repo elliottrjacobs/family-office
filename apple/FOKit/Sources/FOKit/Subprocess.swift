@@ -25,11 +25,13 @@ public struct SubprocessResult: Sendable, Equatable {
     public var stderrText: String { String(decoding: stderr, as: UTF8.self) }
 }
 
-/// Runs a command with stdin closed, captures both streams, and terminates it after `timeout`.
+/// Runs a command, captures both streams, and terminates it after `timeout`.
 public enum Subprocess {
+    /// - Parameter stdin: bytes written to the command's standard input, which is then closed;
+    ///   nil leaves stdin closed from the start. Use it for secrets, never `arguments`.
     public static func run(
         _ executable: URL, _ arguments: [String], environment: [String: String]? = nil,
-        currentDirectory: URL? = nil, timeout: TimeInterval
+        currentDirectory: URL? = nil, stdin: Data? = nil, timeout: TimeInterval
     ) async -> SubprocessResult {
         await withCheckedContinuation { continuation in
             let process = Process()
@@ -41,7 +43,8 @@ public enum Subprocess {
             if let currentDirectory {
                 process.currentDirectoryURL = currentDirectory
             }
-            process.standardInput = FileHandle.nullDevice
+            let input = stdin.map { _ in Pipe() }
+            process.standardInput = input ?? FileHandle.nullDevice
             let out = Pipe()
             let err = Pipe()
             process.standardOutput = out
@@ -59,6 +62,16 @@ public enum Subprocess {
                     returning: SubprocessResult(
                         launched: false, status: -1, stdout: Data(), stderr: Data(), timedOut: false))
                 return
+            }
+            if let input, let stdin {
+                let writer = input.fileHandleForWriting
+                // A command that exits without reading must not raise SIGPIPE in the app.
+                _ = fcntl(writer.fileDescriptor, F_SETNOSIGPIPE, 1)
+                DispatchQueue.global().async {
+                    // EPIPE from such a command is ignored.
+                    try? writer.write(contentsOf: stdin)
+                    try? writer.close()
+                }
             }
             // Read both pipes to the end on their own threads so a chatty command never
             // blocks on a full pipe buffer.

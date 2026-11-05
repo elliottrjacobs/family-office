@@ -22,6 +22,19 @@ final class SubprocessTests: XCTestCase {
         XCTAssertLessThan(Date().timeIntervalSince(started), 10)
     }
 
+    func testWritesStdinAndClosesIt() async {
+        let result = await Subprocess.run(
+            URL(fileURLWithPath: "/bin/cat"), [], stdin: Data("synthetic-input".utf8), timeout: 10)
+        XCTAssertTrue(result.succeeded)
+        XCTAssertEqual(result.stdoutText, "synthetic-input")
+    }
+
+    func testStdinToACommandThatDoesNotReadIt() async {
+        let result = await Subprocess.run(
+            URL(fileURLWithPath: "/usr/bin/true"), [], stdin: Data(count: 1 << 20), timeout: 10)
+        XCTAssertTrue(result.succeeded)
+    }
+
     func testReportsAMissingExecutable() async {
         let result = await Subprocess.run(URL(fileURLWithPath: "/nonexistent/tool"), [], timeout: 1)
         XCTAssertFalse(result.launched)
