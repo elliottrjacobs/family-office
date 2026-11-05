@@ -191,3 +191,61 @@ def test_onboarding_post_validates_the_body(tmp_path):
             "POST", "/api/onboarding/path", body={}, headers={"Content-Length": "x"}
         )
         assert status == 400
+
+
+def checklist(result):
+    return {item["id"]: item["done"] for item in result["checklist"]}
+
+
+def test_checklist_follows_the_office(tmp_path):
+    assert derive(Locator(None))["checklist"] == []
+    root = tmp_path / "office"
+    initialize(root)
+    result = derive(Locator(root))
+    assert [item["id"] for item in result["checklist"]] == [
+        "account_connected",
+        "first_sync",
+        "first_run",
+        "device_paired",
+    ]
+    assert all(item["label"] for item in result["checklist"])
+    assert not any(checklist(result).values())
+
+    secrets(root)
+    accounts(root, [{"id": "simplefin-1", "provider": "simplefin", "last4": "", "role": "cash"}])
+    assert checklist(derive(Locator(root))) == {
+        "account_connected": True,
+        "first_sync": False,
+        "first_run": False,
+        "device_paired": False,
+    }
+
+    ingest(
+        root,
+        "simplefin",
+        [{"account_id": "simplefin-1", "positions": [], "balance": {"net_value": "1"}}],
+    )
+    assert checklist(derive(Locator(root)))["first_sync"] is True
+
+    runs = root / "cache/serve/runs"
+    runs.mkdir(parents=True)
+    (runs / "notes.txt").write_text("not a run")
+    assert checklist(derive(Locator(root)))["first_run"] is False
+    (runs / "run-1.json").write_text("{}")
+    assert checklist(derive(Locator(root)))["first_run"] is True
+
+    devices = root / "secrets/devices.json"
+    devices.write_text(json.dumps({"devices": []}))
+    assert checklist(derive(Locator(root)))["device_paired"] is False
+    devices.write_text("{not json")
+    assert checklist(derive(Locator(root)))["device_paired"] is False
+    devices.write_text(json.dumps({"devices": [{"id": "d1", "name": "Phone"}]}))
+    assert all(checklist(derive(Locator(root))).values())
+
+
+def test_checklist_reaches_the_route(tmp_path):
+    root = synthetic(tmp_path / "office")
+    with serving(root, tmp_path) as (_, client):
+        items = checklist(client.get("/api/onboarding")[1])
+    assert items["account_connected"] and items["first_sync"]
+    assert not items["device_paired"]

@@ -4,6 +4,7 @@ The browser shows status and the exact next command; credentials, provider conse
 setup, and sync always happen in the terminal. The server never creates an office.
 """
 
+import json
 import platform
 import shlex
 from pathlib import Path
@@ -12,6 +13,7 @@ from fo.config import public_config, read_config
 from fo.doctor import diagnose
 from fo.errors import OfficeError
 from fo.init import target
+from fo.office import contained
 from fo.store.authored import load
 from fo.store.jsonl import read_rows
 
@@ -26,6 +28,14 @@ REASONS = {
     "ready": "The office is synced and healthy.",
 }
 ONBOARD = "Run the onboard skill from your coding agent in the office folder."
+CHECKLIST = {
+    "account_connected": "Connect an account",
+    "first_sync": "Run the first sync",
+    "first_run": "Talk to an advisor",
+    "device_paired": "Pair a phone",
+}
+RUNS = "cache/serve/runs"
+DEVICES = "secrets/devices.json"
 
 
 def fo(*args, root=None):
@@ -75,6 +85,30 @@ def choose(locator, value):
     return root
 
 
+def paired(root):
+    """Whether secrets/devices.json lists a device; an unreadable file counts as none."""
+    path = contained(root, DEVICES)
+    if not path.is_file():
+        return False
+    try:
+        records = json.loads(path.read_text()).get("devices")
+    except (ValueError, AttributeError, OSError):
+        return False
+    return isinstance(records, list) and bool(records)
+
+
+def checklist(root, connected, registry, complete):
+    """Home's getting-started items, each re-derived from the office on every poll."""
+    runs = contained(root, RUNS)
+    done = {
+        "account_connected": bool(connected) or bool(registry),
+        "first_sync": bool(complete),
+        "first_run": runs.is_dir() and any(runs.glob("*.json")),
+        "device_paired": paired(root),
+    }
+    return [{"id": key, "done": done[key], "label": label} for key, label in CHECKLIST.items()]
+
+
 def derive(locator):
     result = {
         "state": "no_office",
@@ -86,6 +120,7 @@ def derive(locator):
         "providers": [],
         "doctor": [],
         "last_sync": None,
+        "checklist": [],
     }
     candidate = locator.candidate()
     if candidate is None:
@@ -120,6 +155,7 @@ def derive(locator):
     ]
     complete = [r for r in read_rows(root, "data/sync_log.jsonl") if r["status"] == "complete"]
     result["last_sync"] = complete[-1]["as_of"] if complete else None
+    result["checklist"] = checklist(root, connected, registry, complete)
     offline = not connected and registered <= {"csv"}
     checks = [
         c

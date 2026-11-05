@@ -1,6 +1,7 @@
-import { ChartPie, CircleCheck, Newspaper, RefreshCw, Scale } from "lucide-react"
+import { ChartPie, Circle, CircleCheck, Newspaper, RefreshCw, Scale } from "lucide-react"
+import * as React from "react"
 
-import { allocation, decisions, netWorth, reports } from "@/api/office"
+import { allocation, decisions, netWorth, reports, type ChecklistItem } from "@/api/office"
 import { useApi } from "@/api/use-api"
 import { needsVerdict, settingUp, useAppData } from "@/app-data"
 import { AdvisorIcon, advisorName, byAdvisorOrder } from "@/components/advisor-icon"
@@ -9,6 +10,75 @@ import { Button } from "@/components/ui/button"
 import { action, age, day, money, moment } from "@/lib/format"
 import { Link, reportHref } from "@/lib/router"
 import { SetupCard } from "@/views/onboarding"
+
+const CHECKLIST_DISMISSED = "fo.checklist.dismissed.v1"
+
+/** Where each getting-started item is done; the server says whether it is. */
+const HOW: Record<string, string> = {
+  account_connected: "In the Mac app: Settings > Connectors. Or run fo auth in a terminal.",
+  first_sync: "Run fo sync, or Run First Sync in the Mac app's setup.",
+  first_run: "Open an advisor and ask it something.",
+  device_paired: "In the Mac app: Settings > Devices > Pair a Phone.",
+}
+
+function useDismissed(): [boolean, () => void] {
+  const [dismissed, setDismissed] = React.useState(() => {
+    try {
+      return window.localStorage.getItem(CHECKLIST_DISMISSED) === "1"
+    } catch {
+      return false
+    }
+  })
+  const dismiss = React.useCallback(() => {
+    setDismissed(true)
+    try {
+      window.localStorage.setItem(CHECKLIST_DISMISSED, "1")
+    } catch {
+      // Blocked storage only forgets the choice.
+    }
+  }, [])
+  return [dismissed, dismiss]
+}
+
+/** "Getting started" on Home: the open items, until all are done or the card is dismissed. */
+export function ChecklistCard({ items }: { items: ChecklistItem[] }) {
+  const [dismissed, dismiss] = useDismissed()
+  const open = items.filter((item) => !item.done)
+  if (dismissed || open.length === 0) return null
+  const done = items.length - open.length
+  return (
+    <section aria-labelledby="getting-started" className="mb-6 space-y-3 rounded-xl border bg-card p-4 sm:p-5">
+      <div className="flex items-baseline justify-between gap-3">
+        <div className="space-y-0.5">
+          <h2 id="getting-started" className="text-base font-semibold">
+            Getting started
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            {done} of {items.length} done
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={dismiss}
+          className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          Dismiss
+        </button>
+      </div>
+      <ul className="space-y-2.5">
+        {open.map((item) => (
+          <li key={item.id} className="flex items-start gap-2.5">
+            <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+            <div className="min-w-0">
+              <p className="text-sm font-medium">{item.label}</p>
+              {HOW[item.id] && <p className="text-xs text-muted-foreground">{HOW[item.id]}</p>}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
 
 function greeting(now = new Date()) {
   const hour = now.getHours()
@@ -123,6 +193,8 @@ export function Home() {
           <SetupCard data={onboarding} />
         </div>
       )}
+
+      {onboarding?.checklist && <ChecklistCard items={onboarding.checklist} />}
 
       <div className="grid gap-3 sm:grid-cols-3">
         <Stat
