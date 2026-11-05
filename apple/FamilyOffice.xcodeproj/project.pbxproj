@@ -66,6 +66,7 @@
 		95A587E11C352EB3B99F5F72 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A2032A6EDA81D65E9BD20C53 /* FamilyOfficeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyOfficeApp.swift; sourceTree = "<group>"; };
 		A93C6564389DE3756255199B /* Connectors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Connectors.swift; sourceTree = "<group>"; };
+		B06B4BA7A65E08F00966FAC8 /* FamilyOffice.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FamilyOffice.entitlements; sourceTree = "<group>"; };
 		C4B5E063180DDB30A3DB489D /* Advanced.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Advanced.swift; sourceTree = "<group>"; };
 		CCDB05CCEBE3E59E588B3820 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		D27071BAA7837ECF5683851F /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
@@ -93,6 +94,7 @@
 			isa = PBXGroup;
 			children = (
 				EDA4080F851A9F3BC3747D0F /* Assets.xcassets */,
+				B06B4BA7A65E08F00966FAC8 /* FamilyOffice.entitlements */,
 				6556A613027B59E3F852E0A3 /* App */,
 				EEEAB7FAB87B3237C5442CBB /* MenuBar */,
 				E8B5D70D5F82A0EA9A75BC7B /* Settings */,
