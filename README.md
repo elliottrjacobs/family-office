@@ -185,7 +185,17 @@ asked about. Runs are capped in `office.toml`:
 max_budget_usd = 2.0       # per run, in Claude usage
 run_timeout_minutes = 30
 keep_runs = 50             # run logs kept under cache/serve/runs/
+web_fetch_cap = 20         # web fetches per run at level none
 ```
+
+Web search and fetch follow the context level. At level `none`, where a run reads
+no household data, the advisor may search the web and fetch pages; at `household`
+and `full` both are off, and the launch panel says which applies before you start.
+Every fetch is checked against the same deny list as `fo research fetch` (nothing
+on this machine, the local network, or the tailnet, and no URL carrying a password),
+fetches stop at `web_fetch_cap`, and the run view lists the sites visited, searches
+by query and fetches by host with the full URL on hover. See
+[SECURITY.md](SECURITY.md) for what this exposes.
 
 Each run goes to an engine. Claude Code is the engine this version runs; the
 launch panel lists the engines `fo serve` can run, with one that is missing,

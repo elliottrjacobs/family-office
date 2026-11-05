@@ -75,7 +75,7 @@ in its one handshake line.
 Chat starts one headless Claude Code run at a time in the office directory. A run
 loads only the office's project settings plus a run profile: no user settings or
 hooks, an empty strict MCP configuration, only the Bash, Read, Write, Edit, and
-Task tools, `--permission-mode dontAsk` with every permission prompt denied, and a
+Task tools (plus WebSearch and WebFetch at level `none`, below), `--permission-mode dontAsk` with every permission prompt denied, and a
 budget cap and time limit. Its environment carries only what login needs, with
 `FO_SERVE_RUN` set so `fo` refuses other offices and the setup, `config set`,
 credential, sync, commit, schedule, notify, migrate, reindex, and serve commands,
@@ -92,10 +92,29 @@ otherwise reach files outside the office. The runner never passes
 `bypassPermissions`. Run records and event logs live in `cache/serve/runs/` at
 0600 in a 0700 directory and never hold environment, cookie, or token values.
 
+Web access at context level `none`: a run at that level, which reads no household
+data, also gets the WebSearch and WebFetch tools; at `household` and `full` both
+stay disallowed (`--tools` and `--disallowedTools` are built per launch and resume
+from the level, and the hook denies both tools in any run not marked for web). The
+hook checks every fetch URL against `fo.netguard`, the same deny list `fo research
+fetch` uses: only `http` and `https`, no user name or password in the URL, no
+`localhost` or `.ts.net` name, and no host that resolves to a loopback, private,
+link-local, CGNAT or tailnet (`100.64.0.0/10`), IPv6 unique local, unspecified, or
+reserved address, so a fetch cannot reach `fo serve`, other local services, or
+another device. Fetches are capped per run by `web_fetch_cap` under `[serve]`
+(default 20) with a counter in the run's own folder, `cache/serve/runs/<id>/`,
+which the run cannot read or write. The hook appends every search query and fetch
+URL it lets through, scrubbed of credentials, to `web.jsonl` there; the run log
+shows them as sites visited and the run record counts them. Each refusal names a
+stable reason code. Accepted exposure: a hostile page or search result can at most
+learn the question being researched and shape the report, and later briefs already
+treat reports as untrusted text.
+
 Accepted risk: reports, corrections, and decisions are fed back into later briefs,
 so text planted in provider data or an earlier report can steer later advice. The
-run boundary removes the exfiltration channels (MCP servers, web tools, network
-commands, reads outside the office), and the page renders report text as elements,
+run boundary removes the exfiltration channels (MCP servers, web tools at every
+level that reads household data, network commands, reads outside the office), and
+the page renders report text as elements,
 never HTML, so stored text cannot run in the browser. Market commands reach only
 their fixed provider hosts.
 
