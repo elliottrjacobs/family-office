@@ -110,6 +110,24 @@ stable reason code. Accepted exposure: a hostile page or search result can at mo
 learn the question being researched and shape the report, and later briefs already
 treat reports as untrusted text.
 
+Codex engine. A Codex run (`codex exec --json`) is isolated differently, and more
+weakly. It gets its own Codex home and `HOME` in its run folder, so no user config,
+rules, skills, MCP server, or ChatGPT connector loads; every setting is passed with
+`-c` so the office's `.codex/config.toml` cannot loosen it; approvals are never
+prompted; and its sandbox (`workspace-write`, network off, `/tmp` and `$TMPDIR`
+excluded) lets direct writes and patches land only in the run's workspace. `fo` is
+allowed by the run's execpolicy and runs outside that sandbox under the same run marker,
+which is how it writes reports. **Read confinement for Codex is command-based, not
+path-based like the Claude hook:** a forbidden-command list (cat, head, sed, grep,
+python, curl, git, the shells, and others) stops the usual readers, but `ls` can list
+file names anywhere on disk, and any reader the list misses can print any file the user
+can read; the gate found `nl` printing a key in `secrets/`. For that reason the Codex
+engine ships turned off (`[serve.engines.codex] enabled = false` unless office.toml
+says otherwise), and Claude Code stays the recommended engine. Codex has no budget
+flag: its runs are bounded only by `run_timeout_minutes`, and the budget is recorded
+for information. The gate is in
+[research providers](docs/development/research-providers.md#codex-isolation).
+
 Accepted risk: reports, corrections, and decisions are fed back into later briefs,
 so text planted in provider data or an earlier report can steer later advice. The
 run boundary removes the exfiltration channels (MCP servers, web tools at every
@@ -124,6 +142,7 @@ their fixed provider hosts.
 |---|---|
 | Anthropic or OpenAI | Office content included in an advisor session's context |
 | Anthropic (companion app chat) | The brief, reports, and command output a run reads, per run |
+| OpenAI (companion app chat, Codex engine) | The same, for a Codex run |
 | OpenAI cloud agents | The entire tracked office checkout when connected |
 | Schwab | Authentication information and account or market-data requests |
 | SimpleFIN | Access credentials and requested account time windows |

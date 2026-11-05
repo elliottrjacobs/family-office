@@ -17,7 +17,9 @@ effort, budget, enabled) come from [serve.engines.<name>] in office.toml, and
 Web access follows the context level: a run at level none, which reads no household
 data, may search and fetch; every launch and resume derives `web` from the level and
 the record keeps it. Each run also has a folder, cache/serve/runs/<id>/, holding the
-guard hook's fetch counter and web.jsonl and a workspace/ for scratch files. Web
+guard hook's fetch counter and web.jsonl and a workspace/ for scratch files; a Codex run
+also keeps its own Codex home and HOME there, so the folder is made before the command
+is built and a follow-up reuses it. Web
 entries are folded into the event log as `web` events and counted in `web_count`.
 """
 
@@ -54,11 +56,22 @@ DEFAULT_ENGINE = "claude"
 EFFORTS = ("low", "medium", "high")
 # What an engine runs with when office.toml names nothing; models.json recommends the same.
 ENGINE_DEFAULTS = {
-    "claude": {"model": "claude-fable-5-1", "effort": "high"},
-    "codex": {"model": "gpt-5.6-sol", "effort": "high"},
+    "claude": {"model": "claude-fable-5-1", "effort": "high", "enabled": True},
+    # Off until its read confinement is path-based; see SECURITY.md and the U7 gate.
+    "codex": {"model": "gpt-5.6-sol", "effort": "high", "enabled": False},
+}
+# Why an engine is off when office.toml does not turn it on.
+DISABLED_BY_DEFAULT = {
+    "codex": (
+        "Codex is off by default: its isolation gate found that a shell command missing from "
+        "the forbidden list (nl) can print a file in secrets/, because Codex confines reads by "
+        "command, not by path. Turn it on with [serve.engines.codex] enabled = true only if "
+        "you accept that."
+    ),
 }
 RUN_ID = re.compile(r"[0-9A-Z]{26}")
 JOURNAL = re.compile(r"(?:^|&&)\s*fo\b[^&]*\bjournal\s+add\b")
+REPORT_WRITE = re.compile(r"(?:^|&&)\s*fo\b[^&]*\breport\s+write\b")
 DECISION = re.compile(r"\b[0-9A-HJKMNP-TV-Z]{26}\b")
 RESUME = (
     "Resume the interrupted report. Pass --report {path} to fo start, fo report path, "
@@ -114,7 +127,7 @@ def engine_settings(root):
             raise OfficeError(
                 "invalid_config", f"[serve.engines.{name}] max_budget_usd must be positive."
             )
-        enabled = table.get("enabled", True)
+        enabled = table.get("enabled", fallback["enabled"])
         if not isinstance(enabled, bool):
             raise OfficeError(
                 "invalid_config", f"[serve.engines.{name}] enabled must be true or false."
@@ -126,6 +139,16 @@ def engine_settings(root):
             "enabled": enabled,
         }
     return {"default": default, "engines": engines}
+
+
+def disabled_message(root, name):
+    """Why an engine is off: its own finding unless office.toml turned it off itself."""
+    serve = read_config(root).get("serve", {})
+    tables = serve.get("engines", {}) if isinstance(serve, dict) else {}
+    table = tables.get(name, {}) if isinstance(tables, dict) else {}
+    if name in DISABLED_BY_DEFAULT and "enabled" not in (table if isinstance(table, dict) else {}):
+        return DISABLED_BY_DEFAULT[name]
+    return f"The {name} engine is turned off in office.toml ([serve.engines.{name}])."
 
 
 def web_allowed(level):
@@ -252,10 +275,7 @@ class RunManager:
             raise OfficeError("unknown_engine", f"No engine named {name} is available.")
         settings = office["engines"].get(name)
         if settings is None or not settings["enabled"]:
-            raise OfficeError(
-                "engine_disabled",
-                f"The {name} engine is turned off in office.toml ([serve.engines.{name}]).",
-            )
+            raise OfficeError("engine_disabled", disabled_message(root, name))
         runner.preflight()
         return runner, settings, name
 
@@ -273,9 +293,7 @@ class RunManager:
             entry["message"] = None
             if defaults is not None and not defaults["enabled"]:
                 entry["reason"] = "engine_disabled"
-                entry["message"] = (
-                    f"The {name} engine is turned off in office.toml ([serve.engines.{name}])."
-                )
+                entry["message"] = disabled_message(root, name)
             else:
                 try:
                     entry["version"] = probe_engine(name, runner).get("version")
@@ -337,8 +355,10 @@ class RunManager:
         if effort is not None and effort not in EFFORTS:
             raise OfficeError("invalid_effort", "Effort is low, medium, or high.")
         config = run_settings(root)
-        _, settings, name = self.engine(root, engine)
+        runner, settings, name = self.engine(root, engine)
         config["max_budget_usd"] = settings["max_budget_usd"]
+        if deep and not getattr(runner, "deep", True):
+            raise OfficeError("deep_unavailable", f"Deep mode is not available with {name}.")
         with self.mutex:
             self.claim(root)
             try:
@@ -367,6 +387,9 @@ class RunManager:
                     "verify": None,
                     "error": None,
                     "cost_usd": 0.0,
+                    "max_budget_usd": settings["max_budget_usd"],
+                    # Codex has no budget flag: there the time limit bounds a run.
+                    "budget_enforced": getattr(runner, "enforces_budget", True),
                     "turns": 0,
                     "pid": None,
                     "seq": 0,
@@ -374,11 +397,15 @@ class RunManager:
                     "updated": now(),
                 }
                 self.save(root, record)
+                # The folder comes first: a Codex run's home and workspace live in it.
+                folder = self.run_folder(root, record["id"])
             except Exception:
                 self.active = None
                 raise
             self.active = (root, record["id"])
         prompt = f"/{skill} {subject} --level {level}" + (" --deep" if deep else "")
+        if hasattr(runner, "prompt"):
+            prompt = runner.prompt(prompt, record["report"], folder)
         self.begin(root, record, prompt, None, config)
         return record
 
@@ -395,7 +422,7 @@ class RunManager:
             raise OfficeError("invalid_request", "Write a message to send.")
         partial = record["status"] == "partial"
         config = run_settings(root)
-        _, engine, _ = self.engine(root, record.get("engine") or record.get("runner"))
+        runner, engine, _ = self.engine(root, record.get("engine") or record.get("runner"))
         config["max_budget_usd"] = engine["max_budget_usd"]
         with self.mutex:
             self.claim(root)
@@ -406,6 +433,10 @@ class RunManager:
         prompt = text
         if partial:
             prompt = RESUME.format(path=record["report"]) + (f"\n\n{text}" if text else "")
+            if hasattr(runner, "prompt"):
+                # A follow-up reuses the run's folder, and with it the Codex thread's home.
+                folder = self.run_folder(root, record["id"])
+                prompt = runner.prompt(prompt, record["report"], folder)
         self.begin(root, record, prompt, record["session_id"], config)
         return record
 
@@ -462,24 +493,30 @@ class RunManager:
         # Derived again on every launch and resume; a stored flag never widens a run.
         web = record["web"] = web_allowed(record["level"])
         try:
+            folder = self.run_folder(root, record["id"])
+            # Runners that keep state in the run folder (Codex) take it as a keyword and
+            # start in its workspace; the Claude runner starts in the office.
+            extra, cwd = {}, root
+            if getattr(runner, "needs_folder", False):
+                runner.prepare_home(folder)
+                extra, cwd = {"folder": folder}, runner.workspace(folder)
             argv = runner.command(
                 root,
-                runner.settings(root, web=web),
+                runner.settings(root, web=web, **extra),
                 config["max_budget_usd"],
                 session,
                 record.get("model"),
                 record.get("effort"),
                 web=web,
+                **extra,
             )
-            env = runner.environment(
-                root, self.run_folder(root, record["id"]), web, config["web_fetch_cap"]
-            )
+            env = runner.environment(root, folder, web, config["web_fetch_cap"])
             process = subprocess.Popen(
                 argv,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                cwd=root,
+                cwd=cwd,
                 env=env,
                 text=True,
                 bufsize=1,
@@ -565,6 +602,8 @@ class RunManager:
         """Decision ids from successful `fo journal add` calls, confirmed in the notebook."""
         if not call or call["name"] != "Bash" or not result["ok"]:
             return
+        if REPORT_WRITE.search(call.get("command", "")) and record["report"] in call["command"]:
+            record["report_written"] = True
         if not JOURNAL.search(call.get("command", "")):
             return
         known = {d["id"] for d in decisions(root)}

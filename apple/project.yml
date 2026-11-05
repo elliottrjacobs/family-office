@@ -1,10 +1,11 @@
-# XcodeGen spec for the Mac app. Regenerate with `xcodegen generate` in apple/ and commit the
-# result: CI fails when FamilyOffice.xcodeproj or FamilyOffice/Info.plist differ from this spec.
+# XcodeGen spec for the Mac and iPhone apps. Regenerate with `xcodegen generate` in apple/ and
+# commit the result: CI fails when FamilyOffice.xcodeproj or either Info.plist differ from this spec.
 name: FamilyOffice
 options:
   bundleIdPrefix: com.familyoffice
   deploymentTarget:
     macOS: "14.0"
+    iOS: "17.0"
   createIntermediateGroups: true
   developmentLanguage: en
 settings:
@@ -101,6 +102,65 @@ targets:
             rm -rf "$dst"
             echo "note: apple/Resources/fo not found; building without the bundled runtime."
           fi
+  FamilyOfficePhone:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: FamilyOfficePhone
+        excludes:
+          - Info.plist
+    # FOKit only: the phone app has no third-party dependencies and no entitlements.
+    dependencies:
+      - package: FOKit
+        product: FOKit
+    info:
+      path: FamilyOfficePhone/Info.plist
+      properties:
+        CFBundleDisplayName: Family Office
+        CFBundleName: Family Office
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.finance
+        LSRequiresIPhoneOS: true
+        NSCameraUsageDescription: Family Office uses the camera only to scan the pairing code your Mac shows.
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        # The Mac is reached over HTTPS on its tailnet name. Plain HTTP is allowed only for
+        # local names, which a simulator uses to reach a server on the same Mac.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    settings:
+      base:
+        PRODUCT_NAME: FamilyOfficePhone
+        PRODUCT_BUNDLE_IDENTIFIER: com.familyoffice.phone
+        MARKETING_VERSION: 2.0.0
+        CURRENT_PROJECT_VERSION: 1
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+  FamilyOfficePhoneTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: FamilyOfficePhoneTests
+    dependencies:
+      - target: FamilyOfficePhone
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.familyoffice.phone.tests
+        GENERATE_INFOPLIST_FILE: YES
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1"
 schemes:
   FamilyOffice:
     build:
@@ -108,5 +168,17 @@ schemes:
         FamilyOffice: all
     run:
       config: Debug
+    archive:
+      config: Release
+  FamilyOfficePhone:
+    build:
+      targets:
+        FamilyOfficePhone: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - FamilyOfficePhoneTests
     archive:
       config: Release
