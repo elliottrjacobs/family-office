@@ -16,7 +16,7 @@ from urllib.parse import parse_qsl, unquote, urlsplit
 from fo import __version__
 from fo.envelope import FAILED, encode, failure
 from fo.errors import OfficeError
-from fo.serve import onboarding, routes_devices
+from fo.serve import onboarding, routes_config, routes_devices
 from fo.serve.auth import Access, Denial
 from fo.serve.cache import ResponseCache
 from fo.serve.devices import Devices
@@ -113,8 +113,8 @@ class App:
             self.access.devices = self.devices
 
     def routes(self):
-        # Device routes answer before the response cache, so their answers are never cached.
-        table = list(routes_devices.ROUTES)
+        # These routes answer before the response cache, so their answers are never cached.
+        table = list(routes_devices.ROUTES) + routes_config.ROUTES
         if self.runs is not None:
             from fo.serve import routes_runs, routes_write
 
