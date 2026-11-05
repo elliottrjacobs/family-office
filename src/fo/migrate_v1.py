@@ -514,7 +514,8 @@ def migrate(root, source, dry_run=False, force=False):
                 + "\n",
             )
         correction_path = contained(root, "notebook/corrections.md")
-        old = correction_path.read_text()
+        # Read without newline translation so a stray \r never becomes a new line.
+        old = correction_path.read_bytes().decode()
         first_id = old.count('"event": "added"') + 1
         for index, text in enumerate(data["corrections"], first_id):
             row = {

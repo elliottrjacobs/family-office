@@ -22,6 +22,12 @@ RUN_RESTRICTED = (
     "reindex",
     "skills sync",
     "serve",
+    # Retiring a correction or settling a decision overrides the owner's own record, and
+    # neither event says who wrote it, so a run may add notes but never change these.
+    "corrections retire",
+    "journal close",
+    "journal reopen",
+    "journal judge",
 )
 
 
@@ -44,14 +50,18 @@ def run_office(explicit: Path | None, args: list[str]) -> Path | None:
     # Click drops a "--" separator before dispatch, so the check drops it too; otherwise
     # `fo -- sync` would hide the command word from the comparison below.
     words = [arg for arg in args if arg != "--"]
+    # The groups with restricted subcommands take no options of their own, so the
+    # subcommand is the first word after the group that is not an option. Matching only
+    # that word lets `fo journal add ... --action close` through.
+    subcommand = [word for word in words[1:] if not word.startswith("-")][:1]
     for command in RUN_RESTRICTED:
         first, *second = command.split()
-        if words[:1] == [first] and all(word in words[1:] for word in second):
+        if words[:1] == [first] and (not second or subcommand == second):
             if words != ["sync", "status"]:
                 raise OfficeError(
                     "serve_run_restricted",
                     "Advisor runs cannot set up, authenticate, sync, commit, schedule, "
-                    "notify, migrate, or reindex.",
+                    "notify, migrate, reindex, retire corrections, or settle decisions.",
                 )
     return office
 

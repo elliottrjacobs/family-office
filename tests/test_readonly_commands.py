@@ -119,6 +119,14 @@ RESTRICTED = [
     ["--json", "--", "sync", "status", "--dry-run"],
     ["--json", "sync", "--"],
     ["--json", "reindex", "--"],
+    # Retiring corrections and settling decisions stay with the owner.
+    ["corrections", "retire", "1", "--json"],
+    ["--json", "corrections", "--", "retire", "1"],
+    ["--json", "--", "corrections", "retire", "--", "1"],
+    ["journal", "close", "01ARZ3NDEKTSV4RRFFQ69G5FAV", "--outcome", "hit", "--json"],
+    ["journal", "reopen", "01ARZ3NDEKTSV4RRFFQ69G5FAV", "--reason", "x", "--json"],
+    ["journal", "judge", "01ARZ3NDEKTSV4RRFFQ69G5FAV", "--until", "2026-12-31", "--json"],
+    ["--json", "journal", "--", "close", "01ARZ3NDEKTSV4RRFFQ69G5FAV", "--outcome", "hit"],
 ]
 
 
@@ -147,8 +155,10 @@ def test_serve_run_marker_refuses_restricted_commands(office, monkeypatch, args)
     store = office / "store.sqlite"
     store.unlink(missing_ok=True)
     head = git(office, "rev-parse", "HEAD").stdout
+    notes = notebook_state(office)
     code, data = invoke(*args)
     assert (code, data["reason"]) == (1, "serve_run_restricted")
+    assert notebook_state(office) == notes
     assert not store.exists()
     assert git(office, "rev-parse", "HEAD").stdout == head
     assert not Path("elsewhere").exists()
@@ -197,3 +207,23 @@ def test_serve_run_marker_allows_read_commands_after_a_separator(office, monkeyp
     monkeypatch.setenv("FO_OFFICE", str(office))
     code, _ = invoke("--json", *args)
     assert code == 0
+
+
+def test_serve_run_marker_allows_new_notes_that_mention_restricted_words(office, monkeypatch):
+    monkeypatch.setenv("FO_SERVE_RUN", str(office))
+    monkeypatch.setenv("FO_OFFICE", str(office))
+    code, data = invoke(
+        "journal",
+        "add",
+        "ACME",
+        "--action",
+        "close",
+        "--thesis",
+        "judge",
+        "--invalidate",
+        "reopen",
+        "--json",
+    )
+    assert code == 0 and data["action"] == "close"
+    code, data = invoke("--json", "corrections", "add", "--", "retire")
+    assert code == 0 and data["text"] == "retire"
