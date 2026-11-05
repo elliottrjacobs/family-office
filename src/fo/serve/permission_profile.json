@@ -58,6 +58,14 @@
     "Bash(fo skills sync)",
     "Bash(fo skills sync *)",
     "Bash(fo serve)",
-    "Bash(fo serve *)"
+    "Bash(fo serve *)",
+    "Bash(fo corrections retire)",
+    "Bash(fo corrections retire *)",
+    "Bash(fo journal close)",
+    "Bash(fo journal close *)",
+    "Bash(fo journal reopen)",
+    "Bash(fo journal reopen *)",
+    "Bash(fo journal judge)",
+    "Bash(fo journal judge *)"
   ]
 }

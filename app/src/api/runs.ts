@@ -97,18 +97,18 @@ export const preview = (skill: string, subject: string, level: Level) =>
 
 export const runs = () => get<Run[]>("/api/runs")
 
-export const run = (id: string) => get<Run>(`/api/runs/${id}`)
+export const run = (id: string) => get<Run>(`/api/runs/${encodeURIComponent(id)}`)
 
 export const launch = (skill: string, subject: string, level: Level, deep: boolean) =>
   post<Run>("/api/runs", { skill, subject, level, deep })
 
-export const reply = (id: string, text: string) => post<Run>(`/api/runs/${id}/message`, { text })
+export const reply = (id: string, text: string) => post<Run>(`/api/runs/${encodeURIComponent(id)}/message`, { text })
 
-export const cancel = (id: string) => post<Run>(`/api/runs/${id}/cancel`, {})
+export const cancel = (id: string) => post<Run>(`/api/runs/${encodeURIComponent(id)}/cancel`, {})
 
 /** Replay events after `after`, then follow the run; `onEnd` fires when it is finished. */
 export function follow(id: string, after: number, onEvent: (event: RunEvent) => void, onEnd: () => void) {
-  const source = new EventSource(`/api/runs/${id}/events?after=${after}`, { withCredentials: true })
+  const source = new EventSource(`/api/runs/${encodeURIComponent(id)}/events?after=${after}`, { withCredentials: true })
   source.onmessage = (message) => {
     try {
       onEvent(JSON.parse(message.data) as RunEvent)

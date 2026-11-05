@@ -153,3 +153,21 @@ def test_hook_runs_as_a_module(office):
     )
     assert result.returncode == 0
     assert json.loads(result.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "reports/.claude/settings.json",
+        "reports/research/ACME/.claude/settings.local.json",
+        "reports/x/.git/config",
+        "reports/x/.git/hooks/pre-commit",
+        "reports/.hidden.md",
+        "reports/research/.gitattributes",
+        "./reports/a/.agents/skills/x/SKILL.md",
+    ],
+)
+def test_writes_under_reports_refuse_hidden_components(office, path):
+    for tool in ("Write", "Edit", "MultiEdit"):
+        assert call(tool, office, file_path=path), (tool, path)
+        assert call(tool, office, file_path=str(office / path)), (tool, path)

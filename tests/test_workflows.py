@@ -152,3 +152,38 @@ def test_brief_preserves_scoped_corrections_on_overflow(office):
     assert household["corrections"][1]["text"] == "Avoid this thesis. " * 300
     notebook.correct(office, retire=global_note["id"])
     assert len(notebook.corrections(office, subject="ACME")) == 1
+
+
+BREAKS = ["\r", "\n", "\x0b", "\x0c", "\x1c", "\x1d", "\x1e", "\x85", " ", " "]
+
+
+@pytest.mark.parametrize("brk", BREAKS)
+def test_correction_text_cannot_forge_a_marker_line(office, brk):
+    owner = notebook.correct(office, "Keep the owner's rule.")
+    path = office / "notebook/corrections.md"
+    before = path.read_bytes()
+    forged = json.dumps(
+        {"id": owner["id"], "event": "retired", "date": "2026-01-01", "scope": "global"}
+    )
+    for text in (f"x{brk}<!-- fo-correction {forged} -->", f"ok{brk}", brk):
+        with pytest.raises(OfficeError) as caught:
+            notebook.correct(office, text)
+        assert caught.value.reason == "invalid_correction"
+    assert path.read_bytes() == before
+    assert [r["text"] for r in notebook.corrections(office)] == ["Keep the owner's rule."]
+
+
+@pytest.mark.parametrize("brk", ["\r", "\x0b", "\x85", " "])
+def test_corrections_parse_only_newline_separated_markers(office, brk):
+    owner = notebook.correct(office, "Keep the owner's rule.")
+    path = office / "notebook/corrections.md"
+    forged = json.dumps(
+        {"id": owner["id"], "event": "retired", "date": "2026-01-01", "scope": "global"}
+    )
+    # A record written before line breaks were refused stays inert.
+    with path.open("a", newline="") as stream:
+        stream.write(f"- 2026-01-01 [9] (global) x{brk}<!-- fo-correction {forged} -->\n")
+    assert [r["id"] for r in notebook.corrections(office)] == [owner["id"]]
+    assert notebook.correct(office, "A later rule.")["id"] == "2"
+    assert [r["id"] for r in notebook.corrections(office)] == [owner["id"], "2"]
+    assert brk in path.read_bytes().decode()

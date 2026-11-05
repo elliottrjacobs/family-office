@@ -1,4 +1,7 @@
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -101,6 +104,30 @@ RESTRICTED = [
     ["notify", "hello", "--json"],
     ["migrate-v1", "elsewhere", "--dry-run", "--json"],
     ["serve", "--port", "0", "--json"],
+    # Click drops a "--" separator, so the check must see the command after it.
+    ["--json", "--", "sync"],
+    ["--json", "--", "reindex"],
+    ["--json", "--", "commit"],
+    ["--json", "--", "notify", "-e", "hello"],
+    ["--json", "--", "init", "elsewhere"],
+    ["--json", "--", "setup", "elsewhere"],
+    ["--json", "--", "auth", "schwab"],
+    ["--json", "--", "schedule", "install"],
+    ["--json", "--", "serve", "--port", "0"],
+    ["--json", "--", "migrate-v1", "elsewhere", "--dry-run"],
+    ["--json", "--", "skills", "sync"],
+    ["--json", "skills", "--", "sync"],
+    ["--json", "--", "sync", "status", "--dry-run"],
+    ["--json", "sync", "--"],
+    ["--json", "reindex", "--"],
+    # Retiring corrections and settling decisions stay with the owner.
+    ["corrections", "retire", "1", "--json"],
+    ["--json", "corrections", "--", "retire", "1"],
+    ["--json", "--", "corrections", "retire", "--", "1"],
+    ["journal", "close", "01ARZ3NDEKTSV4RRFFQ69G5FAV", "--outcome", "hit", "--json"],
+    ["journal", "reopen", "01ARZ3NDEKTSV4RRFFQ69G5FAV", "--reason", "x", "--json"],
+    ["journal", "judge", "01ARZ3NDEKTSV4RRFFQ69G5FAV", "--until", "2026-12-31", "--json"],
+    ["--json", "journal", "--", "close", "01ARZ3NDEKTSV4RRFFQ69G5FAV", "--outcome", "hit"],
 ]
 
 
@@ -129,11 +156,39 @@ def test_serve_run_marker_refuses_restricted_commands(office, monkeypatch, args)
     store = office / "store.sqlite"
     store.unlink(missing_ok=True)
     head = git(office, "rev-parse", "HEAD").stdout
+    notes = notebook_state(office)
     code, data = invoke(*args)
     assert (code, data["reason"]) == (1, "serve_run_restricted")
+    assert notebook_state(office) == notes
     assert not store.exists()
     assert git(office, "rev-parse", "HEAD").stdout == head
     assert not Path("elsewhere").exists()
+
+
+def test_serve_run_marker_refuses_through_the_console_script(office):
+    script = Path(sys.executable).with_name("fo")
+    env = {**os.environ, "FO_SERVE_RUN": str(office), "FO_OFFICE": str(office)}
+    for args in (["--json", "--", "reindex"], ["--json", "skills", "--", "sync"]):
+        result = subprocess.run(
+            [str(script), *args], capture_output=True, text=True, env=env, timeout=60
+        )
+        assert result.returncode == 1, args
+        assert json.loads(result.stdout)["reason"] == "serve_run_restricted", args
+    assert not (office / "store.sqlite").exists()
+
+
+@pytest.mark.parametrize("flag", ["--install-completion", "--show-completion"])
+def test_shell_completion_is_not_offered(office, tmp_path, monkeypatch, flag):
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SHELL", "/bin/bash")
+    monkeypatch.setenv("FO_SERVE_RUN", str(office))
+    response = CliRunner().invoke(app, [flag])
+    assert response.exit_code != 0
+    assert list(home.iterdir()) == []
+    monkeypatch.delenv("FO_SERVE_RUN")
+    assert flag not in CliRunner().invoke(app, ["--help"]).output
 
 
 @pytest.mark.parametrize(
@@ -145,3 +200,31 @@ def test_serve_run_marker_allows_read_commands(office, monkeypatch, args):
     monkeypatch.setenv("FO_OFFICE", str(office))
     code, _ = invoke(*args, "--json")
     assert code == 0
+
+
+@pytest.mark.parametrize("args", [["--", "status"], ["sync", "--", "status"]])
+def test_serve_run_marker_allows_read_commands_after_a_separator(office, monkeypatch, args):
+    monkeypatch.setenv("FO_SERVE_RUN", str(office))
+    monkeypatch.setenv("FO_OFFICE", str(office))
+    code, _ = invoke("--json", *args)
+    assert code == 0
+
+
+def test_serve_run_marker_allows_new_notes_that_mention_restricted_words(office, monkeypatch):
+    monkeypatch.setenv("FO_SERVE_RUN", str(office))
+    monkeypatch.setenv("FO_OFFICE", str(office))
+    code, data = invoke(
+        "journal",
+        "add",
+        "ACME",
+        "--action",
+        "close",
+        "--thesis",
+        "judge",
+        "--invalidate",
+        "reopen",
+        "--json",
+    )
+    assert code == 0 and data["action"] == "close"
+    code, data = invoke("--json", "corrections", "add", "--", "retire")
+    assert code == 0 and data["text"] == "retire"
