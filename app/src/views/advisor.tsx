@@ -1,13 +1,15 @@
 import * as React from "react"
-import { Check, FileText, MessageSquare, Plus, Terminal } from "lucide-react"
+import { Check, FileText, MessageSquare, PanelRight, Plus, Terminal } from "lucide-react"
 
-import { decisions, levels, reports } from "@/api/office"
+import { type Advisor, decisions, levels, reports } from "@/api/office"
 import { cancel, follow, reply, run as fetchRun, type RunEvent, runnerStatus, runs } from "@/api/runs"
 import { useApi } from "@/api/use-api"
 import { useAppData } from "@/app-data"
 import { advisorIdFor } from "@/avatars/appearance"
 import { LiveAdvisorAvatar, publishRun } from "@/components/advisor-avatar"
+import { AdvisorInspector, useInspectorShown } from "@/components/advisor-inspector"
 import { AdvisorIcon, advisorName, GROUP_LABELS } from "@/components/advisor-icon"
+import { AppearanceSheet } from "@/components/appearance-sheet"
 import { CommandLine } from "@/components/command-line"
 import { RecordDecision } from "@/components/decision-actions"
 import { LaunchPanel } from "@/components/launch-panel"
@@ -15,6 +17,7 @@ import { Empty, Loading, Page } from "@/components/page"
 import { RunView } from "@/components/run-view"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { day } from "@/lib/format"
 import { Link, navigate, reportHref } from "@/lib/router"
 import { apply, empty, type Transcript } from "@/lib/transcript"
@@ -173,6 +176,8 @@ export function AdvisorPage({ name }: { name: string }) {
   const runner = useApi(status?.chat ? "runner" : "runner-off", () =>
     status?.chat ? runnerStatus() : Promise.resolve(undefined)
   )
+  const mobile = useIsMobile()
+  const [inspectorShown, setInspectorShown] = useInspectorShown()
   if (!registry) {
     return (
       <Page>
@@ -198,15 +203,58 @@ export function AdvisorPage({ name }: { name: string }) {
     .sort((a, b) => (a.frontmatter.date < b.frontmatter.date ? 1 : -1))
     .slice(0, 5)
   const chat = Boolean(status?.chat && runner.data?.ready && !["onboard", "journal"].includes(name))
+  const robot = advisorIdFor(advisor.name)
+  // At desktop width the inspector sits beside the chat; on a phone the facts stay below it.
+  const inspector = !mobile && inspectorShown
+  const main = (
+    <div className="min-w-0 space-y-4">
+      <section className="space-y-3 rounded-xl border bg-card p-4 sm:p-5">
+        <h2 className="flex items-center gap-2 text-base font-semibold">
+          <MessageSquare className="size-4 text-muted-foreground" /> Ask {advisorName(advisor.name)}
+        </h2>
+        {chat ? <Chat key={name} name={name} deepAvailable={Boolean(runner.data?.deep)} /> : <ChatUnavailable name={name} />}
+      </section>
+      <section className="rounded-xl border bg-card p-4 sm:p-5">
+        <h2 className="mb-3 text-base font-semibold">Recent reports</h2>
+        {recent.length ? (
+          <ul className="space-y-2">
+            {recent.map((r) => (
+              <li key={r.path}>
+                <Link to={reportHref(r.path)} className="flex items-start gap-2 text-sm hover:underline">
+                  <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0">
+                    <span className="font-medium">
+                      {r.frontmatter.subject === "household" ? advisorName(r.frontmatter.kind) : r.frontmatter.subject}
+                    </span>
+                    <span className="text-muted-foreground">, {day(r.frontmatter.date)}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{r.summary}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground">No {advisor.report_kind} reports yet.</p>
+        )}
+      </section>
+    </div>
+  )
   return (
-    <Page>
+    <Page className={inspector ? "max-w-6xl" : undefined}>
       <div className="mb-6 flex items-start gap-3">
-        {advisorIdFor(advisor.name) ? (
-          <LiveAdvisorAvatar advisor={advisorIdFor(advisor.name)!} size={48} label />
+        {robot && mobile ? (
+          <AppearanceSheet
+            advisorId={robot}
+            className="rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <LiveAdvisorAvatar advisor={robot} size={48} label />
+          </AppearanceSheet>
+        ) : robot ? (
+          <LiveAdvisorAvatar advisor={robot} size={48} label />
         ) : (
           <AdvisorIcon name={advisor.name} group={advisor.group} className="size-10 [&_svg]:size-5" />
         )}
-        <div className="min-w-0 space-y-1">
+        <div className="min-w-0 flex-1 space-y-1">
           <h1 className="text-2xl sm:text-3xl">{advisorName(advisor.name)}</h1>
           <p className="max-w-2xl text-sm text-muted-foreground">{advisor.description}</p>
           <div className="flex flex-wrap gap-1.5 pt-1">
@@ -216,74 +264,75 @@ export function AdvisorPage({ name }: { name: string }) {
             {advisor.invocation === "explicit" && <Badge variant="outline">Runs only when asked</Badge>}
           </div>
         </div>
+        {!mobile && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0 text-muted-foreground"
+            aria-label={inspectorShown ? "Hide inspector" : "Show inspector"}
+            aria-pressed={inspectorShown}
+            title={inspectorShown ? "Hide inspector" : "Show inspector"}
+            onClick={() => setInspectorShown(!inspectorShown)}
+          >
+            <PanelRight />
+          </Button>
+        )}
       </div>
-      <div className="grid gap-4 lg:grid-cols-[3fr_2fr]">
-        <div className="min-w-0 space-y-4">
-          <section className="space-y-3 rounded-xl border bg-card p-4 sm:p-5">
-            <h2 className="flex items-center gap-2 text-base font-semibold">
-              <MessageSquare className="size-4 text-muted-foreground" /> Ask {advisorName(advisor.name)}
-            </h2>
-            {chat ? <Chat key={name} name={name} deepAvailable={Boolean(runner.data?.deep)} /> : <ChatUnavailable name={name} />}
-          </section>
-          <section className="rounded-xl border bg-card p-4 sm:p-5">
-            <h2 className="mb-3 text-base font-semibold">Recent reports</h2>
-            {recent.length ? (
-              <ul className="space-y-2">
-                {recent.map((r) => (
-                  <li key={r.path}>
-                    <Link to={reportHref(r.path)} className="flex items-start gap-2 text-sm hover:underline">
-                      <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                      <span className="min-w-0">
-                        <span className="font-medium">
-                          {r.frontmatter.subject === "household" ? advisorName(r.frontmatter.kind) : r.frontmatter.subject}
-                        </span>
-                        <span className="text-muted-foreground">, {day(r.frontmatter.date)}</span>
-                        <span className="block truncate text-xs text-muted-foreground">{r.summary}</span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground">No {advisor.report_kind} reports yet.</p>
-            )}
-          </section>
+      {inspector ? (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18.5rem] xl:gap-8">
+          {main}
+          <div className="self-start rounded-xl border bg-card p-4 sm:p-5 lg:sticky lg:top-4">
+            <AdvisorInspector advisor={advisor} />
+          </div>
         </div>
-        <aside className="space-y-4 self-start rounded-xl border bg-card p-4 sm:p-5">
-          <div>
-            <h2 className="text-base font-semibold">What {advisorName(advisor.name)} reads</h2>
-            <p className="text-xs text-muted-foreground">
-              Default context: {advisor.default_context}. Allowed: {advisor.allowed_context.join(", ")}.
-            </p>
-          </div>
-          {reads ? (
-            <ul className="space-y-1.5 text-sm">
-              {reads.reads.map((line) => (
-                <li key={line} className="flex gap-2">
-                  <Check className="mt-0.5 size-3.5 shrink-0 text-success-foreground" />
-                  {line}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <Loading rows={1} />
-          )}
-          <div>
-            <p className="mb-1.5 text-xs font-medium text-muted-foreground">Commands</p>
-            <ul className="space-y-1">
-              {advisor.commands.map((command) => (
-                <li key={command}>
-                  <code className="flex items-center gap-1.5 font-mono text-xs">
-                    <Terminal className="size-3 text-muted-foreground" />
-                    fo {command} --json
-                  </code>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <p className="text-xs text-muted-foreground">Writes {advisor.report_kind} reports under reports/.</p>
-        </aside>
-      </div>
+      ) : mobile ? (
+        <div className="grid gap-4">
+          {main}
+          <AboutAdvisor advisor={advisor} reads={reads?.reads} />
+        </div>
+      ) : (
+        main
+      )}
     </Page>
+  )
+}
+
+/** What the advisor reads, its commands and where it writes, below the chat on a phone. */
+function AboutAdvisor({ advisor, reads }: { advisor: Advisor; reads: string[] | undefined }) {
+  return (
+    <aside className="space-y-4 self-start rounded-xl border bg-card p-4 sm:p-5">
+      <div>
+        <h2 className="text-base font-semibold">What {advisorName(advisor.name)} reads</h2>
+        <p className="text-xs text-muted-foreground">
+          Default context: {advisor.default_context}. Allowed: {advisor.allowed_context.join(", ")}.
+        </p>
+      </div>
+      {reads ? (
+        <ul className="space-y-1.5 text-sm">
+          {reads.map((line) => (
+            <li key={line} className="flex gap-2">
+              <Check className="mt-0.5 size-3.5 shrink-0 text-success-foreground" />
+              {line}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <Loading rows={1} />
+      )}
+      <div>
+        <p className="mb-1.5 text-xs font-medium text-muted-foreground">Commands</p>
+        <ul className="space-y-1">
+          {advisor.commands.map((command) => (
+            <li key={command}>
+              <code className="flex items-center gap-1.5 font-mono text-xs">
+                <Terminal className="size-3 text-muted-foreground" />
+                fo {command} --json
+              </code>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <p className="text-xs text-muted-foreground">Writes {advisor.report_kind} reports under reports/.</p>
+    </aside>
   )
 }
