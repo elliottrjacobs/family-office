@@ -184,8 +184,10 @@ fo serve --remote
 tailscale serve --bg 4790
 ```
 
-Open the Tailnet link `fo serve` prints. With `allowed_logins`, a request without
-one of those Tailscale identities is refused, on loopback too. Tailscale Funnel is
+Open the Tailnet link `fo serve` prints. With `allowed_logins`, a request over the
+tailnet without one of those Tailscale identities is refused; on loopback the
+launch cookie alone still works, because any local process could forge the header
+there. Tailscale Funnel is
 not supported, because it sends no identity. `--host` binds another address for a
 proxy of your own and prints a warning; do not expose the server to a network you
 do not control.

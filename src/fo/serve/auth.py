@@ -144,8 +144,14 @@ class Access:
         return {"login": login, "name": headers.get(NAME_HEADER)} if login else None
 
     def check_identity(self, headers):
-        """With an allowlist, a missing or unlisted login fails closed; Funnel sends none."""
-        if not self.remote or not self.allowed_logins:
+        """With an allowlist, a missing or unlisted login fails closed; Funnel sends none.
+
+        Only requests that name the tailnet host carry a header tailscale serve set. On
+        loopback any local process can send one, so it proves nothing there and the launch
+        cookie stays the sole gate; that is what lets the Mac app, a loopback client, keep
+        working while --remote and an allowlist are on.
+        """
+        if not self.remote or not self.allowed_logins or not self.on_tailnet(headers):
             return None
         login = headers.get(LOGIN_HEADER)
         if login not in self.allowed_logins:

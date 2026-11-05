@@ -99,8 +99,11 @@ def test_remote_mode_enforces_allowed_logins(office, tmp_path):
         assert status == 200 and data["identity"] == {"login": "owner@example.com", "name": "Owner"}
         other = {"Tailscale-User-Login": "guest@example.com"}
         assert client.get("/api/status", host=TAILNET, headers=other)[0] == 403
-        # Loopback names keep working, under the same login rule.
+        # Loopback names keep working on the cookie alone: a local process could send any
+        # identity header, so the allowlist applies only to requests naming the tailnet host.
         assert client.get("/api/status", headers=listed)[0] == 200
+        assert client.get("/api/status")[0] == 200
+        assert client.get("/api/status", headers=other)[0] == 200
         status, headers, _ = client.request("GET", "/?t=" + client.token, cookie=False)
         assert "Secure" in headers["set-cookie"]
         status, data = client.post(
