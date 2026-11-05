@@ -95,7 +95,7 @@ public struct CLIResolver: Sendable {
     public let usrLocalBin: URL
 
     public init(
-        home: URL = FileManager.default.homeDirectoryForCurrentUser,
+        home: URL = URL(fileURLWithPath: NSHomeDirectory()),
         homebrewBin: URL = URL(fileURLWithPath: "/opt/homebrew/bin"),
         usrLocalBin: URL = URL(fileURLWithPath: "/usr/local/bin")
     ) {
