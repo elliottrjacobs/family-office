@@ -190,6 +190,28 @@ not supported, because it sends no identity. `--host` binds another address for 
 proxy of your own and prints a warning; do not expose the server to a network you
 do not control.
 
+### Writing reports and settings through `fo`
+
+`fo report write` reads a report body on stdin and writes it at the path `fo start`
+returned (`--report PATH`), or allocates one from `--kind` and `--subject` the way
+`fo report path` does; `--part NAME` writes `NAME.md` in the report's part
+directory instead. It writes only under `reports/`, never into a dotted directory
+or file there, caps the body at 2 MB (`max_body_bytes` under `[reports]`), writes
+through a temp file and rename, and prints the path and byte count. Skills and
+advisor runs use it in place of a file-writing tool.
+
+`fo config set KEY VALUE` changes one setting in `office.toml` under the office
+lock, keeps every other line and comment as it was, and refuses anything outside
+this list with `invalid_key`, or a value of the wrong type with `invalid_value`:
+`serve.port` (1 to 65535, not 8182), `serve.tailnet_name`, `serve.allowed_logins`
+(a JSON array or comma-separated), `serve.web_fetch_cap`, `serve.engines.default`
+(`claude` or `codex`), and for each engine `serve.engines.<claude|codex>.model`,
+`.effort` (`low`, `medium`, `high`), `.max_budget_usd`, and `.enabled`; then
+`providers.<name>.daily_limit` for `alphavantage`, `fred`, `edgar`, `exa`,
+`firecrawl`, and `gemini`, `providers.gemini.max_tasks_per_day`, and
+`providers.edgar.user_agent`. `fo config get KEY` prints one of them as JSON.
+Advisor runs cannot change settings.
+
 ## Storage and migration
 
 The public repository contains code and skills. The private office contains
