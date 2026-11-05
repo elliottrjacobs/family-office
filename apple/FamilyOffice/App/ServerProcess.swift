@@ -317,8 +317,13 @@ final class ServerProcess {
         "ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CONFIG_DIR", "CODEX_HOME",
     ]
 
-    /// A scrubbed environment: PATH is the runtime's bin plus /usr/bin:/bin, and only the
-    /// variables in `passedThrough` survive from the app's own environment.
+    /// `FO_CLAUDE_EXECUTABLE` and `FO_CODEX_EXECUTABLE`: the CLIs `FOKit.CLIResolver` found,
+    /// set by `AppState` before the server starts and whenever detection changes.
+    static var engineExecutables: [String: String] = [:]
+
+    /// A scrubbed environment: PATH is the runtime's bin plus /usr/bin:/bin, only the
+    /// variables in `passedThrough` survive from the app's own environment, and the engine
+    /// CLIs the app found are named in `engineExecutables`.
     static func environment(binDirectory: URL) -> [String: String] {
         let source = ProcessInfo.processInfo.environment
         var environment: [String: String] = [
@@ -332,6 +337,9 @@ final class ServerProcess {
         }
         if environment["LANG"] == nil {
             environment["LANG"] = "en_US.UTF-8"
+        }
+        for (name, path) in engineExecutables {
+            environment[name] = path
         }
         return environment
     }

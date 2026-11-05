@@ -109,10 +109,39 @@ final class AppState {
     }
 
     func launch() {
-        if officePath == nil {
-            showOfficeSheet = true
-        } else {
-            startServer()
+        Task {
+            // The server should run the CLIs the app finds, so look before the first start.
+            await detectEngines(restart: false)
+            if officePath == nil {
+                showOfficeSheet = true
+            } else {
+                startServer()
+            }
+        }
+    }
+
+    /// Finds `claude` and `codex` the way Settings > Engines does and names them in the
+    /// server's environment.
+    func detectEngines(restart: Bool = true) async {
+        let detector = EngineDetector()
+        async let claude = detector.locate(.claude)
+        async let codex = detector.locate(.codex)
+        var found: [EngineKind: CLILocation] = [:]
+        found[.claude] = await claude
+        found[.codex] = await codex
+        applyEngineLocations(found, restart: restart)
+    }
+
+    /// Called with what the Engines pane detected. A change restarts a running server so its
+    /// next advisor run uses the CLI found now.
+    func applyEngineLocations(_ locations: [EngineKind: CLILocation], restart: Bool = true) {
+        let environment = EngineExecutables.environment(locations)
+        guard environment != ServerProcess.engineExecutables else { return }
+        ServerProcess.engineExecutables = environment
+        let names = environment.keys.sorted().joined(separator: ",")
+        settingsLog.info("engines: server environment names \(names.isEmpty ? "none" : names, privacy: .public)")
+        if restart, server.isRunning {
+            restartServer()
         }
     }
 

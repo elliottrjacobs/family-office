@@ -260,6 +260,27 @@ public struct EngineDetection: Sendable, Equatable {
     public var installed: Bool { location != nil }
 }
 
+/// The variables the app sets in the server's environment so it runs the CLIs the app found:
+/// the server's own PATH is scrubbed and would miss an nvm, Homebrew or `~/.local/bin` install.
+public enum EngineExecutables {
+    public static func variable(_ engine: EngineKind) -> String {
+        switch engine {
+        case .claude: return "FO_CLAUDE_EXECUTABLE"
+        case .codex: return "FO_CODEX_EXECUTABLE"
+        }
+    }
+
+    /// `FO_CLAUDE_EXECUTABLE` and `FO_CODEX_EXECUTABLE` for the engines found; an engine not
+    /// found sets nothing, so the server falls back to its own PATH.
+    public static func environment(_ locations: [EngineKind: CLILocation]) -> [String: String] {
+        var environment: [String: String] = [:]
+        for (engine, location) in locations {
+            environment[variable(engine)] = location.path
+        }
+        return environment
+    }
+}
+
 #if os(macOS)
 /// Runs the detection: the login shell lookup, the path resolver, `--version` and the
 /// sign-in check, each with a timeout.
@@ -282,9 +303,14 @@ public struct EngineDetector: Sendable {
         self.passedThrough = passedThrough
     }
 
-    public func detect(_ engine: EngineKind) async -> EngineDetection {
+    /// Where the CLI is, without running it: the login shell lookup, then the resolver.
+    public func locate(_ engine: EngineKind) async -> CLILocation? {
         let shellPath = await loginShellLookup(engine.cli)
-        guard let location = resolver.resolve(engine, loginShellPath: shellPath) else {
+        return resolver.resolve(engine, loginShellPath: shellPath)
+    }
+
+    public func detect(_ engine: EngineKind) async -> EngineDetection {
+        guard let location = await locate(engine) else {
             return EngineDetection(engine: engine, location: nil, version: nil, signIn: .signedOut)
         }
         let environment = environment(for: location)

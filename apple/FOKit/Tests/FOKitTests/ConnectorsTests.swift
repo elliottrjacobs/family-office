@@ -79,7 +79,8 @@ final class ConnectorsTests: XCTestCase {
         var states = ConnectorStates(
             config: try config(#"{"settings": {}, "secrets": {"alphavantage": {"api_key": "***"}}}"#))
         XCTAssertEqual(states.state(connector("alphavantage")), .connected)
-        XCTAssertEqual(states.state(connector("fred")), .notReported)
+        // The route reports every stored key, so one it does not list is not connected.
+        XCTAssertEqual(states.state(connector("fred")), .notConnected)
 
         states.outcomes["fred"] = ConnectOutcome(connected: true, succeeded: true, message: "Saved.")
         XCTAssertEqual(states.state(connector("fred")), .connected)
@@ -87,7 +88,7 @@ final class ConnectorsTests: XCTestCase {
         // A refused Save changes nothing.
         states.outcomes["exa"] = ConnectOutcome(
             connected: false, succeeded: false, message: "The provider rejected the API key.")
-        XCTAssertEqual(states.state(connector("exa")), .notReported)
+        XCTAssertEqual(states.state(connector("exa")), .notConnected)
 
         states.outcomes["alphavantage"] = ConnectOutcome(connected: false, succeeded: true, message: "Removed.")
         XCTAssertEqual(states.state(connector("alphavantage")), .notConnected)

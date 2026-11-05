@@ -71,8 +71,7 @@ public enum ConnectorCatalog {
 public enum ConnectionState: Sendable, Equatable {
     case connected
     case notConnected
-    /// The server does not report this provider (keys `fo connect` stores live in
-    /// `secrets/<provider>.json`, which no route reads); only a Save in this session tells.
+    /// The server's routes could not be read, so nothing is known beyond this session.
     case notReported
 
     public var label: String {
@@ -101,8 +100,10 @@ public struct ConnectOutcome: Sendable, Equatable {
 /// Connection states from the server's routes, without reading `secrets/` from Swift:
 /// - account providers: `GET /api/onboarding` `providers[].connected`, else a masked entry in
 ///   `GET /api/config` `secrets` (from `secrets/keys.toml`);
-/// - key providers: a masked `secrets` entry (a key `fo auth` stored), else the last Save
-///   or Remove in this session, else not reported;
+/// - key providers: the last Save or Remove in this session, else a masked `secrets` entry
+///   (the route lists `secrets/keys.toml` entries and the `secrets/<provider>.json` files
+///   `fo connect` writes, as `{"<provider>": {"api_key": "***"}}`), else not connected; not
+///   reported only while the config route has not answered;
 /// - EDGAR: `settings.providers.edgar.user_agent` in `GET /api/config`.
 public struct ConnectorStates: Sendable, Equatable {
     public var onboarding: [Onboarding.Provider]
@@ -149,7 +150,8 @@ public struct ConnectorStates: Sendable, Equatable {
             if let outcome = outcomes[connector.id], outcome.succeeded {
                 return outcome.connected ? .connected : .notConnected
             }
-            return hasMaskedSecret(connector.id) ? .connected : .notReported
+            if hasMaskedSecret(connector.id) { return .connected }
+            return config == nil ? .notReported : .notConnected
         case .contact:
             if let outcome = outcomes[connector.id], outcome.succeeded {
                 return outcome.connected ? .connected : .notConnected

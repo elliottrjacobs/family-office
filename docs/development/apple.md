@@ -128,7 +128,8 @@ fo [--office PATH] serve --remote --app --parent-pid APP_PID   # with phone acce
 with stdin closed, the working directory set to the home folder, and a scrubbed environment:
 `PATH` is the runtime's `bin` plus `/usr/bin:/bin`; `HOME`, `USER`, `LANG`, `TMPDIR` and, when
 set, `ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, `CLAUDE_CONFIG_DIR` and `CODEX_HOME` pass
-through; `PYTHONUNBUFFERED=1` is added. Port 0 lets the system choose a free loopback port.
+through; `PYTHONUNBUFFERED=1` is added, and `FO_CLAUDE_EXECUTABLE` and `FO_CODEX_EXECUTABLE`
+name the CLIs the app found (see Engines). Port 0 lets the system choose a free loopback port.
 With phone access on, the app omits `--port` so the server takes `[serve] port` from
 `office.toml` (default 4790) and `tailscale serve --bg PORT` keeps pointing at it.
 
@@ -268,18 +269,21 @@ picker of the curated models plus Other… for any id, `serve.engines.<name>.mod
 refusal shows the CLI's message under the field, and `/api/runner` is read again after
 every write.
 
-The server resolves `claude` and `codex` from its own PATH (`shutil.which`); it has no
-executable override such as `FO_CLAUDE_EXECUTABLE`, so the app passes none. With the app's
-scrubbed PATH (the runtime's `bin`, `/usr/bin`, `/bin`) an nvm, Homebrew or `~/.local/bin`
-install is therefore found by the pane but reported `runner_missing` by the server. The
-pane shows both side by side and does no more.
+The server's scrubbed PATH (the runtime's `bin`, `/usr/bin`, `/bin`) would miss an nvm,
+Homebrew or `~/.local/bin` install, so the app names what it found in the server's
+environment: `FO_CLAUDE_EXECUTABLE` and `FO_CODEX_EXECUTABLE` (`FOKit.EngineExecutables`),
+set from the same resolver before the first server start and again whenever the Engines
+pane detects (on appear and Check Again). An engine not found sets nothing, and the server
+falls back to its own PATH. When the found paths change, the app restarts a running server
+so the next advisor run uses them. The server honors `FO_CLAUDE_EXECUTABLE` when the path is
+executable; `FO_CODEX_EXECUTABLE` is passed the same way for the Codex runner.
 
 ## Connectors
 
 | Provider | Kind | Connect | Remove | State from |
 | -------- | ---- | ------- | ------ | ---------- |
 | Schwab, SimpleFIN | account | Connect… opens the terminal with `fo auth schwab` or `fo auth simplefin` | (not in the app) | `/api/onboarding` `providers[].connected`, else a masked entry in `/api/config` `secrets` |
-| Alpha Vantage, FRED, Exa, Firecrawl, Gemini | API key | Save runs `fo --json --office PATH connect <provider>` with the key on stdin | Remove… runs `fo connect --remove <provider>` after confirmation | a masked `/api/config` `secrets` entry (a key `fo auth` stored), else the last Save or Remove in this session |
+| Alpha Vantage, FRED, Exa, Firecrawl, Gemini | API key | Save runs `fo --json --office PATH connect <provider>` with the key on stdin | Remove… runs `fo connect --remove <provider>` after confirmation | the last Save or Remove in this session, else a masked `/api/config` `secrets` entry |
 | SEC EDGAR | contact | Save runs `fo connect edgar --user-agent "Name email"` | Remove runs `fo connect --remove edgar` | `/api/config` `settings.providers.edgar.user_agent` |
 
 The key never appears in an argument list: `FOKit.Subprocess` writes it to stdin and closes
@@ -288,9 +292,11 @@ public result (`Saved. … accepted the key.` or, for example, `The provider rej
 key.`). A field that is empty, contains spaces or is longer than 512 characters is refused
 in the app without running `fo`. The app never reads `secrets/`.
 
-`fo connect` writes keys to `secrets/<provider>.json`, and no server route reports those
-files yet (`/api/config` masks only `secrets/keys.toml`), so a key saved in an earlier
-session shows "Not reported by the server" until it is saved again. Alpha Vantage answers
+`fo connect` writes keys to `secrets/<provider>.json`, and `GET /api/config` lists each such
+file in `secrets` as `{"<provider>": {"api_key": "***"}}` beside the masked
+`secrets/keys.toml` entries, so a key saved in an earlier session shows Connected after a
+restart, and a provider the route does not list shows Not connected. "Not reported by the
+server" appears only while the route cannot be read. Alpha Vantage answers
 an unknown key with ordinary data, so its Save can succeed for a made-up key; FRED, Exa,
 Firecrawl and Gemini reject one.
 

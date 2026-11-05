@@ -159,7 +159,7 @@ struct ConnectorsSettings: View {
                 Text(
                     "Save checks the key with one call to the provider, then fo connect stores it in the "
                         + "office's secrets folder. The key goes to fo on standard input; the app keeps no copy. "
-                        + "The server does not yet report keys saved this way, so a row shows the last Save here."
+                        + "The server reports which keys exist, never their values, so rows stay right after a restart."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
