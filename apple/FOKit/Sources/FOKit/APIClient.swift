@@ -118,17 +118,70 @@ public final class APIClient: Sendable {
         return components.string ?? ""
     }
 
+    /// `POST /api/devices/pair` over the tailnet: redeems a pairing code for a device token,
+    /// which the server shows only in this response. Sends no cookie and no Origin; the server
+    /// checks the Tailscale identity that `tailscale serve` adds.
+    public func pair(code: String, name: String) async throws -> DeviceToken {
+        let body = try JSONEncoder().encode(["code": code, "name": name])
+        let (data, _) = try await perform("POST", "api/devices/pair", body: body, credential: .none)
+        return try Self.decode(DeviceToken.self, from: data)
+    }
+
+    /// `POST /api/devices/login` with `Authorization: Bearer <token>`: trades the device token
+    /// for a per-device session cookie. The client keeps the cookie for its later requests and
+    /// returns it so the web view can use the same session.
+    public func login(token: String) async throws -> (DeviceLogin, [HTTPCookie]) {
+        let (data, response) = try await perform(
+            "POST", "api/devices/login", body: nil, credential: .bearer(token))
+        let login = try Self.decode(DeviceLogin.self, from: data)
+        var fields: [String: String] = [:]
+        for (key, value) in response.allHeaderFields {
+            if let key = key as? String, let value = value as? String { fields[key] = value }
+        }
+        let url = response.url ?? baseURL
+        let cookies = HTTPCookie.cookies(withResponseHeaderFields: fields, for: url)
+        self.cookies.replace(cookies)
+        return (login, cookies)
+    }
+
+    enum Credential {
+        /// The copied session cookie; writes also carry the server's own origin.
+        case cookie
+        /// A bearer token and nothing else (the device login).
+        case bearer(String)
+        /// No credential at all (pairing).
+        case none
+    }
+
     /// Sends one request with the copied session cookie. Writes also carry the server's own
     /// origin, which the server requires on every non-GET request.
     func send<T: Decodable>(_ method: String, _ path: String) async throws -> T {
+        let (data, _) = try await perform(method, path, body: nil, credential: .cookie)
+        return try Self.decode(T.self, from: data)
+    }
+
+    func perform(_ method: String, _ path: String, body: Data?, credential: Credential)
+        async throws -> (Data, HTTPURLResponse)
+    {
         var request = URLRequest(url: baseURL.appendingPathComponent(path))
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        if method != "GET" {
-            request.setValue(origin, forHTTPHeaderField: "Origin")
+        if let body {
+            request.httpBody = body
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
-        for (field, value) in HTTPCookie.requestHeaderFields(with: cookies.current) {
-            request.setValue(value, forHTTPHeaderField: field)
+        switch credential {
+        case .cookie:
+            if method != "GET" {
+                request.setValue(origin, forHTTPHeaderField: "Origin")
+            }
+            for (field, value) in HTTPCookie.requestHeaderFields(with: cookies.current) {
+                request.setValue(value, forHTTPHeaderField: field)
+            }
+        case .bearer(let token):
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        case .none:
+            break
         }
         let data: Data
         let response: URLResponse
@@ -146,7 +199,7 @@ public final class APIClient: Sendable {
             let denial = try? JSONDecoder().decode(Denial.self, from: data)
             throw APIError.http(status: http.statusCode, reason: denial?.reason)
         }
-        return try Self.decode(T.self, from: data)
+        return (data, http)
     }
 
     /// Decodes a response body, mapping failures to `APIError.decoding`.
