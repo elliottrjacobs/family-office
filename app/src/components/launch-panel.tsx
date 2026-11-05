@@ -1,5 +1,5 @@
 import * as React from "react"
-import { CircleAlert, FileText, Loader2, Play } from "lucide-react"
+import { CircleAlert, FileText, Globe, Loader2, Play } from "lucide-react"
 
 import { ApiError } from "@/api/client"
 import type { Advisor, Level } from "@/api/office"
@@ -166,6 +166,19 @@ function EngineFields({
   )
 }
 
+/** Web access follows the context level: on only where the run reads no household data. */
+export function WebPolicy({ level }: { level: Level }) {
+  const on = level === "none"
+  return (
+    <p className="flex items-start gap-1.5 text-xs text-muted-foreground" aria-label="Web policy">
+      <Globe className="mt-0.5 size-3 shrink-0" />
+      {on
+        ? "Web search and fetch: on, this level reads no household data."
+        : "Web search and fetch: off at this level."}
+    </p>
+  )
+}
+
 function useDebounced<T>(value: T, delay = 400) {
   const [settled, setSettled] = React.useState(value)
   React.useEffect(() => {
@@ -308,6 +321,7 @@ export function LaunchPanel({
           />
         </div>
       </div>
+      <WebPolicy level={level} />
       {/* The fields wait for the curated list so an office model shows as listed or as Other. */}
       {choice && catalog.data && (
         <EngineFields

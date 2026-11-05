@@ -86,6 +86,17 @@ function launched(fetch: ReturnType<typeof stubFetch>) {
 const group = (name: string) => within(screen.getByRole("radiogroup", { name }))
 
 describe("LaunchPanel", () => {
+  it("states the web policy for the chosen level", () => {
+    stubFetch()
+    render(<LaunchPanel advisor={base} deepAvailable={false} onLaunched={vi.fn()} />)
+    const policy = () => screen.getByLabelText("Web policy").textContent
+    expect(policy()).toBe("Web search and fetch: on, this level reads no household data.")
+    fireEvent.click(group("Context level").getByRole("radio", { name: "Household" }))
+    expect(policy()).toBe("Web search and fetch: off at this level.")
+    fireEvent.click(group("Context level").getByRole("radio", { name: "None" }))
+    expect(policy()).toMatch(/: on,/)
+  })
+
   it("offers only the advisor's allowed levels and hides deep when undeclared", () => {
     stubFetch()
     render(<LaunchPanel advisor={base} deepAvailable={true} onLaunched={vi.fn()} />)

@@ -73,4 +73,17 @@ describe("transcript", () => {
     expect(state.items.slice(-2).map((i) => i.type)).toEqual(["user", "assistant"])
     expect(state.status).toBe("awaiting_input")
   })
+
+  it("collects web visits once each, outside the conversation items", () => {
+    const visits: RunEvent[] = [
+      { seq: 17, kind: "web", action: "search", value: "ACME 10-K" },
+      { seq: 18, kind: "web", action: "fetch", value: "https://www.sec.gov/x" },
+    ]
+    const state = run([...events, ...visits, ...visits])
+    expect(state.web).toEqual([
+      { seq: 17, action: "search", value: "ACME 10-K" },
+      { seq: 18, action: "fetch", value: "https://www.sec.gov/x" },
+    ])
+    expect(state.items).toEqual(run(events).items)
+  })
 })

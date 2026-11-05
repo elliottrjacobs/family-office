@@ -41,6 +41,9 @@ export interface Run {
   model?: string | null
   effort?: Effort | null
   reported_model?: string | null
+  // Web search and fetch, on only at level none; absent on runs recorded before.
+  web?: boolean
+  web_count?: number
 }
 
 interface Base {
@@ -52,12 +55,13 @@ interface Base {
 export type RunEvent = Base &
   (
     | { kind: "user"; text: string }
-    | { kind: "init"; session_id: string | null; model: string | null }
+    | { kind: "init"; session_id: string | null; model: string | null; tools?: string[] }
     | { kind: "text"; text: string }
     | { kind: "delta"; text: string }
     | { kind: "tool"; id: string; name: string; label: string; command?: string; path?: string }
     | { kind: "tool_result"; id: string; ok: boolean; output: string }
     | { kind: "decision"; id: string }
+    | { kind: "web"; action: "fetch" | "search"; value: string }
     | { kind: "status"; status: RunStatus }
     | {
         kind: "result"
@@ -115,6 +119,7 @@ export interface Preview {
   skill: string
   subject: string
   level: Level
+  web?: boolean
   deep_available: boolean
   chat: boolean
   brief: {
