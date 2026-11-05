@@ -1,5 +1,5 @@
 import { act, cleanup, render, screen } from "@testing-library/react"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import {
   ADVISOR_IDS,
@@ -115,6 +115,47 @@ describe("Robot", () => {
         expect(container.querySelector('[data-part="eyes"]')).not.toBeNull()
         unmount()
       }
+    }
+  })
+
+  it("animates only live robots, with per-state classes and timing variables", () => {
+    const { container, rerender } = render(<Robot advisor="cio" state="speaking" level={0.6} />)
+    const svg = () => container.querySelector("svg")!
+    expect(svg().getAttribute("class")).toBeNull()
+    expect(svg().getAttribute("data-live")).toBe("false")
+    rerender(<Robot advisor="cio" state="speaking" level={0.6} live className="extra" />)
+    expect(svg().classList.contains("fo-avatar-live")).toBe(true)
+    expect(svg().classList.contains("fo-avatar-speaking")).toBe(true)
+    expect(svg().classList.contains("extra")).toBe(true)
+    expect(svg().getAttribute("data-live")).toBe("true")
+    expect(svg().style.getPropertyValue("--fo-avatar-level")).toBe("0.6")
+    expect(svg().style.getPropertyValue("--fo-blink-period")).toMatch(/^[34]\.\d\ds$|^5\.00s$/)
+    rerender(<Robot advisor="cio" live speed={0} />)
+    expect(svg().classList.contains("fo-avatar-paused")).toBe(true)
+    expect(svg().style.getPropertyValue("--fo-avatar-speed")).toBe("0")
+  })
+
+  it("renders the static pose without animation under reduced motion", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      (query: string) =>
+        ({
+          matches: query === "(prefers-reduced-motion: reduce)",
+          media: query,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+        }) as unknown as MediaQueryList,
+    )
+    try {
+      const { container } = render(<Robot advisor="cio" state="thinking" live size={160} />)
+      const svg = container.querySelector("svg")!
+      expect([...svg.classList].some((name) => name.startsWith("fo-avatar"))).toBe(false)
+      expect(svg.getAttribute("data-live")).not.toBe("true")
+      expect(svg.getAttribute("data-state")).toBe("thinking")
+      // The thinking pose's three dots are still drawn.
+      expect(svg.querySelectorAll('[data-part="mouth"] circle')).toHaveLength(3)
+    } finally {
+      vi.unstubAllGlobals()
     }
   })
 })

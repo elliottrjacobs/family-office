@@ -2,9 +2,11 @@ import * as React from "react"
 import { Check, FileText, MessageSquare, Plus, Terminal } from "lucide-react"
 
 import { decisions, levels, reports } from "@/api/office"
-import { cancel, follow, reply, run as fetchRun, runnerStatus, runs } from "@/api/runs"
+import { cancel, follow, reply, run as fetchRun, type RunEvent, runnerStatus, runs } from "@/api/runs"
 import { useApi } from "@/api/use-api"
 import { useAppData } from "@/app-data"
+import { advisorIdFor } from "@/avatars/appearance"
+import { LiveAdvisorAvatar, publishRun } from "@/components/advisor-avatar"
 import { AdvisorIcon, advisorName, GROUP_LABELS } from "@/components/advisor-icon"
 import { CommandLine } from "@/components/command-line"
 import { RecordDecision } from "@/components/decision-actions"
@@ -18,6 +20,9 @@ import { Link, navigate, reportHref } from "@/lib/router"
 import { apply, empty, type Transcript } from "@/lib/transcript"
 
 const TIERS = { fast: "Fast model", balanced: "Balanced model", strong: "Strongest model" }
+// The avatar needs only the recent stream; older events are history the transcript holds.
+const EVENT_TAIL = 200
+const NO_EVENTS: RunEvent[] = []
 
 /** The conversation with one advisor: launch, stream, follow up, cancel, resume. */
 function Chat({ name, deepAvailable }: { name: string; deepAvailable: boolean }) {
@@ -31,8 +36,12 @@ function Chat({ name, deepAvailable }: { name: string; deepAvailable: boolean })
   const runId = chosen === undefined ? latest : chosen
   const record = useApi(`run:${runId ?? "none"}`, () => (runId ? fetchRun(runId) : Promise.resolve(undefined)))
   // The transcript belongs to one run; a different run starts from empty.
-  const [held, setHeld] = React.useState<{ run?: string; transcript: Transcript }>({ transcript: empty })
+  const [held, setHeld] = React.useState<{ run?: string; transcript: Transcript; events: RunEvent[] }>({
+    transcript: empty,
+    events: NO_EVENTS,
+  })
   const transcript = held.run === runId ? held.transcript : empty
+  const events = held.run === runId ? held.events : NO_EVENTS
   const [generation, setGeneration] = React.useState(0)
   const last = React.useRef(0)
   React.useEffect(() => {
@@ -47,10 +56,14 @@ function Chat({ name, deepAvailable }: { name: string; deepAvailable: boolean })
       runId,
       last.current,
       (event) =>
-        setHeld((state) => ({
-          run: runId,
-          transcript: apply(state.run === runId ? state.transcript : empty, event),
-        })),
+        setHeld((state) => {
+          const own = state.run === runId
+          const before = own ? state.transcript : empty
+          const transcript = apply(before, event)
+          if (transcript === before) return own ? state : { run: runId, transcript, events: NO_EVENTS }
+          const kept = own ? state.events : NO_EVENTS
+          return { run: runId, transcript, events: [...kept.slice(-(EVENT_TAIL - 1)), event] }
+        }),
       () => {
         reloadRecord()
         reloadJournal()
@@ -58,6 +71,18 @@ function Chat({ name, deepAvailable }: { name: string; deepAvailable: boolean })
       }
     )
   }, [runId, generation, reloadRecord, reloadJournal, refresh])
+
+  // The header and sidebar robots follow this conversation.
+  const avatar = advisorIdFor(name)
+  const current = record.data
+  React.useEffect(() => {
+    if (!avatar) return
+    publishRun(avatar, { run: current, events })
+  }, [avatar, current, events])
+  React.useEffect(() => {
+    if (!avatar) return
+    return () => publishRun(avatar, null)
+  }, [avatar])
 
   if (history.loading) return <Loading rows={2} />
   if (!runId) {
@@ -176,7 +201,11 @@ export function AdvisorPage({ name }: { name: string }) {
   return (
     <Page>
       <div className="mb-6 flex items-start gap-3">
-        <AdvisorIcon name={advisor.name} group={advisor.group} className="size-10 [&_svg]:size-5" />
+        {advisorIdFor(advisor.name) ? (
+          <LiveAdvisorAvatar advisor={advisorIdFor(advisor.name)!} size={48} label />
+        ) : (
+          <AdvisorIcon name={advisor.name} group={advisor.group} className="size-10 [&_svg]:size-5" />
+        )}
         <div className="min-w-0 space-y-1">
           <h1 className="text-2xl sm:text-3xl">{advisorName(advisor.name)}</h1>
           <p className="max-w-2xl text-sm text-muted-foreground">{advisor.description}</p>

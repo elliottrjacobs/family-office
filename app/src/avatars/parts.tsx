@@ -3,7 +3,7 @@
 // 100 by 100 viewBox of shapes.ts; accessories are drawn in their home silhouette's
 // coordinates and mapped onto whichever shape is chosen.
 
-import type { ReactNode, SVGAttributes } from "react"
+import type { CSSProperties, ReactNode, SVGAttributes } from "react"
 
 import type { AdvisorId, Antenna, EyeKind, Hex, RobotState } from "@/avatars/appearance"
 import { boxOf, SHAPES, type Box, type Ear, type Head, type Point, type Screen, type ShapeDef } from "@/avatars/shapes"
@@ -564,6 +564,7 @@ export const EXTRAS = {
   dots: { spacing: 5, r: 1.5, opacities: [0.35, 0.65, 0.95] },
   reading: { margin: 6, h: 1.6, done: 0.45 },
   writing: { margin: 8, h: 2.6, done: 0.62 },
+  scan: { inset: 2.5, h: 1.2 },
   speaking: { heights: [3, 6, 8.5, 5.5, 3], step: 3.1, w: 2 },
   chart: [
     { dx: -9, h: 5, opacity: 1, lift: 0 },
@@ -594,10 +595,34 @@ export function Extras({ def, state, paint, chart }: { def: ShapeDef; state: Rob
     const bar = EXTRAS[state]
     const w = box.w - bar.margin * 2
     const y = bottom - 7
+    // The fill and the scan line carry `data-anim` for the live animations (U19); the scan
+    // line is invisible in the static pose.
     content = (
       <>
         <rect x={box.x + bar.margin} y={y} width={w} height={bar.h} rx={bar.h / 2} fill={glow} opacity={state === "reading" ? 0.45 : 0.2} />
-        <rect x={box.x + bar.margin} y={y} width={w * bar.done} height={bar.h} rx={bar.h / 2} fill={glow} />
+        <rect
+          data-anim="fill"
+          x={box.x + bar.margin}
+          y={y}
+          width={w * bar.done}
+          height={bar.h}
+          rx={bar.h / 2}
+          fill={glow}
+          style={{ "--fo-fill": 1 / bar.done } as CSSProperties}
+        />
+        {state === "reading" ? (
+          <rect
+            data-anim="scan"
+            x={box.x + EXTRAS.scan.inset}
+            y={box.y + EXTRAS.scan.inset}
+            width={box.w - EXTRAS.scan.inset * 2}
+            height={EXTRAS.scan.h}
+            rx={EXTRAS.scan.h / 2}
+            fill={glow}
+            opacity={0}
+            style={{ "--fo-scan": `${box.h - EXTRAS.scan.inset * 2 - EXTRAS.scan.h}px` } as CSSProperties}
+          />
+        ) : null}
       </>
     )
   } else if (state === "speaking") {
