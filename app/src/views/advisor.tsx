@@ -2,14 +2,11 @@ import * as React from "react"
 import { Check, FileText, MessageSquare, PanelRight, Plus, Terminal } from "lucide-react"
 
 import { type Advisor, decisions, levels, reports } from "@/api/office"
-import { cancel, follow, reply, run as fetchRun, type RunEvent, type RunnerStatus, runnerStatus, runs } from "@/api/runs"
+import { cancel, follow, reply, run as fetchRun, type Run, type RunnerStatus, runnerStatus, runs } from "@/api/runs"
 import { useApi } from "@/api/use-api"
 import { useAppData } from "@/app-data"
-import { advisorIdFor } from "@/avatars/appearance"
-import { LiveAdvisorAvatar, publishRun } from "@/components/advisor-avatar"
 import { AdvisorInspector, useInspectorShown } from "@/components/advisor-inspector"
 import { AdvisorIcon, advisorName, GROUP_LABELS } from "@/components/advisor-icon"
-import { AppearanceSheet } from "@/components/appearance-sheet"
 import { CommandLine } from "@/components/command-line"
 import { RecordDecision } from "@/components/decision-actions"
 import { LaunchPanel } from "@/components/launch-panel"
@@ -23,12 +20,9 @@ import { Link, navigate, reportHref } from "@/lib/router"
 import { apply, empty, type Transcript } from "@/lib/transcript"
 
 const TIERS = { fast: "Fast model", balanced: "Balanced model", strong: "Strongest model" }
-// The avatar needs only the recent stream; older events are history the transcript holds.
-const EVENT_TAIL = 200
-const NO_EVENTS: RunEvent[] = []
 
 /** The conversation with one advisor: launch, stream, follow up, cancel, resume. */
-function Chat({ name, runner }: { name: string; runner: RunnerStatus }) {
+function Chat({ name, runner, onRun }: { name: string; runner: RunnerStatus; onRun: (run: Run | undefined) => void }) {
   const { registry, refresh } = useAppData()
   const advisor = registry!.skills.find((a) => a.name === name)!
   const history = useApi("runs", runs)
@@ -39,12 +33,8 @@ function Chat({ name, runner }: { name: string; runner: RunnerStatus }) {
   const runId = chosen === undefined ? latest : chosen
   const record = useApi(`run:${runId ?? "none"}`, () => (runId ? fetchRun(runId) : Promise.resolve(undefined)))
   // The transcript belongs to one run; a different run starts from empty.
-  const [held, setHeld] = React.useState<{ run?: string; transcript: Transcript; events: RunEvent[] }>({
-    transcript: empty,
-    events: NO_EVENTS,
-  })
+  const [held, setHeld] = React.useState<{ run?: string; transcript: Transcript }>({ transcript: empty })
   const transcript = held.run === runId ? held.transcript : empty
-  const events = held.run === runId ? held.events : NO_EVENTS
   const [generation, setGeneration] = React.useState(0)
   const last = React.useRef(0)
   React.useEffect(() => {
@@ -59,14 +49,10 @@ function Chat({ name, runner }: { name: string; runner: RunnerStatus }) {
       runId,
       last.current,
       (event) =>
-        setHeld((state) => {
-          const own = state.run === runId
-          const before = own ? state.transcript : empty
-          const transcript = apply(before, event)
-          if (transcript === before) return own ? state : { run: runId, transcript, events: NO_EVENTS }
-          const kept = own ? state.events : NO_EVENTS
-          return { run: runId, transcript, events: [...kept.slice(-(EVENT_TAIL - 1)), event] }
-        }),
+        setHeld((state) => ({
+          run: runId,
+          transcript: apply(state.run === runId ? state.transcript : empty, event),
+        })),
       () => {
         reloadRecord()
         reloadJournal()
@@ -75,17 +61,10 @@ function Chat({ name, runner }: { name: string; runner: RunnerStatus }) {
     )
   }, [runId, generation, reloadRecord, reloadJournal, refresh])
 
-  // The header and sidebar robots follow this conversation.
-  const avatar = advisorIdFor(name)
+  // The inspector follows this conversation's run.
   const current = record.data
-  React.useEffect(() => {
-    if (!avatar) return
-    publishRun(avatar, { run: current, events })
-  }, [avatar, current, events])
-  React.useEffect(() => {
-    if (!avatar) return
-    return () => publishRun(avatar, null)
-  }, [avatar])
+  React.useEffect(() => onRun(current), [current, onRun])
+  React.useEffect(() => () => onRun(undefined), [onRun])
 
   if (history.loading) return <Loading rows={2} />
   if (!runId) {
@@ -180,6 +159,7 @@ export function AdvisorPage({ name }: { name: string }) {
   )
   const mobile = useIsMobile()
   const [inspectorShown, setInspectorShown] = useInspectorShown()
+  const [current, setCurrent] = React.useState<Run | undefined>()
   if (!registry) {
     return (
       <Page>
@@ -205,7 +185,6 @@ export function AdvisorPage({ name }: { name: string }) {
     .sort((a, b) => (a.frontmatter.date < b.frontmatter.date ? 1 : -1))
     .slice(0, 5)
   const chat = Boolean(status?.chat && runner.data?.ready && !["onboard", "journal"].includes(name))
-  const robot = advisorIdFor(advisor.name)
   // At desktop width the inspector sits beside the chat; on a phone the facts stay below it.
   const inspector = !mobile && inspectorShown
   const main = (
@@ -214,7 +193,7 @@ export function AdvisorPage({ name }: { name: string }) {
         <h2 className="flex items-center gap-2 text-base font-semibold">
           <MessageSquare className="size-4 text-muted-foreground" /> Ask {advisorName(advisor.name)}
         </h2>
-        {chat ? <Chat key={name} name={name} runner={runner.data!} /> : <ChatUnavailable name={name} />}
+        {chat ? <Chat key={name} name={name} runner={runner.data!} onRun={setCurrent} /> : <ChatUnavailable name={name} />}
       </section>
       <section className="rounded-xl border bg-card p-4 sm:p-5">
         <h2 className="mb-3 text-base font-semibold">Recent reports</h2>
@@ -244,18 +223,7 @@ export function AdvisorPage({ name }: { name: string }) {
   return (
     <Page className={inspector ? "max-w-6xl" : undefined}>
       <div className="mb-6 flex items-start gap-3">
-        {robot && mobile ? (
-          <AppearanceSheet
-            advisorId={robot}
-            className="rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-          >
-            <LiveAdvisorAvatar advisor={robot} size={48} label />
-          </AppearanceSheet>
-        ) : robot ? (
-          <LiveAdvisorAvatar advisor={robot} size={48} label />
-        ) : (
-          <AdvisorIcon name={advisor.name} group={advisor.group} className="size-10 [&_svg]:size-5" />
-        )}
+        <AdvisorIcon name={advisor.name} group={advisor.group} className="size-10 [&_svg]:size-5" />
         <div className="min-w-0 flex-1 space-y-1">
           <h1 className="text-2xl sm:text-3xl">{advisorName(advisor.name)}</h1>
           <p className="max-w-2xl text-sm text-muted-foreground">{advisor.description}</p>
@@ -284,7 +252,7 @@ export function AdvisorPage({ name }: { name: string }) {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18.5rem] xl:gap-8">
           {main}
           <div className="self-start rounded-xl border bg-card p-4 sm:p-5 lg:sticky lg:top-4">
-            <AdvisorInspector advisor={advisor} />
+            <AdvisorInspector advisor={advisor} run={current} />
           </div>
         </div>
       ) : mobile ? (

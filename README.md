@@ -166,10 +166,6 @@ with a code shown in the Mac app's Settings > Devices; see
 [Reach it from your phone](#reach-it-from-your-phone). To build the apps from
 source, see [docs/development/apple.md](docs/development/apple.md).
 
-Each advisor's robot avatar can be customized (color, shape, trim, finish and more)
-from the advisor's page, and the playground at `/playground/robots` shows every
-combination.
-
 ## Companion app (optional)
 
 `fo serve` opens a dashboard for your office in a browser on the same machine:
