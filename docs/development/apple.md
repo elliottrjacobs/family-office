@@ -17,7 +17,7 @@ apple/
     Settings/                 the Settings window: General, Engines, Connectors, Devices, Advanced
     Setup/                    the first-run setup dialog: SetupModel, SetupDialog, one view per step
     Terminal/                 FoTerminalView: the embedded terminal (SwiftTerm) for four fo commands
-    Assets.xcassets           placeholder icon, the welcome step's robot row
+    Assets.xcassets           placeholder icon
     Info.plist                generated from project.yml, committed
     FamilyOffice.entitlements the bundled interpreter's entitlements (applied by sign-bundle.sh)
   FamilyOfficePhone/
@@ -439,7 +439,7 @@ wraps it with the step actions, and each step is its own view in `Setup/`.
 
 | Step | Shows | Primary | Skip |
 | ---- | ----- | ------- | ---- |
-| welcome | what the app is in two sentences and the advisors' robot row | Get Started | no |
+| welcome | what the app is in two sentences | Get Started | no |
 | office | Create (a parent folder from `NSOpenPanel` and a name, default `family-office`, then `fo setup PATH --offline` in the embedded terminal) or Open existing (a folder holding `office.toml`) | Continue, once the server reports the office | no |
 | engine | the Engines pane (detection, the server's verdict, default engine, model, effort) | Continue | Later |
 | accounts | the Connectors pane's Schwab and SimpleFIN rows (`fo auth` in the terminal), a CSV note, and Run First Sync (`fo sync` in the terminal) once one is connected | Continue | yes |
@@ -681,7 +681,7 @@ Use the walkthrough build above (its own defaults domain), `FO_EXECUTABLE` point
 checkout's `.venv/bin/fo`, and a scratch folder outside the repository. Tick each item:
 
 - [ ] First launch from a cleared defaults domain opens the dialog on Welcome at Step 1 of
-      7 with the robot row; Return presses Get Started.
+      7; Return presses Get Started.
 - [ ] Office > Create: Choose… picks the scratch folder, the name defaults to
       `family-office`, Create Office runs `fo setup --offline` in the terminal, which ends
       with `Finished successfully`; the server restarts, Continue becomes available, and

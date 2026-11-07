@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Welcome: what the app is, in two sentences, and the advisors' robots.
+/// Welcome: what the app is, in two sentences.
 struct WelcomeStep: View {
     let model: SetupModel
 
@@ -18,16 +18,6 @@ struct WelcomeStep: View {
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: 560, alignment: .leading)
-            Image("WelcomeRobots")
-                .resizable()
-                .interpolation(.high)
-                .aspectRatio(contentMode: .fit)
-                .frame(maxWidth: 620)
-                .padding(.vertical, 14)
-                .padding(.horizontal, 16)
-                .background(Color.white, in: RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.separator))
-                .accessibilityLabel("The thirteen advisors' robots")
             Text("Setup takes a few minutes. Every step after the office can wait until later.")
                 .font(.callout)
                 .foregroundStyle(.secondary)

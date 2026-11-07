@@ -77,20 +77,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   return <Context.Provider value={value}>{children}</Context.Provider>
 }
 
-const OFFLINE: AppData = {
-  status: undefined,
-  statusError: undefined,
-  onboarding: undefined,
-  registry: undefined,
-  review: undefined,
-  connected: true,
-  refresh: () => {},
-}
-
-/** Empty app data for pages that render without fo serve, such as the avatar playground. */
-export function OfflineAppData({ children }: { children: React.ReactNode }) {
-  return <Context.Provider value={OFFLINE}>{children}</Context.Provider>
-}
 
 export function useAppData() {
   const value = React.useContext(Context)
