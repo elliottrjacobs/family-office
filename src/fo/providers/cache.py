@@ -8,9 +8,20 @@ from fo.office import contained
 
 
 class Cache:
-    def __init__(self, root, read_only=False):
-        self.path = contained(root, "cache/cache.sqlite")
+    def __init__(self, root, read_only=False, name="cache/cache.sqlite"):
+        self.path = contained(root, name)
+        self.name = name
         self.read_only = read_only
+
+    def forget(self, key):
+        """Drop one cached entry so the next get fetches again; budgets are kept."""
+        if self.read_only or not self.path.exists():
+            return
+        with closing(sqlite3.connect(self.path)) as db, db:
+            db.execute(
+                "create table if not exists cache(key text primary key, fetched_at real, payload text)"
+            )
+            db.execute("delete from cache where key=?", (key,))
 
     def get(self, key, ttl, fetch=None, provider=None, daily_limit=None):
         cached = None
@@ -27,7 +38,8 @@ class Cache:
             except (sqlite3.Error, ValueError) as exc:
                 raise OfficeError(
                     "cache_corrupt",
-                    "Market cache is invalid; remove cache/cache.sqlite locally to rebuild it. Canonical records are unaffected.",
+                    f"Provider cache is invalid; remove {self.name} locally to rebuild it. "
+                    "Canonical records are unaffected.",
                 ) from exc
         if cached and (time.time() - cached[0] < ttl or self.read_only or fetch is None):
             return {
@@ -80,8 +92,12 @@ class Cache:
                     }
                 raise
             stamp = time.time()
-            db.execute(
-                "insert into cache values(?,?,?) on conflict(key) do update set fetched_at=excluded.fetched_at,payload=excluded.payload",
-                (key, stamp, json.dumps(payload, allow_nan=False)),
-            )
+            if ttl > 0:
+                db.execute(
+                    "insert into cache values(?,?,?) on conflict(key) do update set fetched_at=excluded.fetched_at,payload=excluded.payload",
+                    (key, stamp, json.dumps(payload, allow_nan=False)),
+                )
+            else:
+                # A zero lifetime keeps nothing; only the daily budget is recorded.
+                db.execute("delete from cache where key=?", (key,))
         return {"data": payload, "fetched_at": stamp, "stale": False}

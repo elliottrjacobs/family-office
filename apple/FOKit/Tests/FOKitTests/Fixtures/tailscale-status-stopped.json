@@ -1,0 +1,6 @@
+{
+  "Version": "1.0.0-example",
+  "BackendState": "Stopped",
+  "Self": {"ID": "nExample0001", "HostName": "example-mac", "DNSName": "", "Online": false},
+  "Peer": null
+}

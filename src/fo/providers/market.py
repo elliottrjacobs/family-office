@@ -1,6 +1,6 @@
 import httpx
 
-from fo.config import read_config, read_secrets
+from fo.config import provider_key, read_config, read_secrets
 from fo.errors import OfficeError
 from fo.providers.cache import Cache
 
@@ -21,12 +21,12 @@ class Market:
     def __init__(self, root, read_only=False):
         self.root = root
         self.config = read_config(root)
+        self.read_only = read_only
         self.keys = {} if read_only else read_secrets(root)
         self.cache = Cache(root, read_only)
 
     def alpha(self, function, symbol):
-        settings = self.keys.get("alphavantage", {})
-        key = settings.get("api_key")
+        key = None if self.read_only else provider_key(self.root, "alphavantage")
         fetch = (
             (
                 lambda: fetch_json(
@@ -71,7 +71,7 @@ class Market:
         return self.edgar(f"api/xbrl/frames/us-gaap/{concept}/{unit}/{period}.json")
 
     def series(self, name):
-        key = self.keys.get("fred", {}).get("api_key")
+        key = None if self.read_only else provider_key(self.root, "fred")
         fetch = (
             (
                 lambda: fetch_json(

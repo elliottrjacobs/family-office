@@ -1,5 +1,7 @@
 """CLI registration for computations, reports, and notebook workflows."""
 
+import sys
+
 import typer
 
 
@@ -160,6 +162,30 @@ def register(app):
         report: str | None = pin,
     ):
         run(ctx, lambda: reports.report_path(root(ctx), kind, subject, slug, part, report))
+
+    @report_app.command("write")
+    def report_write(
+        ctx: typer.Context,
+        kind: str | None = None,
+        subject: str | None = None,
+        slug: str = "report",
+        part: str | None = typer.Option(None, help="Write NAME.md in the part directory."),
+        report: str | None = pin,
+        body_file: str | None = typer.Option(
+            None,
+            "--body-file",
+            help="Read the body from this file under reports/ or a run's workspace, not stdin.",
+        ),
+    ):
+        """Write the report body from stdin, or --body-file, to its allocated or pinned path."""
+
+        def execute():
+            writable(ctx)
+            office = root(ctx)
+            stream = reports.body_file(office, body_file) if body_file else sys.stdin.buffer
+            return reports.write(office, stream, kind, subject, slug, part, report)
+
+        run(ctx, execute)
 
     @report_app.command("show")
     def report_show(ctx: typer.Context, path: str):

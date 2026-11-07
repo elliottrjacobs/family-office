@@ -77,15 +77,30 @@ def test_runner_status_is_reported_and_cached(office, tmp_path):
         status, data = client.get("/api/runner")
         assert status == 200 and data == {
             "ready": True,
-            "runner": "claude",
-            "version": "2.1.283",
+            "default": "claude",
             "deep": True,
+            "engines": [
+                {
+                    "name": "claude",
+                    "usable": True,
+                    "version": "2.1.283",
+                    "reason": None,
+                    "message": None,
+                    "defaults": {
+                        "model": "claude-fable-5-1",
+                        "effort": "high",
+                        "max_budget_usd": 2.0,
+                        "enabled": True,
+                    },
+                }
+            ],
         }
-        app.runs.runner.executable = []
+        app.runs.runners["claude"].executable = []
         assert client.get("/api/runner")[1]["ready"] is True
-        app.runner_status = None
+        app.runner_status.clear()
         data = client.get("/api/runner")[1]
         assert data["ready"] is False and data["reason"] == "runner_missing"
+        assert data["engines"][0]["reason"] == "runner_missing"
 
 
 def test_a_run_launches_streams_and_replays(office, tmp_path):

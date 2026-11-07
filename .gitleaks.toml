@@ -6,5 +6,9 @@ useDefault = true
 # The committed companion-app bundle is minified, so entropy rules misfire on it.
 # Its sources under app/ are scanned normally.
 [allowlist]
-description = "Generated companion-app assets"
+description = "Generated companion-app assets, and the Sparkle public key"
 paths = ['''^src/fo/data/app/assets/''']
+# SUPublicEDKey is the EdDSA public key installed apps verify updates against; it is meant to
+# be committed (RELEASING.md). The private key lives only in CI secrets.
+regexTarget = "line"
+regexes = ['''SUPublicEDKey''', '''0jkxh3Ag3TPNylRxKea1Y87v1tx9NLuazgOBClEaguQ=''']

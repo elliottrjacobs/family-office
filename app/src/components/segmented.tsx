@@ -11,17 +11,21 @@ export function Segmented<T extends string>({
   className,
 }: {
   label: string
-  options: { value: T; label: string }[]
+  options: { value: T; label: string; disabled?: boolean; title?: string }[]
   value: T | null
   onChange: (value: T) => void
   invalid?: boolean
   className?: string
 }) {
   const refs = React.useRef<(HTMLButtonElement | null)[]>([])
-  const move = (index: number) => {
-    const next = (index + options.length) % options.length
-    onChange(options[next].value)
-    refs.current[next]?.focus()
+  const move = (index: number, step: number) => {
+    for (let tries = 1; tries <= options.length; tries++) {
+      const next = (((index + step * tries) % options.length) + options.length) % options.length
+      if (options[next].disabled) continue
+      onChange(options[next].value)
+      refs.current[next]?.focus()
+      return
+    }
   }
   return (
     <div
@@ -45,20 +49,23 @@ export function Segmented<T extends string>({
             type="button"
             role="radio"
             aria-checked={checked}
+            disabled={option.disabled}
+            title={option.title}
             tabIndex={checked || (value === null && index === 0) ? 0 : -1}
             onClick={() => onChange(option.value)}
             onKeyDown={(event) => {
               if (event.key === "ArrowRight" || event.key === "ArrowDown") {
                 event.preventDefault()
-                move(index + 1)
+                move(index, 1)
               } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
                 event.preventDefault()
-                move(index - 1)
+                move(index, -1)
               }
             }}
             className={cn(
               "rounded-md px-3 py-1 text-sm font-medium text-muted-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-              checked && "bg-background text-foreground shadow-sm"
+              checked && "bg-background text-foreground shadow-sm",
+              option.disabled && "cursor-not-allowed opacity-50"
             )}
           >
             {option.label}

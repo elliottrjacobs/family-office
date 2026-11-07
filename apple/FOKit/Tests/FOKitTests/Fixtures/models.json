@@ -1,0 +1,22 @@
+{
+  "engines": {
+    "claude": {
+      "label": "Claude Code",
+      "efforts": ["low", "medium", "high"],
+      "models": [
+        {"id": "claude-fable-5-1", "label": "Fable 5.1", "recommended": true},
+        {"id": "claude-haiku-5-5", "label": "Haiku 5.5"}
+      ]
+    },
+    "codex": {
+      "label": "Codex",
+      "efforts": ["low", "medium", "high"],
+      "models": [{"id": "gpt-5.6-sol", "label": "GPT-5.6 Sol", "recommended": true}]
+    }
+  },
+  "default": "claude",
+  "defaults": {
+    "claude": {"model": "claude-fable-5-1", "effort": "medium", "max_budget_usd": 2.0, "enabled": true},
+    "codex": {"model": "custom-model", "effort": "high", "max_budget_usd": 1.5, "enabled": false}
+  }
+}

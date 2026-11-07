@@ -4,13 +4,16 @@ Never import fo.cli here: importing it builds the Typer app as a side effect.
 """
 
 import ipaddress
+import json
 import os
 import signal
 import sys
 import threading
+import time
 import webbrowser
 from pathlib import Path
 
+from fo import __version__
 from fo.config import read_config
 from fo.errors import OfficeError
 from fo.office import discover
@@ -41,11 +44,12 @@ def loopback(host):
         return host == "localhost"
 
 
-def prepare(office=None, port=None, host=None, remote=False, read_only=False):
+def prepare(office=None, port=None, host=None, remote=False, read_only=False, app_mode=False):
     """Validate options and bind; returns the server and the lines to print."""
     # Imported here so the run guard hook, also in this package, starts quickly.
     from fo.serve.auth import Access
     from fo.serve.runner_claude import DEEP, ClaudeRunner
+    from fo.serve.runner_codex import CodexRunner
     from fo.serve.runs import RunManager
     from fo.serve.server import App, Locator, make_server
 
@@ -77,7 +81,12 @@ def prepare(office=None, port=None, host=None, remote=False, read_only=False):
         tailnet_name=tailnet,
         allowed_logins=list(config.get("allowed_logins", [])),
     )
-    runs = None if read_only else RunManager(ClaudeRunner(), deep=DEEP)
+    # Engines by name; another engine is one more entry here.
+    runs = (
+        None
+        if read_only
+        else RunManager({"claude": ClaudeRunner(), "codex": CodexRunner()}, deep=DEEP)
+    )
     app = App(locator, access, read_only, runs=runs)
     try:
         server = make_server(app, bind, port)
@@ -94,29 +103,93 @@ def prepare(office=None, port=None, host=None, remote=False, read_only=False):
     if remote:
         lines.append(f"  Tailnet: https://{tailnet}/?t={access.token}")
     lines.append(f"  Office: {root}" if root else "  No office yet; the page will guide setup.")
-    lines.append("  Press Enter to print the link again, Ctrl-C to stop.")
+    if not app_mode:
+        lines.append("  Press Enter to print the link again, Ctrl-C to stop.")
     return server, lines
+
+
+def handshake(server):
+    """The one JSON line the Mac app reads from stdout before the human-readable lines."""
+    from fo.serve import onboarding
+
+    app = server.app
+    try:
+        office = str(app.locator.root())
+    except OfficeError:
+        office = None
+    return json.dumps(
+        {
+            "port": server.server_address[1],
+            "token": app.access.token,
+            "office": office,
+            "state": onboarding.derive(app.locator)["state"],
+            "version": __version__,
+        }
+    )
+
+
+def announce(server, lines, app_mode=False):
+    """Print the handshake (with app_mode) and the lines; True when Enter should reprint."""
+    if app_mode:
+        print(handshake(server), flush=True)
+    for line in lines:
+        print(line, flush=True)
+    return not app_mode and bool(sys.stdin) and sys.stdin.isatty()
 
 
 def interrupt(signum, frame):
     raise KeyboardInterrupt
 
 
-def serve(office=None, port=None, host=None, remote=False, open_browser=False, read_only=False):
-    server, lines = prepare(office, port, host, remote, read_only)
+def parent_alive(pid):
+    """Whether the process still exists; a zombie or a permission error counts as alive."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def watch_parent(pid, server, interval=2.0):
+    """Stop the server once the launching app is gone, so a crash leaves no orphan.
+
+    The Mac app passes its own pid; a quit still ends the server through SIGTERM, this
+    only covers the app dying without one.
+    """
+    while parent_alive(pid):
+        time.sleep(interval)
+    server.shutdown()
+
+
+def serve(
+    office=None,
+    port=None,
+    host=None,
+    remote=False,
+    open_browser=False,
+    read_only=False,
+    app_mode=False,
+    parent_pid=None,
+):
+    server, lines = prepare(office, port, host, remote, read_only, app_mode)
     if threading.current_thread() is threading.main_thread():
         # A service manager stops the server with SIGTERM; it ends runs like Ctrl-C does.
         signal.signal(signal.SIGTERM, interrupt)
-    for line in lines:
-        print(line, flush=True)
+    reprint_on_enter = announce(server, lines, app_mode)
     link = server.app.access.landing_url()
-    if sys.stdin and sys.stdin.isatty():
+    if reprint_on_enter:
 
         def reprint():
             for _ in sys.stdin:
                 print(f"  Open: {link}", flush=True)
 
         threading.Thread(target=reprint, daemon=True).start()
+    if parent_pid is not None:
+        threading.Thread(
+            target=watch_parent, args=(parent_pid, server), daemon=True, name="parent-watch"
+        ).start()
     if open_browser:
         webbrowser.open(link)
     try:

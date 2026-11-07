@@ -1,0 +1,43 @@
+{
+  "id": "v1_fixture-task-0001",
+  "object": "interaction",
+  "status": "completed",
+  "created": "2026-11-04T12:00:00Z",
+  "updated": "2026-11-04T12:09:00Z",
+  "steps": [
+    {"type": "thought", "content": [{"type": "text", "text": "Planning the search."}]},
+    {
+      "type": "model_output",
+      "content": [
+        {
+          "type": "text",
+          "text": "# ACME competitive position\n\nACME holds the second-largest share of industrial tools [1]. Its distributor contract 123456789012 renews in 2027 [2].",
+          "annotations": [
+            {
+              "type": "url_citation",
+              "url": "https://example.com/acme/market-share",
+              "title": "Industrial tools market share",
+              "start_index": 60,
+              "end_index": 63
+            },
+            {
+              "type": "url_citation",
+              "url": "https://example.com/acme/contracts",
+              "title": "ACME distributor contracts",
+              "start_index": 120,
+              "end_index": 123
+            },
+            {
+              "type": "url_citation",
+              "url": "https://example.com/acme/market-share",
+              "title": "Industrial tools market share",
+              "start_index": 10,
+              "end_index": 12
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "usage": {"total_tokens": 1000}
+}

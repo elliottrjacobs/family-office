@@ -98,3 +98,22 @@ def test_import_consumed_once_and_live_snapshot_preserved(office):
     assert result[0]["transaction_rows"] == 1
     assert project(office)["positions"][0]["symbol"] == "ACME"
     assert synchronize(office, provider="csv", before="2026-09-01")[0]["transaction_rows"] == 0
+
+
+@pytest.mark.parametrize(
+    "relative", ["reports/.claude/settings.json", "reports/x/.git/config", "reports/a/.hooks.md"]
+)
+def test_commit_refuses_hidden_paths_under_reports(office, relative):
+    from fo.commits import commit_office
+
+    head = git(office, "rev-parse", "HEAD").stdout
+    (office / "reports/research").mkdir(parents=True, exist_ok=True)
+    (office / "reports/research/ok.md").write_text("fine\n")
+    target = office / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("{}\n")
+    with pytest.raises(OfficeError) as error:
+        commit_office(office)
+    assert error.value.reason == "unsafe_path"
+    assert git(office, "rev-parse", "HEAD").stdout == head
+    assert not git(office, "diff", "--cached", "--name-only").stdout

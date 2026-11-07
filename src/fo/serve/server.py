@@ -16,9 +16,10 @@ from urllib.parse import parse_qsl, unquote, urlsplit
 from fo import __version__
 from fo.envelope import FAILED, encode, failure
 from fo.errors import OfficeError
-from fo.serve import onboarding
+from fo.serve import onboarding, routes_config, routes_devices
 from fo.serve.auth import Access, Denial
 from fo.serve.cache import ResponseCache
+from fo.serve.devices import Devices
 from fo.serve.routes_read import DOCTOR_TTL, resolve
 
 STATUS = {
@@ -39,6 +40,10 @@ STATUS = {
     "runner_missing": 503,
     "runner_outdated": 503,
     "runner_unsupported": 503,
+    "engine_disabled": 503,
+    "device_not_found": 404,
+    "invalid_pairing_code": 403,
+    "invalid_devices": 500,
 }
 MAX_BODY = 64 * 1024
 SECURITY_HEADERS = {
@@ -96,17 +101,25 @@ class App:
     log_lines: list | None = None
     # Advisor chat and write actions; None in --read-only mode, where those routes do not exist.
     runs: object | None = None
-    runner_status: tuple | None = None
+    # Each engine's last preflight, by name: (monotonic time, result, refusal).
+    runner_status: dict = field(default_factory=dict)
+    # Paired phones, kept in the office's secrets/devices.json.
+    devices: Devices | None = None
+
+    def __post_init__(self):
+        if self.devices is None:
+            self.devices = Devices(self.locator.root)
+        if self.access.devices is None:
+            self.access.devices = self.devices
 
     def routes(self):
-        if self.runs is None:
-            return []
-        from fo.serve import routes_runs, routes_write
+        # These routes answer before the response cache, so their answers are never cached.
+        table = list(routes_devices.ROUTES) + routes_config.ROUTES
+        if self.runs is not None:
+            from fo.serve import routes_runs, routes_write
 
-        return [
-            (method, re.compile(pattern), handler)
-            for method, pattern, handler in routes_runs.ROUTES + routes_write.ROUTES
-        ]
+            table += routes_runs.ROUTES + routes_write.ROUTES
+        return [(method, re.compile(pattern), handler) for method, pattern, handler in table]
 
     def log(self, line):
         stamp = datetime.now().strftime("%H:%M:%S")
@@ -124,6 +137,7 @@ class App:
             office = None
         return {
             "version": __version__,
+            "server_version": __version__,
             "mode": "office" if office else "onboarding",
             "read_only": self.read_only,
             "chat": self.runs is not None,
@@ -157,6 +171,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         self.dispatch("POST")
+
+    def do_DELETE(self):
+        self.dispatch("DELETE")
 
     def send(self, status, body, content_type, headers=None):
         data = body.encode() if isinstance(body, str) else body
@@ -196,22 +213,36 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "max-age=86400")
             self.end_headers()
             return None
-        denial = self.app.access.check(method, self.headers)
+        # Pairing has no credential yet; its route applies its own tailnet and code gates.
+        self.auth, self.device = None, None
+        if (method, url.path) in routes_devices.OPEN:
+            return self.guarded(method, url.path, routes_devices.OPEN[(method, url.path)])
+        kind, denial, device = self.app.access.authenticate(method, self.headers)
         if denial:
             return self.deny(denial, api)
+        self.auth, self.device = kind, device
+        self.guarded(method, url.path, lambda handler: handler.route(method, url, query, api))
+
+    def route(self, method, url, query, api):
+        if api:
+            self.api(method, url.path, query)
+        elif method == "GET":
+            self.static(url.path)
+        else:
+            raise OfficeError("unknown_route", "No such route.")
+
+    def guarded(self, method, path, function):
+        """Run a route, turning failures into envelopes that carry no text or paths."""
         try:
-            if api:
-                self.api(method, url.path, query)
-            elif method == "GET":
-                self.static(url.path)
-            else:
-                raise OfficeError("unknown_route", "No such route.")
+            result = function(self)
+            if result is not None:
+                self.send_json(200, result)
         except OfficeError as exc:
             self.send_json(STATUS.get(exc.reason, 400), failure(exc))
         except (BrokenPipeError, ConnectionResetError):
             pass
         except Exception as exc:  # noqa: BLE001 - never leak text, paths, or credentials
-            self.app.log(f"{method} {url.path} failed: {type(exc).__name__}")
+            self.app.log(f"{method} {path} failed: {type(exc).__name__}")
             self.send_json(500, dict(FAILED))
 
     def landing(self, token):
@@ -226,7 +257,7 @@ class Handler(BaseHTTPRequestHandler):
             "<!doctype html><meta charset=utf-8><meta http-equiv=refresh content='0; url=/'>"
             "<title>Family Office</title><a href='/'>Continue to Family Office</a>",
             "text/html; charset=utf-8",
-            {"Set-Cookie": self.app.access.cookie_header()},
+            {"Set-Cookie": self.app.access.cookie_header(self.headers)},
         )
 
     def body(self):

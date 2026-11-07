@@ -1,5 +1,6 @@
 import fcntl
 import os
+import time
 from contextlib import contextmanager
 
 from fo.errors import OfficeError
@@ -7,13 +8,21 @@ from fo.office import contained
 
 
 @contextmanager
-def office_lock(root):
+def office_lock(root, wait=0.0):
+    """The exclusive office lock; with wait, retry for up to that many seconds first."""
     path = contained(root, ".fo.lock")
     with path.open("a") as stream:
-        try:
-            fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError as exc:
-            raise OfficeError("office_locked", "Another command holds the office lock.") from exc
+        deadline = time.monotonic() + wait
+        while True:
+            try:
+                fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError as exc:
+                if time.monotonic() >= deadline:
+                    raise OfficeError(
+                        "office_locked", "Another command holds the office lock."
+                    ) from exc
+                time.sleep(0.05)
         try:
             yield
         finally:

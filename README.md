@@ -111,6 +111,29 @@ Useful commands include `networth`, `positions`, `allocation`, `spend`, `cashflo
 `goals`, `lots`, `performance`, `quote`, `fundamentals`, `filings`, `macro`, and `screen`.
 `fo --help` and each command's `--help` document arguments.
 
+### Research providers
+
+`fo research search`, `fo research fetch`, and `fo research deep` reach Exa,
+Firecrawl (or a direct fetch), and Gemini Deep Research. Store a key with
+`fo connect exa` (the key is read from standard input), remove it with
+`fo connect exa --remove`, and set the SEC contact with
+`fo connect edgar --user-agent "Name email@example.com"`. Results are marked
+untrusted, scrubbed, cached under `cache/research/`, and limited per day:
+
+```toml
+[providers.exa]
+daily_limit = 25
+
+[providers.firecrawl]
+daily_limit = 25
+
+[providers.gemini]
+max_tasks_per_day = 3
+```
+
+Fetches refuse local, private, and tailnet addresses. See
+[research providers](docs/development/research-providers.md).
+
 Reports have dated paths, frontmatter, prior-report links, decision IDs, and a
 correction invitation. `fo start` supplies context and a path; `fo skill verify`
 checks the result. `fo journal add` records a thesis and invalidation. `fo review`
@@ -122,6 +145,30 @@ mechanical investment verdict. Library thresholds are editable through private
 `playbooks/overrides/` files. Greenblatt's capital-return measure uses operating
 income divided by net working capital plus net fixed assets; it is not a generic
 company-reported ROIC or a complete ranked Magic Formula portfolio.
+
+## Mac app
+
+The Family Office Mac app wraps everything below in one window: the dashboard, the
+advisors, and a terminal for `fo`, with no Python or Node to install. Download the
+latest `.dmg` from the GitHub Releases page, drag the app to Applications, and open
+it. A setup dialog walks you through choosing or creating your office folder, picking
+an engine, and connecting accounts; credentials and provider consent stay in the
+terminal pane. New versions arrive as new signed releases.
+
+It needs macOS 14 or later, and Claude Code or Codex installed and signed in
+(Codex ships disabled until you turn it on in Settings). Advisor runs go through
+your own account with that tool and are billed there; the app has no account or
+subscription of its own.
+
+Your office stays on the Mac, and nothing phones home: no telemetry and no analytics.
+The iPhone app reaches the Mac only over your own tailnet, after a one-time pairing
+with a code shown in the Mac app's Settings > Devices; see
+[Reach it from your phone](#reach-it-from-your-phone). To build the apps from
+source, see [docs/development/apple.md](docs/development/apple.md).
+
+Each advisor's robot avatar can be customized (color, shape, trim, finish and more)
+from the advisor's page, and the playground at `/playground/robots` shows every
+combination.
 
 ## Companion app (optional)
 
@@ -162,7 +209,55 @@ asked about. Runs are capped in `office.toml`:
 max_budget_usd = 2.0       # per run, in Claude usage
 run_timeout_minutes = 30
 keep_runs = 50             # run logs kept under cache/serve/runs/
+web_fetch_cap = 20         # web fetches per run at level none
 ```
+
+Web search and fetch follow the context level. At level `none`, where a run reads
+no household data, the advisor may search the web and fetch pages; at `household`
+and `full` both are off, and the launch panel says which applies before you start.
+Every fetch is checked against the same deny list as `fo research fetch` (nothing
+on this machine, the local network, or the tailnet, and no URL carrying a password),
+fetches stop at `web_fetch_cap`, and the run view lists the sites visited, searches
+by query and fetches by host with the full URL on hover. See
+[SECURITY.md](SECURITY.md) for what this exposes.
+
+Each run goes to an engine: Claude Code (the default and the recommended one) or
+Codex. The
+launch panel lists the engines `fo serve` can run, with one that is missing,
+outdated, or turned off shown disabled and the reason beside it. Model and effort are
+chosen per run: the panel offers a curated list of model ids for the engine
+(shipped in the package, so it can change in a patch release), an Other field
+for any id the engine accepts, and an effort of low, medium, or high. A model
+fo does not list is passed through as is; an id the engine rejects fails the
+run with the engine's message. The panel starts from the office's defaults and
+remembers your last choice per advisor for the browser session, and the run
+view names the engine and model it used. The defaults live in `office.toml`,
+set through `fo config set` (below), and a change shows on the next request
+without restarting `fo serve`:
+
+```toml
+[serve.engines]
+default = "claude"         # the engine a run uses when the launch names none
+
+[serve.engines.claude]
+model = "claude-fable-5-1"  # the curated recommendation when unset
+effort = "high"            # low, medium, or high
+max_budget_usd = 2.0       # per run on this engine; [serve] max_budget_usd when unset
+enabled = true             # false turns the engine off for chat
+```
+
+Codex needs the Codex CLI installed and signed in once in a terminal (`codex login`;
+the server links each run to that sign-in and never copies it). If `fo serve` cannot
+find `codex` on its `PATH`, set `FO_CODEX_EXECUTABLE` to its full path. It is off by
+default: Codex confines reads by refusing a list of commands rather than by path, so a
+command the list misses could print a file such as one in `secrets/` (see
+[SECURITY.md](SECURITY.md)). Turn it on with `fo config set serve.engines.codex.enabled
+true` if you accept that. What differs from Claude Code: each run has its own scratch
+workspace in its run folder, where the advisor drafts the report before writing it
+with `fo report write --body-file`; web search at level `none` comes from Codex's own
+search (page fetches go through `fo research fetch`); there is no budget cap, only
+`run_timeout_minutes`; there is no deep mode; and runs show no streamed text, only each
+finished message.
 
 A run that recorded decisions but stopped before its report verified shows as
 partial; Resume continues the same report. Stopping `fo serve` stops a run in
@@ -184,11 +279,59 @@ fo serve --remote
 tailscale serve --bg 4790
 ```
 
-Open the Tailnet link `fo serve` prints. With `allowed_logins`, a request without
-one of those Tailscale identities is refused, on loopback too. Tailscale Funnel is
+Open the Tailnet link `fo serve` prints. With `allowed_logins`, a request over the
+tailnet without one of those Tailscale identities is refused; on loopback the
+launch cookie alone still works, because any local process could forge the header
+there. Tailscale Funnel is
 not supported, because it sends no identity. `--host` binds another address for a
 proxy of your own and prints a warning; do not expose the server to a network you
 do not control.
+
+The Family Office iPhone app pairs once by scanning the code in the Mac app's
+Settings > Devices, keeps a revocable device token in the Keychain, and shows this
+same web app over the tailnet. Building and trying it on a simulator is covered in
+[docs/development/apple.md](docs/development/apple.md#iphone-app).
+
+### For the Mac app
+
+`fo serve --app` prints one JSON line on stdout before the usual lines, then runs
+exactly like `fo serve` without the press-Enter reprint:
+
+```json
+{"port": 4790, "token": "…", "office": "/path/to/office", "state": "ready", "version": "…"}
+```
+
+`office` is null and `state` names the onboarding step when no office exists yet.
+The app reads that line, ignores the rest of stdout, and opens the landing link so
+the cookie is set the normal way. With `--remote`, a phone pairs once over the
+tailnet with a five-minute code from the Mac and then holds a revocable device
+token; see [SECURITY.md](SECURITY.md).
+
+### Writing reports and settings through `fo`
+
+`fo report write` reads a report body on stdin and writes it at the path `fo start`
+returned (`--report PATH`), or allocates one from `--kind` and `--subject` the way
+`fo report path` does; `--part NAME` writes `NAME.md` in the report's part
+directory instead. It writes only under `reports/`, never into a dotted directory
+or file there, caps the body at 2 MB (`max_body_bytes` under `[reports]`), writes
+through a temp file and rename, and prints the path and byte count. Skills and
+advisor runs use it in place of a file-writing tool. `--body-file PATH` reads the
+body from a file instead of stdin, under the same cap, for headless runs that cannot
+pipe: the file must resolve under `reports/` or a run's scratch workspace,
+`cache/serve/runs/<id>/workspace/`, or the command refuses it (`unsafe_path`).
+
+`fo config set KEY VALUE` changes one setting in `office.toml` under the office
+lock, keeps every other line and comment as it was, and refuses anything outside
+this list with `invalid_key`, or a value of the wrong type with `invalid_value`:
+`serve.port` (1 to 65535, not 8182), `serve.tailnet_name`, `serve.allowed_logins`
+(a JSON array or comma-separated), `serve.web_fetch_cap`, `serve.max_budget_usd`,
+`serve.run_timeout_minutes`, `serve.keep_runs`, `serve.engines.default`
+(`claude` or `codex`), and for each engine `serve.engines.<claude|codex>.model`,
+`.effort` (`low`, `medium`, `high`), `.max_budget_usd`, and `.enabled`; then
+`providers.<name>.daily_limit` for `alphavantage`, `fred`, `edgar`, `exa`,
+`firecrawl`, and `gemini`, `providers.gemini.max_tasks_per_day`, and
+`providers.edgar.user_agent`. `fo config get KEY` prints one of them as JSON.
+Advisor runs cannot change settings.
 
 ## Storage and migration
 

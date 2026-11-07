@@ -17,6 +17,7 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run pytest --cov=fo --cov-report=term-missing:skip-covered --cov-fail-under=78
       - run: uv run python scripts/lint_office_paths.py
+      - run: uv run python scripts/lint_identifiers.py
       - run: uv run python scripts/lint_skills.py skills/ AGENTS.md
       - run: uv build
       - name: Scan secrets
@@ -48,3 +49,35 @@ jobs:
             echo "Run npm run build in app/ and commit src/fo/data/app."
             exit 1
           fi
+  apple:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - name: Committed Xcode project matches project.yml
+        working-directory: apple
+        run: |
+          xcodegen generate
+          git diff --exit-code FamilyOffice.xcodeproj FamilyOffice/Info.plist FamilyOfficePhone/Info.plist
+      - name: FOKit
+        working-directory: apple/FOKit
+        run: |
+          swift build
+          swift test
+      - name: Mac app
+        run: >-
+          xcodebuild -project apple/FamilyOffice.xcodeproj -scheme FamilyOffice
+          -configuration Debug CODE_SIGNING_ALLOWED=NO build
+      - name: iPhone app
+        run: >-
+          xcodebuild -project apple/FamilyOffice.xcodeproj -scheme FamilyOfficePhone
+          -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+      - name: iPhone app tests
+        run: |
+          udid="$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          print(next(d["udid"] for runtime, group in devices.items() if "iOS" in runtime
+                     for d in group if d["name"].startswith("iPhone")))')"
+          xcodebuild -project apple/FamilyOffice.xcodeproj -scheme FamilyOfficePhone \
+            -destination "id=$udid" CODE_SIGNING_ALLOWED=NO test

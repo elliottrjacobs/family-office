@@ -5,15 +5,17 @@ import {
   CircleCheck,
   CircleX,
   FileText,
+  Globe,
   Loader2,
   Play,
   Scale,
+  Search,
   Send,
   Square,
 } from "lucide-react"
 
 import type { Decision } from "@/api/office"
-import { ACTIVE, type Run } from "@/api/runs"
+import { ACTIVE, engineLabel, type Run } from "@/api/runs"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,7 +23,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { action as actionLabel } from "@/lib/format"
 import { Markdown } from "@/lib/markdown"
 import { Link, reportHref } from "@/lib/router"
-import type { Item, Step, Transcript } from "@/lib/transcript"
+import type { Item, Step, Transcript, Visit } from "@/lib/transcript"
 
 function Steps({ steps }: { steps: Step[] }) {
   const failed = steps.filter((s) => s.ok === false).length
@@ -103,6 +105,66 @@ function Message({ item, decisions }: { item: Item; decisions: Map<string, Decis
     case "decision":
       return <DecisionCard id={item.id} decisions={decisions} />
   }
+}
+
+function hostname(url: string) {
+  try {
+    return new URL(url).hostname || url
+  } catch {
+    return url
+  }
+}
+
+/** Searches by their query and fetches by hostname, with the full URL on hover. */
+export function SitesVisited({ visits }: { visits: Visit[] }) {
+  if (!visits.length) return null
+  return (
+    <section className="rounded-lg border bg-card text-sm" aria-labelledby="sites-visited">
+      <h3 id="sites-visited" className="px-3 py-2 text-muted-foreground">
+        Sites visited ({visits.length})
+      </h3>
+      <ul className="space-y-1 border-t px-3 py-2">
+        {visits.map((visit) => (
+          <li key={visit.seq} className="flex items-start gap-2 text-xs">
+            {visit.action === "search" ? (
+              <>
+                <Search className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 break-words">Searched “{visit.value}”</span>
+              </>
+            ) : (
+              <>
+                <Globe className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 break-all" title={visit.value}>
+                  {hostname(visit.value)}
+                </span>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+/** Which engine and model the run uses; the model the engine reported wins once known. */
+export function RunEngine({ run, visits = 0 }: { run: Run; visits?: number }) {
+  if (!run.engine) return null
+  const model = run.reported_model ?? run.model
+  // The live stream may be ahead of the record, which settles when the run ends.
+  const count = Math.max(visits, run.web_count ?? 0)
+  return (
+    <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground" aria-label="Engine and model">
+      <Badge variant="outline">{engineLabel(run.engine)}</Badge>
+      {model && <code className="font-mono">{model}</code>}
+      {run.effort && <span>{run.effort} effort</span>}
+      {run.web && (
+        <span className="inline-flex items-center gap-1">
+          <Globe className="size-3" />
+          {count} web {count === 1 ? "visit" : "visits"}
+        </span>
+      )}
+    </p>
+  )
 }
 
 function Outcome({ run, onResume, onNew }: { run: Run; onResume: () => void; onNew: () => void }) {
@@ -187,6 +249,7 @@ export function RunView({
 
   return (
     <div className="space-y-4">
+      {run && <RunEngine run={run} visits={transcript.web.length} />}
       <div className="space-y-3" aria-live="polite">
         {transcript.items.map((item) => (
           <Message key={`${item.type}-${item.seq}`} item={item} decisions={known} />
@@ -200,6 +263,7 @@ export function RunView({
             </Button>
           </div>
         )}
+        <SitesVisited visits={transcript.web} />
         {!active && run && transcript.status && <Outcome run={run} onResume={() => send("")} onNew={onNew} />}
         {transcript.denied > 0 && !active && (
           <p className="text-xs text-muted-foreground">

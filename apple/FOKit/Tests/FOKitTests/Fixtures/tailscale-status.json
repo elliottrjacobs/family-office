@@ -1,0 +1,21 @@
+{
+  "Version": "1.0.0-example",
+  "TUN": false,
+  "BackendState": "Running",
+  "HaveNodeKey": true,
+  "AuthURL": "",
+  "TailscaleIPs": ["100.64.0.1", "fd7a:115c:a1e0::1"],
+  "Self": {
+    "ID": "nExample0001",
+    "PublicKey": "nodekey:0000000000000000000000000000000000000000000000000000000000000000",
+    "HostName": "example-mac",
+    "DNSName": "example-mac.tail0000.ts.net.",
+    "OS": "macOS",
+    "UserID": 1,
+    "TailscaleIPs": ["100.64.0.1", "fd7a:115c:a1e0::1"],
+    "Online": true
+  },
+  "MagicDNSSuffix": "tail0000.ts.net",
+  "CurrentTailnet": {"Name": "example.org", "MagicDNSSuffix": "tail0000.ts.net", "MagicDNSEnabled": true},
+  "Peer": {}
+}

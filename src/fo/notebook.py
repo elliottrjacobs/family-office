@@ -98,11 +98,21 @@ def transition(root, decision_id, event, outcome=None, note="", judged_until=Non
     return row
 
 
+# Characters str.splitlines() and universal-newline reads treat as line ends. A correction
+# holding one could forge a marker line, so text with any of them is refused.
+LINE_BREAKS = re.compile("[\n\r\x0b\x0c\x1c\x1d\x1e\x85  ]")
+
+
+def correction_lines(path):
+    """The file's lines split on \\n alone, read without newline translation."""
+    return path.read_bytes().decode().split("\n") if path.exists() else []
+
+
 def corrections(root, skill=None, subject=None, all_scopes=False):
     path = contained(root, "notebook/corrections.md")
     active = {}
     if path.exists():
-        for line in path.read_text().splitlines():
+        for line in correction_lines(path):
             if line.startswith("<!-- fo-correction ") and line.endswith(" -->"):
                 row = json.loads(line[len("<!-- fo-correction ") : -4])
                 if row["event"] == "retired":
@@ -118,9 +128,11 @@ def correct(root, text=None, scope="global", retire=None):
         raise OfficeError("invalid_scope", "Use global, skill:name, or subject:SYM.")
     if retire is None and (not text or not text.strip()):
         raise OfficeError("invalid_correction", "Correction text is required.")
+    if text and LINE_BREAKS.search(text):
+        raise OfficeError("invalid_correction", "Write a correction on a single line.")
     with office_lock(root):
         path = contained(root, "notebook/corrections.md")
-        old = path.read_text() if path.exists() else "# Standing corrections\n"
+        old = path.read_bytes().decode() if path.exists() else "# Standing corrections\n"
         if retire is not None and retire not in {
             r["id"] for r in corrections(root, all_scopes=True)
         }:
@@ -132,7 +144,7 @@ def correct(root, text=None, scope="global", retire=None):
                 1
                 + sum(
                     line.startswith("<!-- fo-correction ") and '"event": "added"' in line
-                    for line in old.splitlines()
+                    for line in old.split("\n")
                 )
             ),
             "event": "retired" if retire is not None else "added",

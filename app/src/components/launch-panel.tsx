@@ -1,9 +1,19 @@
 import * as React from "react"
-import { CircleAlert, FileText, Loader2, Play } from "lucide-react"
+import { CircleAlert, FileText, Globe, Loader2, Play } from "lucide-react"
 
 import { ApiError } from "@/api/client"
 import type { Advisor, Level } from "@/api/office"
-import { launch, preview, type Run } from "@/api/runs"
+import {
+  type Effort,
+  type EngineChoice,
+  type EngineStatus,
+  engineLabel,
+  launch,
+  type ModelCatalog,
+  models,
+  preview,
+  type Run,
+} from "@/api/runs"
 import { useApi } from "@/api/use-api"
 import { advisorName } from "@/components/advisor-icon"
 import { message } from "@/components/confirm-dialog"
@@ -15,6 +25,159 @@ import { titleCase } from "@/lib/format"
 import { Link, reportHref } from "@/lib/router"
 
 const SUBJECT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
+const EFFORTS: Effort[] = ["low", "medium", "high"]
+const OTHER = "__other__"
+const STORAGE = "fo.launch.v1."
+
+function remembered(advisor: string): EngineChoice | undefined {
+  try {
+    const value = JSON.parse(window.sessionStorage.getItem(STORAGE + advisor) ?? "null") as EngineChoice | null
+    if (value && typeof value.engine === "string" && typeof value.model === "string" && EFFORTS.includes(value.effort)) {
+      return value
+    }
+  } catch {
+    // Unreadable or blocked storage falls back to the office defaults.
+  }
+  return undefined
+}
+
+function remember(advisor: string, choice: EngineChoice) {
+  try {
+    window.sessionStorage.setItem(STORAGE + advisor, JSON.stringify(choice))
+  } catch {
+    // The choice is a convenience; losing it is harmless.
+  }
+}
+
+/** The office default for an engine, then the curated recommendation, then the first entry. */
+function defaultsFor(engine: string, catalog: ModelCatalog | undefined, engines: EngineStatus[]): EngineChoice {
+  const office = catalog?.defaults[engine] ?? engines.find((e) => e.name === engine)?.defaults
+  const curated = catalog?.engines[engine]?.models ?? []
+  const recommended = curated.find((m) => m.recommended) ?? curated[0]
+  return { engine, model: office?.model ?? recommended?.id ?? "", effort: office?.effort ?? "high" }
+}
+
+function initialChoice(
+  advisor: string,
+  catalog: ModelCatalog | undefined,
+  engines: EngineStatus[],
+  officeDefault: string | undefined
+): EngineChoice | undefined {
+  const usable = engines.filter((e) => e.usable).map((e) => e.name)
+  if (!usable.length) return undefined
+  const stored = remembered(advisor)
+  if (stored && usable.includes(stored.engine)) return stored
+  const preferred = catalog?.default ?? officeDefault
+  return defaultsFor(preferred && usable.includes(preferred) ? preferred : usable[0], catalog, engines)
+}
+
+/** Engine, model, and effort for this run; unusable engines show why and cannot be chosen. */
+function EngineFields({
+  choice,
+  catalog,
+  engines,
+  onChange,
+}: {
+  choice: EngineChoice
+  catalog: ModelCatalog | undefined
+  engines: EngineStatus[]
+  onChange: (choice: EngineChoice) => void
+}) {
+  const curated = catalog?.engines[choice.engine]?.models ?? []
+  const listed = curated.some((m) => m.id === choice.model)
+  const [other, setOther] = React.useState(!listed && choice.model !== "")
+  const custom = other || (!listed && choice.model !== "")
+  const efforts = catalog?.engines[choice.engine]?.efforts ?? EFFORTS
+  const blocked = engines.filter((e) => !e.usable && e.message)
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-[auto_1fr_auto]">
+        <div className="space-y-1.5">
+          <p className="text-sm font-medium">Engine</p>
+          <Segmented
+            label="Engine"
+            options={engines.map((e) => ({
+              value: e.name,
+              label: catalog?.engines[e.name]?.label ?? engineLabel(e.name),
+              disabled: !e.usable,
+              title: e.usable ? undefined : (e.message ?? undefined),
+            }))}
+            value={choice.engine}
+            onChange={(engine) => {
+              setOther(false)
+              onChange(defaultsFor(engine, catalog, engines))
+            }}
+          />
+        </div>
+        <div className="min-w-0 space-y-1.5">
+          <label htmlFor="run-model" className="text-sm font-medium">
+            Model
+          </label>
+          <select
+            id="run-model"
+            value={custom ? OTHER : choice.model}
+            onChange={(event) => {
+              const value = event.target.value
+              if (value === OTHER) {
+                setOther(true)
+                onChange({ ...choice, model: "" })
+              } else {
+                setOther(false)
+                onChange({ ...choice, model: value })
+              }
+            }}
+            className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+          >
+            {curated.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+                {m.recommended ? " (recommended)" : ""}
+              </option>
+            ))}
+            <option value={OTHER}>Other…</option>
+          </select>
+          {custom && (
+            <Input
+              aria-label="Model id"
+              value={choice.model}
+              onChange={(event) => onChange({ ...choice, model: event.target.value.trim() })}
+              placeholder="Model id, as the engine names it"
+              autoComplete="off"
+              spellCheck={false}
+            />
+          )}
+        </div>
+        <div className="space-y-1.5">
+          <p className="text-sm font-medium">Effort</p>
+          <Segmented
+            label="Effort"
+            options={efforts.map((value) => ({ value, label: titleCase(value) }))}
+            value={choice.effort}
+            onChange={(effort) => onChange({ ...choice, effort })}
+          />
+        </div>
+      </div>
+      {blocked.map((e) => (
+        <p key={e.name} className="text-xs text-muted-foreground">
+          {catalog?.engines[e.name]?.label ?? engineLabel(e.name)} is unavailable: {e.message}
+        </p>
+      ))}
+    </div>
+  )
+}
+
+/** Web access follows the context level: on only where the run reads no household data. */
+export function WebPolicy({ level }: { level: Level }) {
+  const on = level === "none"
+  return (
+    <p className="flex items-start gap-1.5 text-xs text-muted-foreground" aria-label="Web policy">
+      <Globe className="mt-0.5 size-3 shrink-0" />
+      {on
+        ? "Web search and fetch: on, this level reads no household data."
+        : "Web search and fetch: off at this level."}
+    </p>
+  )
+}
 
 function useDebounced<T>(value: T, delay = 400) {
   const [settled, setSettled] = React.useState(value)
@@ -88,12 +251,24 @@ function Preview({ advisor, subject, level }: { advisor: Advisor; subject: strin
 export function LaunchPanel({
   advisor,
   deepAvailable,
+  engines = [],
+  officeDefault,
   onLaunched,
 }: {
   advisor: Advisor
   deepAvailable: boolean
+  engines?: EngineStatus[]
+  officeDefault?: string
   onLaunched: (run: Run) => void
 }) {
+  const catalog = useApi("models", models)
+  // Null until the user picks something; until then the office defaults apply.
+  const [picked, setPicked] = React.useState<EngineChoice | null>(null)
+  const choice = picked ?? initialChoice(advisor.name, catalog.data, engines, officeDefault)
+  const choose = (next: EngineChoice) => {
+    setPicked(next)
+    remember(advisor.name, next)
+  }
   const household = advisor.group === "household" || advisor.group === "routine"
   const [subject, setSubject] = React.useState(household ? "household" : "")
   const [level, setLevel] = React.useState<Level>(advisor.default_context)
@@ -101,7 +276,8 @@ export function LaunchPanel({
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState<string>()
   const settled = useDebounced(subject)
-  const valid = SUBJECT.test(subject.trim())
+  const subjectValid = SUBJECT.test(subject.trim())
+  const valid = subjectValid && (!choice || choice.model.trim() !== "")
   const canDeep = advisor.deep && deepAvailable
 
   const start = async (event: React.FormEvent) => {
@@ -110,7 +286,7 @@ export function LaunchPanel({
     setBusy(true)
     setError(undefined)
     try {
-      onLaunched(await launch(advisor.name, normalize(subject), level, canDeep && deep))
+      onLaunched(await launch(advisor.name, normalize(subject), level, canDeep && deep, choice))
     } catch (reason) {
       setError(reason instanceof ApiError ? message(reason) : "The run could not start.")
     } finally {
@@ -132,7 +308,7 @@ export function LaunchPanel({
             placeholder={household ? "household" : "Ticker, such as ACME"}
             autoComplete="off"
             spellCheck={false}
-            aria-invalid={subject !== "" && !valid}
+            aria-invalid={subject !== "" && !subjectValid}
           />
         </div>
         <div className="space-y-1.5">
@@ -145,6 +321,17 @@ export function LaunchPanel({
           />
         </div>
       </div>
+      <WebPolicy level={level} />
+      {/* The fields wait for the curated list so an office model shows as listed or as Other. */}
+      {choice && catalog.data && (
+        <EngineFields
+          key={choice.engine}
+          choice={choice}
+          catalog={catalog.data}
+          engines={engines}
+          onChange={choose}
+        />
+      )}
       {canDeep && (
         <label className="flex items-center gap-3 text-sm">
           <Switch checked={deep} onCheckedChange={setDeep} aria-label="Deep mode" />
@@ -156,7 +343,7 @@ export function LaunchPanel({
           </span>
         </label>
       )}
-      {valid && SUBJECT.test(settled.trim()) && <Preview advisor={advisor} subject={normalize(settled)} level={level} />}
+      {subjectValid && SUBJECT.test(settled.trim()) && <Preview advisor={advisor} subject={normalize(settled)} level={level} />}
       {error && (
         <p role="alert" className="flex items-start gap-2 text-sm text-destructive-foreground">
           <CircleAlert className="mt-0.5 size-4 shrink-0" />
