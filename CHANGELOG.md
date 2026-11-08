@@ -56,9 +56,6 @@
   because its read confinement is command-based; see SECURITY.md.
 - `fo report write` and `fo config set` give runs and the app a route for the writes they
   lacked.
-- Advisor avatars: thirteen default robots, animated by what the advisor is doing, a
-  per-advisor customize panel (Mac inspector, phone sheet), and a playground at
-  `/playground/robots` with a committed screenshot set in `docs/explainers/robots/`.
 - `scripts/lint_identifiers.py`, run in CI, fails on tailnet hostnames, CGNAT addresses,
   UDID-shaped strings and absolute home paths outside documented placeholders.
 

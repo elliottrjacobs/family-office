@@ -1,17 +1,13 @@
-// The Mac advisor inspector from the Figma chat frame (U20): the live robot with its
-// state, the advisor, its look, what it reads and where it writes.
+// The Mac advisor inspector from the Figma chat frame (U20): the advisor, what it reads
+// and where it writes.
 
 import * as React from "react"
 import { Check, FileText, Lock, Terminal } from "lucide-react"
 
 import type { Advisor, Level } from "@/api/office"
 import { levels } from "@/api/office"
-import { preview } from "@/api/runs"
+import { preview, type Run } from "@/api/runs"
 import { useApi } from "@/api/use-api"
-import { advisorIdFor } from "@/avatars/appearance"
-import type { AvatarState } from "@/avatars/states"
-import { useAdvisorState, useLiveRun } from "@/components/advisor-avatar"
-import { AppearanceControls, AppearancePreview } from "@/components/appearance-editor"
 import { advisorName } from "@/components/advisor-icon"
 import { Segmented } from "@/components/segmented"
 import { day, titleCase } from "@/lib/format"
@@ -84,35 +80,28 @@ function Reads({ advisor, subject, level }: { advisor: Advisor; subject: string 
 
 export function AdvisorInspector({
   advisor,
-  state: shown,
+  run,
   reads,
 }: {
   advisor: Advisor
-  /** A fixed state and speaking level instead of the conversation's (the playground). */
-  state?: { state: AvatarState; level?: number }
+  /** The conversation's current run, whose subject and level the inspector follows. */
+  run?: Run
   /** Fixed lines for "What it reads"; the inspector then makes no API calls. */
   reads?: string[]
 }) {
-  const robot = advisorIdFor(advisor.name)
-  const followed = useAdvisorState(robot)
-  const state = shown?.state ?? followed.state
-  const amplitude = shown ? (shown.level ?? 0) : followed.level
-  const live = useLiveRun(robot)
   const name = advisorName(advisor.name)
   const household = advisor.group === "household" || advisor.group === "routine"
-  const subject = live?.run?.subject ?? (household ? "household" : null)
-  const runLevel = live?.run?.level
+  const subject = run?.subject ?? (household ? "household" : null)
+  const runLevel = run?.level
   const [chosen, setChosen] = React.useState<Level | null>(null)
   const level = chosen ?? (runLevel && advisor.allowed_context.includes(runLevel) ? runLevel : advisor.default_context)
 
   return (
     <aside aria-label={`${name} inspector`} className="space-y-6 text-sm" data-inspector>
-      {robot && <AppearancePreview advisorId={robot} state={state} level={amplitude} className="min-h-44" />}
       <div className="space-y-1">
         <h2 className="text-xl">{name}</h2>
         <p className="text-[13px] text-muted-foreground">{advisor.description}</p>
       </div>
-      {robot && <AppearanceControls advisorId={robot} />}
       <section className="space-y-2.5">
         <Heading>What {name} reads</Heading>
         {reads ? <CheckList lines={reads} /> : <Reads advisor={advisor} subject={subject} level={level} />}
