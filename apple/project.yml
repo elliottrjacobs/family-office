@@ -123,6 +123,9 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.finance
         LSRequiresIPhoneOS: true
+        # The app only uses HTTPS (exempt encryption), so TestFlight builds need no
+        # export-compliance answer.
+        ITSAppUsesNonExemptEncryption: false
         NSCameraUsageDescription: Family Office uses the camera only to scan the pairing code your Mac shows.
         UILaunchScreen: {}
         UIApplicationSceneManifest:
