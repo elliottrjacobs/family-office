@@ -117,7 +117,13 @@ jobs:
         run: |
           mkdir -p "$HOME/.appstoreconnect/private_keys"
           echo "$ASC_KEY_P8" | base64 --decode > "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
-          xcrun altool --upload-app --type ios --file "$RUNNER_TEMP/export/FamilyOfficePhone.ipa" \
+          # The export names the .ipa after the bundle's display name ("Family Office.ipa"),
+          # not the scheme, so find it rather than guess.
+          ipa="$(find "$RUNNER_TEMP/export" -maxdepth 1 -name '*.ipa' -print -quit)"
+          if [ -z "$ipa" ]; then
+            echo "::error title=No .ipa exported::$RUNNER_TEMP/export holds no .ipa"; exit 1
+          fi
+          xcrun altool --upload-app --type ios --file "$ipa" \
             --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
       - name: Clean up signing material
         if: always() && steps.gate.outputs.signed == 'true'
