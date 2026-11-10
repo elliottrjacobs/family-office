@@ -255,3 +255,135 @@ def test_report_write_with_a_body_file_is_left_to_the_rules(office):
     # Feeding the body through the shell is still refused; the command checks the file.
     assert call("Bash", office, command="fo report write --report X < /tmp/body.md")
     assert call("Bash", office, command="cat body.md | fo report write --report X")
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["data/transactions.jsonl", "profile/ips.json", "notebook/decisions.jsonl"],
+)
+def test_web_runs_cannot_read_household_folders(office, web_env, path):
+    for target in (path, str(office / path), path.upper()):
+        assert web(office, web_env, "Read", file_path=target).endswith("(web_household_read)")
+    assert web(office, {}, "Read", file_path=path) is None
+    (office / "household-link").symlink_to(office / path)
+    assert web(office, web_env, "Read", file_path="household-link").endswith("(web_household_read)")
+
+
+def test_web_runs_keep_instructions_and_report_writes(office, web_env):
+    for path in (
+        "AGENTS.md",
+        ".claude/skills/research/SKILL.md",
+        "lenses/fisher.md",
+        "reports/x.md",
+    ):
+        assert web(office, web_env, "Read", file_path=path) is None
+    for tool in ("Write", "Edit", "MultiEdit"):
+        assert web(office, web_env, tool, file_path="reports/draft.md") is None
+    for command in ("fo --help", "fo --version"):
+        assert web(office, web_env, "Bash", command=command) is None
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "fo export",
+        "fo brief --level full",
+        "fo --json brief --level full",
+        "fo --office /synthetic -- export",
+        "fo --office=/synthetic export",
+        "fo research search ACME && fo export",
+        "fo start research ACME",
+        "fo start research ACME --level household",
+        "fo start research ACME --level none --level full",
+        "fo brief --level=full",
+        "fo lots ACME",
+        "fo report show reports/x.md",
+        "fo networth",
+        "fo positions",
+        "fo cashflow",
+        "fo spend",
+        "fo prior research ACME",
+        "fo journal list",
+        "fo corrections list",
+        "fo score-portfolio all-weather",
+        "fo status",
+        "fo skills sync",
+        "fo playbooks show fisher",
+        "fo --help status",
+    ],
+)
+def test_web_runs_deny_household_commands(office, web_env, command):
+    assert web(office, web_env, "Bash", command=command).endswith("(web_household_command)")
+    # The non-web command policy remains unchanged (except research).
+    if "research" not in command:
+        assert web(office, {}, "Bash", command=command) is None
+
+
+@pytest.mark.parametrize(
+    "command,value",
+    [
+        ('fo research search "ACME earnings" --limit 5 --json', "ACME earnings"),
+        ('fo --json --office /synthetic research deep "ACME outlook"', "ACME outlook"),
+        ('fo --office=/synthetic -- research search "ACME margins"', "ACME margins"),
+        ('fo research search -- "ACME growth"', "ACME growth"),
+    ],
+)
+def test_research_queries_require_web_and_are_logged(office, web_env, command, value):
+    assert web(office, {}, "Bash", command=command).endswith("(web_off)")
+    assert web(office, {"FO_SERVE_WEB": "1"}, "Bash", command=command).endswith("(web_unlogged)")
+    assert web(office, web_env, "Bash", command=command) is None
+    with open(os.path.join(web_env["FO_SERVE_RUN_DIR"], "web.jsonl")) as stream:
+        entry = json.loads(stream.read())
+    assert (entry["kind"], entry["value"]) == ("search", value)
+
+
+def test_research_fetch_shares_web_cap_and_url_checks(office, web_env):
+    web_env["FO_SERVE_WEB_FETCH_CAP"] = "2"
+    command = "fo research fetch https://93.184.215.14/page --json"
+    assert web(office, {}, "Bash", command=command).endswith("(web_off)")
+    assert web(office, web_env, "Bash", command=command) is None
+    assert web(office, web_env, "WebFetch", url="https://93.184.215.14/other") is None
+    assert web(office, web_env, "Bash", command=command).endswith("(web_fetch_cap)")
+    assert web(office, web_env, "Bash", command="fo research fetch http://127.0.0.1/").endswith(
+        "(loopback_address)"
+    )
+    with open(os.path.join(web_env["FO_SERVE_RUN_DIR"], "web.jsonl")) as stream:
+        entries = [json.loads(line) for line in stream]
+    assert [(entry["kind"], entry["value"]) for entry in entries] == [
+        ("fetch", "https://93.184.215.14/page"),
+        ("fetch", "https://93.184.215.14/other"),
+    ]
+
+
+@pytest.mark.parametrize("suffix", ["", "unknown", "fetch", "search --limit 5 ACME"])
+def test_web_research_fails_closed_for_unrecognized_forms(office, web_env, suffix):
+    assert web(office, web_env, "Bash", command=f"fo research {suffix}")
+    assert web(office, {}, "Bash", command=f"fo research {suffix}").endswith("(web_off)")
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "fo start research ACME --level none",
+        "fo --json start research ACME --level=none",
+        "fo brief --level none",
+        "fo quote ACME",
+        "fo fundamentals ACME",
+        "fo filings ACME",
+        "fo macro",
+        "fo screen value",
+        "fo score fisher ACME",
+        "fo playbooks list",
+        "fo report parts --kind research --subject ACME",
+        "fo report path --kind research --subject ACME",
+        "fo report write --report reports/x.md --body-file reports/d.md",
+        "fo reports index",
+        "fo journal add ACME --action HOLD --thesis growth --invalidate margins",
+        "fo corrections add --text synthetic",
+        "fo skill verify reports/x.md",
+        "fo skill research",
+        "fo skills list",
+    ],
+)
+def test_web_runs_allow_level_none_workflow(office, web_env, command):
+    assert web(office, web_env, "Bash", command=command) is None

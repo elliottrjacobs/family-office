@@ -7,13 +7,18 @@ the office outside its private folders, writes under reports/, and subagent call
 otherwise leaves the decision to the permission rules. Every other tool call, and any
 error in the hook itself, is denied.
 
-WebSearch and WebFetch pass only in a run the runner marked web (FO_SERVE_WEB=1, at
-context level none). A fetch URL must pass fo.netguard, and fetches are capped per run
-by FO_SERVE_WEB_FETCH_CAP with a counter file in the run's folder (FO_SERVE_RUN_DIR,
-under cache/serve/runs/, which a run cannot read or write). Every search query and
-fetch URL that passes is appended, scrubbed, to web.jsonl in that folder; the run
-manager folds the entries into the run's event log. Each web denial ends with a stable
-reason code in parentheses.
+Web runs additionally deny reads of data/, profile/, and notebook/ and allow only
+market, research, and bookkeeping commands; start and brief require level none.
+Reports remain readable and writable, including earlier reports with household data.
+Non-web runs deny all fo research commands.
+
+WebSearch, WebFetch, and fo research pass only in a run the runner marked web
+(FO_SERVE_WEB=1, at context level none). Fetch URLs must pass fo.netguard, and fetches
+share a per-run cap, FO_SERVE_WEB_FETCH_CAP, with a counter in FO_SERVE_RUN_DIR under
+cache/serve/runs/, which a run cannot read or write. Every accepted query (including
+research deep questions, logged as searches) and fetch URL is appended, scrubbed, to
+web.jsonl there; the run manager folds entries into the run's event log. Each web
+denial ends with a stable reason code in parentheses.
 
 Run as `python -m fo.serve.guard OFFICE`; it reads the hook event JSON on stdin.
 """
@@ -40,6 +45,25 @@ PATH_KEYS = {
 }
 WRITES = {"Write", "Edit", "MultiEdit"}
 WEB = {"WebFetch", "WebSearch"}
+WEB_COMMANDS = {
+    "quote": None,
+    "fundamentals": None,
+    "filings": None,
+    "macro": None,
+    "screen": None,
+    "score": None,
+    "playbooks": {"list"},
+    "start": None,
+    "brief": None,
+    "report": {"parts", "path", "write"},
+    "reports": {"index"},
+    "journal": {"add"},
+    "corrections": {"add"},
+    "skill": None,
+    "skills": {"list"},
+    "--help": set(),
+    "--version": set(),
+}
 COUNTER = "web-fetches"
 VALUE_LIMIT = 2000
 OPERATOR = set("|;&<>()")
@@ -47,7 +71,8 @@ OPERATOR = set("|;&<>()")
 EXPANSION = re.compile(r"\$(?![\d\s.,]|$)")
 
 
-def command_denial(command):
+def command_denial(command, env=None, resolver=None):
+    env = os.environ if env is None else env
     if not command or "\n" in command or "`" in command or EXPANSION.search(command):
         return "Advisor runs may run only plain fo commands."
     try:
@@ -69,10 +94,60 @@ def command_denial(command):
             segments[-1].append(token)
     if any(not segment or segment[0] != "fo" for segment in segments):
         return "Advisor runs may run only fo commands."
+    for segment in segments:
+        # Match OfficeGroup's global flag handling, stopping at the CLI separator.
+        words = []
+        index = 1
+        while index < len(segment):
+            word = segment[index]
+            if word == "--":
+                words.extend(segment[index + 1 :])
+                break
+            if word == "--office":
+                index += 2
+                continue
+            if word not in ("--json", "--read-only") and not word.startswith("--office="):
+                words.append(word)
+            index += 1
+        if words[:1] == ["research"]:
+            if env.get(WEB_FLAG) != "1":
+                return "Research is on only in web runs (web_off)"
+            if len(words) > 1 and words[1] not in ("fetch", "search", "deep"):
+                return "This command is unavailable in web runs (web_household_command)"
+            if len(words) < 3:
+                return "Research requires a query or URL (missing_query)"
+            value = words[2:]
+            if value[:1] == ["--"]:
+                value = value[1:]
+            if not value or value[0].startswith("-"):
+                return "Put the research query or URL before options (missing_query)"
+            tool = "WebFetch" if words[1] == "fetch" else "WebSearch"
+            key = "url" if tool == "WebFetch" else "query"
+            reason = web_denial(tool, {key: value[0]}, env, resolver)
+            if reason:
+                return reason
+        elif env.get(WEB_FLAG) == "1":
+            allowed = bool(words) and words[0] in WEB_COMMANDS
+            if allowed:
+                subcommands = WEB_COMMANDS[words[0]]
+                allowed = subcommands is None or (
+                    words[1] in subcommands if len(words) > 1 else not subcommands
+                )
+            if words[:1] in (["start"], ["brief"]):
+                args = words[: words.index("--")] if "--" in words else words
+                levels = [
+                    args[i + 1] if word == "--level" and i + 1 < len(args) else word[8:]
+                    for i, word in enumerate(args)
+                    if word == "--level" or word.startswith("--level=")
+                ]
+                allowed = bool(levels) and all(level == "none" for level in levels)
+            if not allowed:
+                return "This command is unavailable in web runs (web_household_command)"
     return None
 
 
-def path_denial(office, cwd, tool, arguments):
+def path_denial(office, cwd, tool, arguments, env=None):
+    env = os.environ if env is None else env
     raw = arguments.get(PATH_KEYS[tool])
     if not raw:
         return "The tool call names no file."
@@ -84,6 +159,12 @@ def path_denial(office, cwd, tool, arguments):
     # macOS volumes usually ignore case, so SECRETS/ opens secrets/.
     if first.casefold() in PRIVATE or first.casefold().startswith("store.sqlite"):
         return "That part of the office is private to fo."
+    if (
+        tool == "Read"
+        and env.get(WEB_FLAG) == "1"
+        and first.casefold() in ("data", "profile", "notebook")
+    ):
+        return "Web runs cannot read household folders (web_household_read)"
     if tool in WRITES and first != "reports":
         return "Advisor runs write only under reports/."
     # A .claude/, .git/, or other hidden entry under reports/ would be committed and read
@@ -157,9 +238,9 @@ def decide(office, event, env=None, resolver=None):
     if tool in WEB:
         return web_denial(tool, arguments, os.environ if env is None else env, resolver)
     if tool == "Bash":
-        return command_denial(arguments.get("command", ""))
+        return command_denial(arguments.get("command", ""), env, resolver)
     if tool in PATH_KEYS:
-        return path_denial(office, event.get("cwd"), tool, arguments)
+        return path_denial(office, event.get("cwd"), tool, arguments, env)
     if tool in ("Task", "Agent"):
         return None
     return "This tool is not available in advisor runs."
