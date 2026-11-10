@@ -2,6 +2,7 @@ import json
 import re
 import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 import jsonschema
@@ -13,7 +14,7 @@ from fo.cli import app as cli
 from fo.envelope import FAILED
 from fo.errors import OfficeError
 from fo.init import initialize
-from fo.serve import prepare, routes_read
+from fo.serve import prepare, routes_read, server
 from fo.serve.cache import ResponseCache
 from fo.serve.server import Locator
 from fo.store.authored import PROFILE_FILES
@@ -212,6 +213,55 @@ def test_cache_recomputes_only_when_the_office_changes(office):
     clock[0] = 6.0
     assert cache.get(office, "k", compute) == 2
     assert cache.get(office, "k", compute, ttl=1) == 3
+
+
+def test_cached_route_refreshes_when_the_date_changes(office, tmp_path, monkeypatch):
+    today = [date(2026, 8, 31)]
+    clock = [0.0]
+
+    class ClockDate(date):
+        @classmethod
+        def today(cls):
+            return today[0]
+
+    monkeypatch.setattr(server, "date", ClockDate)
+    monkeypatch.setattr(routes_read, "date", ClockDate)
+    before = tree(office)
+    with serving(office, tmp_path) as (app, client):
+        app.cache = ResponseCache(clock=lambda: clock[0])
+        august = client.get("/api/spend")
+        assert august == client.get("/api/spend?month=2026-08")
+        assert august == client.get("/api/spend")
+        today[0] = date(2026, 9, 1)
+        clock[0] = 1.0  # Before either the fingerprint poll or the TTL expires.
+        september = client.get("/api/spend")
+        assert september == client.get("/api/spend?month=2026-09")
+        assert september != august
+    assert_unchanged(before, tree(office))
+
+
+@pytest.mark.parametrize(
+    ("path", "ttl"),
+    [("/api/goals", routes_read.FINGERPRINT_TTL), ("/api/doctor", routes_read.DOCTOR_TTL)],
+)
+def test_cached_routes_expire_without_file_changes(office, tmp_path, monkeypatch, path, ttl):
+    clock = [0.0]
+    calls = []
+
+    def compute(root, query):
+        calls.append(1)
+        return {"calls": len(calls)}
+
+    monkeypatch.setattr(routes_read.ROUTES[path], "handler", compute)
+    before = tree(office)
+    with serving(office, tmp_path) as (app, client):
+        app.cache = ResponseCache(clock=lambda: clock[0])
+        assert client.get(path) == (200, {"calls": 1})
+        clock[0] = ttl - 1
+        assert client.get(path) == (200, {"calls": 1})
+        clock[0] = ttl
+        assert client.get(path) == (200, {"calls": 2})
+    assert_unchanged(before, tree(office))
 
 
 def test_serve_package_never_imports_the_cli():

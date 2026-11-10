@@ -7,7 +7,7 @@ import re
 import sys
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
 from pathlib import Path
@@ -20,7 +20,7 @@ from fo.serve import onboarding, routes_config, routes_devices
 from fo.serve.auth import Access, Denial
 from fo.serve.cache import ResponseCache
 from fo.serve.devices import Devices
-from fo.serve.routes_read import DOCTOR_TTL, resolve
+from fo.serve.routes_read import DOCTOR_TTL, FINGERPRINT_TTL, resolve
 
 STATUS = {
     "office_not_found": 404,
@@ -308,8 +308,8 @@ class Handler(BaseHTTPRequestHandler):
         if route.cache == "never":
             value = route.handler(root, query)
         else:
-            key = (path, tuple(sorted(query.items())))
-            ttl = DOCTOR_TTL if route.cache == "ttl" else None
+            key = (path, tuple(sorted(query.items())), date.today())
+            ttl = DOCTOR_TTL if route.cache == "ttl" else FINGERPRINT_TTL
             value = self.app.cache.get(root, key, lambda: route.handler(root, query), ttl)
         self.send_json(200, value)
 
