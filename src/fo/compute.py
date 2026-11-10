@@ -202,9 +202,10 @@ def positions(root, account=None, symbol=None, read_only=False):
     }
 
 
-def categorized(root, state=None):
+def categorized(root, state=None, rules=None):
     state = state or context(root, True)
-    rules = load(root, "categories")["rules"]
+    if rules is None:
+        rules = load(root, "categories")["rules"]
     result = []
     ordered = sorted(
         enumerate(rules),
@@ -236,18 +237,21 @@ def categorized(root, state=None):
     return result
 
 
-def spend(root, month, category=None, read_only=False):
+def spend(root, month, category=None, read_only=False, *, state=None, rows=None, rules=None):
     try:
         date.fromisoformat(month + "-01")
     except ValueError as exc:
         raise OfficeError("invalid_month", "Use YYYY-MM.") from exc
-    state = context(root, read_only)
-    income_categories = {
-        r["category"].casefold() for r in load(root, "categories")["rules"] if r.get("income")
-    }
+    if state is None:
+        state = context(root, read_only)
+    if rules is None:
+        rules = load(root, "categories")["rules"]
+    if rows is None:
+        rows = categorized(root, state, rules)
+    income_categories = {r["category"].casefold() for r in rules if r.get("income")}
     dated = [
         t
-        for t in categorized(root, state)
+        for t in rows
         if (t.get("posted_date") or t.get("transacted_at") or "").startswith(month)
         and not t.get("pending")
         and t.get("status") != "expired"
@@ -288,12 +292,22 @@ def spend(root, month, category=None, read_only=False):
 def cashflow(root, months=3, read_only=False):
     if not 1 <= months <= 120:
         raise OfficeError("invalid_months", "Months must be between 1 and 120.")
+    state = context(root, read_only)
+    rules = load(root, "categories")["rules"]
+    transactions = categorized(root, state, rules)
     today = date.today()
     index = today.year * 12 + today.month - 1
     rows = []
     for offset in reversed(range(months)):
         year, month = divmod(index - offset, 12)
-        row = spend(root, f"{year:04}-{month + 1:02}", read_only=read_only)
+        row = spend(
+            root,
+            f"{year:04}-{month + 1:02}",
+            read_only=read_only,
+            state=state,
+            rows=transactions,
+            rules=rules,
+        )
         rows.append(
             {
                 "month": row["month"],
@@ -304,7 +318,7 @@ def cashflow(root, months=3, read_only=False):
                 "net": row["income"] - row["spend"],
             }
         )
-    return envelope(context(root, read_only), months=rows)
+    return envelope(state, months=rows)
 
 
 def goals(root, read_only=False):

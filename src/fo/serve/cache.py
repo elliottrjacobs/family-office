@@ -45,7 +45,7 @@ class ResponseCache:
             if now - self.checked >= self.cycle:
                 stamp = signature(root)
                 if stamp != self.stamp:
-                    self.stamp, self.current = stamp, fingerprint(root)
+                    self.stamp, self.current = stamp, fingerprint(root, SOURCES)
                 self.checked = now
             return self.current
 

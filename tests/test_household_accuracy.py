@@ -255,3 +255,26 @@ def test_cashflow_marks_partial_month_and_runway_uses_complete_months(office, mo
     # The same spending is excluded when August itself is still in progress.
     monkeypatch.setattr(Today, "today", classmethod(lambda cls: cls(2026, 8, 2)))
     assert metric_observations(office, "", "cash_months") == []
+
+
+def test_cashflow_reuses_state_and_categories(office, monkeypatch):
+    from unittest.mock import Mock
+
+    class Today(date):
+        @classmethod
+        def today(cls):
+            return cls(2026, 9, 2)
+
+    monkeypatch.setattr(compute, "date", Today)
+    expected = [compute.spend(office, f"2026-{month:02}", read_only=True) for month in range(4, 10)]
+    for name in ("context", "read_state", "categorized", "load"):
+        monkeypatch.setattr(compute, name, Mock(wraps=getattr(compute, name)))
+    result = compute.cashflow(office, 6, read_only=True)
+    compute.context.assert_called_once_with(office, True)
+    compute.read_state.assert_called_once_with(office, True)
+    compute.categorized.assert_called_once()
+    compute.load.assert_called_once_with(office, "categories")
+    for actual, monthly in zip(result["months"], expected, strict=True):
+        for key in ("month", "income", "spend", "uncategorized_count"):
+            assert actual[key] == monthly[key]
+        assert actual["net"] == monthly["income"] - monthly["spend"]

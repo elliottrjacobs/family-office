@@ -201,3 +201,35 @@ def test_provider_errors_are_counted_and_missing_account_goes_stale(office):
     from fo.doctor import diagnose
 
     assert any(c["name"] == "sync.errors.fixture" for c in diagnose(office))
+
+
+def test_state_fingerprint_only_tracks_projection_inputs(office):
+    from fo.store.index import fingerprint
+
+    before = fingerprint(office)
+    for name in ("reports/test.md", "notebook/decisions.jsonl", "profile/categories.yaml"):
+        path = office / name
+        path.write_text(path.read_text() + "\n" if path.exists() else "test\n")
+        assert fingerprint(office) == before
+    path = office / "data/transactions.jsonl"
+    path.write_text(path.read_text() + "\n")
+    assert fingerprint(office) != before
+
+
+def test_authored_caches_schema_but_reloads_profile(office, monkeypatch):
+    from unittest.mock import Mock
+
+    from fo.store import authored
+
+    authored.schema.cache_clear()
+    resource_files = Mock(wraps=authored.files)
+    monkeypatch.setattr(authored, "files", resource_files)
+    try:
+        path = office / "profile/categories.yaml"
+        path.write_text("rules: []\n")
+        assert authored.load(office, "categories") == {"rules": []}
+        path.write_text("rules: [{payee: Shop, category: food}]\n")
+        assert authored.load(office, "categories")["rules"][0]["category"] == "food"
+        resource_files.assert_called_once_with("fo")
+    finally:
+        authored.schema.cache_clear()

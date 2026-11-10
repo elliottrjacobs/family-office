@@ -146,7 +146,7 @@ def metric_observations(root, symbol, metric, decision=None):
     decision = decision or {}
     try:
         if metric == "cash_months":
-            from fo.compute import cash_holdings, context, spend, total
+            from fo.compute import cash_holdings, categorized, context, spend, total
 
             state = context(root, True)
             registry = {a["id"]: a for a in load(root, "accounts")["accounts"]}
@@ -162,13 +162,24 @@ def metric_observations(root, symbol, metric, decision=None):
             # Only months ending by the sync date and before the current month qualify.
             end = min(date.today().replace(day=1), (as_of + timedelta(days=1)).replace(day=1))
             index = end.year * 12 + end.month - 1
+            rules = load(root, "categories")["rules"]
+            transactions = categorized(root, state, rules)
             spending = []
             for offset in (3, 2, 1):
                 year, month = divmod(index - offset, 12)
                 first = date(year, month + 1, 1)
                 if min(dates) > first:
                     return []
-                spending.append(spend(root, first.strftime("%Y-%m"), read_only=True)["spend"])
+                spending.append(
+                    spend(
+                        root,
+                        first.strftime("%Y-%m"),
+                        read_only=True,
+                        state=state,
+                        rows=transactions,
+                        rules=rules,
+                    )["spend"]
+                )
             outflow = total(spending)
             if cash is None or not outflow:
                 return []
