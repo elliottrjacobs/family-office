@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 from fo.config import load_json, read_config
 from fo.errors import OfficeError
+from fo.init import cloud_synced_path
 from fo.office import contained, git
 from fo.store.authored import PROFILE_FILES, load
 
@@ -12,6 +13,14 @@ def check(name, status, reason):
 
 def diagnose(root):
     checks = []
+    if cloud_synced_path(root):
+        checks.append(
+            check(
+                "office.location",
+                "warn",
+                "Office is in a cloud-synced location; move it to a local folder such as ~/FamilyOffice.",
+            )
+        )
     config = {}
     try:
         config = read_config(root)

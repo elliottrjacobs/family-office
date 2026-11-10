@@ -33,6 +33,18 @@ if shutil.which("gitleaks"):
 """
 
 
+def cloud_synced_path(path: Path) -> bool:
+    try:
+        parts = path.resolve().relative_to(Path.home().resolve()).parts
+    except ValueError:
+        return False
+    return bool(parts) and (
+        parts[0] in ("Desktop", "Documents", "Dropbox", "Google Drive", "Box")
+        or parts[0].startswith("OneDrive")
+        or parts[:2] in (("Library", "Mobile Documents"), ("Library", "CloudStorage"))
+    )
+
+
 def target(path: Path):
     """The resolved root for an office and whether one already exists there; never writes."""
     original = path.expanduser().absolute()
@@ -41,6 +53,11 @@ def target(path: Path):
     root = original.resolve()
     if (root / "office.toml").is_file():
         return root, True
+    if cloud_synced_path(root):
+        raise OfficeError(
+            "cloud_synced_path",
+            "Choose a local folder outside cloud-synced locations, such as ~/FamilyOffice.",
+        )
     for parent in [root, *root.parents]:
         if (parent / ".git").exists():
             raise OfficeError(

@@ -47,7 +47,10 @@ The CLI creates the local registry and keeps Schwab account hashes in secrets,
 so you normally do not need to look up IDs. Ambiguous matches stop for resolution;
 you may still need to identify account owners or clarify account labels.
 Credentials are stored only in the private office's Git-ignored `secrets/`
-directory, with restrictive file permissions.
+directory, as plaintext files at 0600 inside a 0700 directory (Keychain storage is
+future work). Setup refuses to create an office in a cloud-synced folder (iCloud
+Drive, Desktop, Documents, Dropbox, OneDrive, Google Drive, Box); use a local
+folder such as `~/FamilyOffice`.
 
 ### No trade execution
 

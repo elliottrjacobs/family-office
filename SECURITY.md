@@ -15,7 +15,10 @@ templates are accident-prevention measures, not protection against arbitrary cod
 running as the same OS user. Codex workspace-write permits reads in the office;
 the office instructions forbid reading secrets, but do not enforce a read barrier.
 
-Secrets are ignored by Git and stored at mode 0600 inside a 0700 directory.
+Secrets are plaintext files, ignored by Git and stored at mode 0600 inside a 0700
+directory; Keychain storage is future work. `fo init` refuses a new office in a
+cloud-synced folder under the home directory (iCloud Drive, Desktop, Documents,
+Dropbox, OneDrive, Google Drive, Box), and doctor warns about an existing one.
 Atomic replacement avoids partially written credentials. Provider errors must be
 converted to safe errors before display. Raw payloads must not be logged.
 
