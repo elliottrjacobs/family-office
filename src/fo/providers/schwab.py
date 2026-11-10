@@ -64,10 +64,12 @@ def normalize_accounts(body, registry):
         account = item["securitiesAccount"]
         suffix = str(account["accountNumber"])[-4:]
         matches = [a for a in registry if a.get("last4") == suffix]
-        if len(matches) != 1:
+        if not matches:
+            continue
+        if len(matches) > 1:
             raise OfficeError(
                 "unmapped_account",
-                "Schwab returned an unmapped account; update the account registry.",
+                "Schwab returned an ambiguously mapped account; update the account registry.",
             )
         positions, money_market = [], Decimal(0)
         for p in account.get("positions", []):
@@ -119,6 +121,7 @@ def normalize_accounts(body, registry):
 
 class Schwab:
     def __init__(self, root, client=None, timezone=UTC):
+        self.unmapped_accounts = 0
         self._root = root
         self._timezone = timezone
         if client is not None:
@@ -157,7 +160,9 @@ class Schwab:
         try:
             response = self._client.get_accounts(fields="positions")
             response.raise_for_status()
-            normalized = normalize_accounts(response.json(), registry)
+            body = response.json()
+            normalized = normalize_accounts(body, registry)
+            self.unmapped_accounts = len(body) - len(normalized)
             hashes = read_secrets(self._root).get("schwab", {}).get("account_hashes", {})
             for account in normalized:
                 account_hash = hashes.get(account["account_id"])

@@ -58,7 +58,7 @@ def test_engine_effort_round_trips_through_the_reader(office):
 
 
 def test_unknown_keys_are_refused(office):
-    for key in ("serve.host", "office.timezone", "providers.schwab.daily_limit", "serve", "x"):
+    for key in ("serve.host", "providers.schwab.daily_limit", "serve", "x"):
         code, data = cli(office, "config", "set", key, "1")
         assert (code, data["reason"]) == (1, "invalid_key"), key
     code, data = cli(office, "config", "get", "secrets.alphavantage")
@@ -230,3 +230,36 @@ def test_run_cap_keys_are_settable(office):
         assert info.value.reason == "invalid_value"
     cli(office, "config", "set", "serve.keep_runs", "7")
     assert read_config(office)["serve"]["keep_runs"] == 7
+
+
+@pytest.mark.parametrize(
+    "key,value",
+    [
+        ("hosts.writer", "new-host"),
+        ("office.timezone", "Europe/London"),
+        ("office.timezone", "UTC"),
+    ],
+)
+def test_writer_and_timezone_are_settable(office, key, value):
+    code, data = cli(office, "config", "set", key, value)
+    assert (code, data) == (0, {"key": key, "value": value})
+    table, name = key.split(".")
+    assert read_config(office)[table][name] == value
+
+
+@pytest.mark.parametrize(
+    "key,value",
+    [
+        ("hosts.writer", ""),
+        ("hosts.writer", "line\nbreak"),
+        ("office.timezone", ""),
+        ("office.timezone", "Bad/Zone"),
+        ("office.timezone", "/etc/passwd"),
+        ("office.timezone", "../UTC"),
+    ],
+)
+def test_invalid_writer_and_timezone_are_refused(office, key, value):
+    before = (office / "office.toml").read_bytes()
+    code, data = cli(office, "config", "set", key, value)
+    assert (code, data["reason"]) == (1, "invalid_value")
+    assert (office / "office.toml").read_bytes() == before

@@ -25,6 +25,7 @@ class SimpleFIN:
         self._base = urlunsplit(("https", host, parts.path.rstrip("/"), "", ""))
         self._transport = transport
         self.error_count = 0
+        self.unmapped_accounts = 0
         self._timezone = timezone
 
     def accounts(self, registry, full=False):
@@ -32,12 +33,16 @@ class SimpleFIN:
         try:
             body = self._fetch(params)
             result = []
+            self.unmapped_accounts = 0
             for item in body.get("accounts", []):
                 matches = [a for a in registry if a.get("provider_ref") == item["id"]]
-                if len(matches) != 1:
+                if not matches:
+                    self.unmapped_accounts += 1
+                    continue
+                if len(matches) > 1:
                     raise OfficeError(
                         "unmapped_account",
-                        "SimpleFIN returned an unmapped account; update the account registry.",
+                        "SimpleFIN returned an ambiguously mapped account; update the account registry.",
                     )
                 transactions = []
                 for tx in item.get("transactions", []):

@@ -4,6 +4,7 @@ import math
 import re
 import tomllib
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fo.errors import OfficeError
 from fo.office import contained
@@ -108,6 +109,15 @@ def _token(text):
     return text if text and not any(c.isspace() for c in text) else None
 
 
+def _timezone(text):
+    text = text.strip()
+    try:
+        ZoneInfo(text)
+    except (ZoneInfoNotFoundError, ValueError):
+        return None
+    return text
+
+
 def _hostname(text):
     text = text.strip()
     return text if HOSTNAME.fullmatch(text) else None
@@ -133,6 +143,8 @@ def _schema():
 
     port = " other than " + ", ".join(map(str, sorted(RESERVED_PORTS)))
     schema = {
+        "hosts.writer": (_text, "non-empty single-line text"),
+        "office.timezone": (_timezone, "a valid IANA timezone"),
         "serve.port": (
             _integer(1, 65535, RESERVED_PORTS),
             "an integer from 1 to 65535" + port,

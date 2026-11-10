@@ -197,7 +197,8 @@ def derive(locator):
         if writer != platform.node():
             result["note"] = (
                 f"Only the writer host ({writer or 'unset'}) syncs; it is not this machine. "
-                "Run fo sync there."
+                "Run fo sync there, or make this machine the writer with "
+                f"fo config set hosts.writer {platform.node()}."
             )
     elif result["doctor"]:
         state = "stale"

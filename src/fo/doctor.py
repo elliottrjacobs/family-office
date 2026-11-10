@@ -117,6 +117,15 @@ def diagnose(root):
                     f"Last complete coverage check {max(0, age):.1f} hours ago.",
                 )
             )
+            if log.get("unmapped_accounts"):
+                checks.append(
+                    check(
+                        "sync.unmapped." + provider,
+                        "warn",
+                        f"{log['unmapped_accounts']} account(s) skipped; "
+                        "update the account registry.",
+                    )
+                )
             if log.get("provider_errors"):
                 checks.append(
                     check(
