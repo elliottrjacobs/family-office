@@ -36,7 +36,7 @@ public struct KeychainError: Error, Equatable, Sendable {
 }
 
 /// A minimal Security-framework wrapper that keeps the device credential as one generic
-/// password item: service `com.familyoffice.phone`, accessible after the first unlock and
+/// password item: service `com.familyoffice.phone`, accessible only while unlocked and
 /// never migrated to another device or into a backup restored elsewhere.
 public struct Keychain: CredentialStore {
     public static let defaultService = "com.familyoffice.phone"
@@ -76,7 +76,7 @@ public struct Keychain: CredentialStore {
         let data = try JSONEncoder().encode(credential)
         let attributes: [String: Any] = [
             kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
         ]
         var status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
         if status == errSecItemNotFound {

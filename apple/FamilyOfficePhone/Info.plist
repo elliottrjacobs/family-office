@@ -33,6 +33,8 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Family Office uses the camera only to scan the pairing code your Mac shows.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Family Office uses Face ID to unlock access to your office.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

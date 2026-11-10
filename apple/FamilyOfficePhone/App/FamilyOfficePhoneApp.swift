@@ -1,4 +1,5 @@
 import FOKit
+import LocalAuthentication
 import SwiftUI
 
 @main
@@ -14,9 +15,14 @@ struct FamilyOfficePhoneApp: App {
 
 /// Unpaired goes to pairing; paired and reachable shows the office in a web view under a
 /// small status bar; paired and unreachable shows the connection screen.
+@MainActor
 struct RootView: View {
     @Bindable var model: PhoneModel
     @Environment(\.scenePhase) private var scenePhase
+
+    @State private var locked = true
+    @State private var needsAuthentication = true
+    @State private var authenticationContext: LAContext?
 
     var body: some View {
         Group {
@@ -34,13 +40,63 @@ struct RootView: View {
             }
         }
         .animation(.default, value: model.phase)
+        // An overlay, not a swap, so the web view keeps its page under the cover.
+        .overlay {
+            if locked || scenePhase != .active {
+                ZStack {
+                    Color(uiColor: .systemBackground).ignoresSafeArea()
+                    VStack(spacing: 16) {
+                        Text("Family Office")
+                            .font(.title)
+                        if locked && scenePhase == .active {
+                            Text("Locked")
+                            Button("Unlock") {
+                                Task { await unlock() }
+                            }
+                            .disabled(authenticationContext != nil)
+                        }
+                    }
+                }
+            }
+        }
         .onChange(of: scenePhase, initial: true) { _, phase in
             switch phase {
-            case .active: model.resume()
-            case .background: model.suspend()
+            case .active:
+                model.resume()
+                if needsAuthentication {
+                    needsAuthentication = false
+                    Task { await unlock() }
+                }
+            case .background:
+                locked = true
+                needsAuthentication = true
+                authenticationContext?.invalidate()
+                authenticationContext = nil
+                model.suspend()
             default: break
             }
         }
+    }
+
+    private func unlock() async {
+        guard locked, scenePhase == .active, authenticationContext == nil else { return }
+        let context = LAContext()
+        var error: NSError?
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
+            if error?.domain == LAError.errorDomain,
+               error?.code == LAError.passcodeNotSet.rawValue {
+                locked = false
+            }
+            return
+        }
+        authenticationContext = context
+        let authenticated = (try? await context.evaluatePolicy(
+            .deviceOwnerAuthentication,
+            localizedReason: "Unlock Family Office to view your office."
+        )) == true
+        guard authenticationContext === context else { return }
+        authenticationContext = nil
+        if authenticated { locked = false }
     }
 }
 
