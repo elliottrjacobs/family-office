@@ -31,7 +31,7 @@ from pathlib import Path
 
 from fo.errors import OfficeError
 from fo.office import RUN_MARKER
-from fo.serve.runner import FETCH_CAP, OUTPUT_LIMIT, RUN_FOLDER, WEB_FLAG, profile
+from fo.serve.runner import FETCH_CAP, HOOK_FLAG, OUTPUT_LIMIT, RUN_FOLDER, WEB_FLAG, profile
 
 MINIMUM = (2, 1, 283)
 # Every flag here is part of the isolation; a version that lacks one may not run.
@@ -213,6 +213,7 @@ class ClaudeRunner:
             env[RUN_FOLDER] = str(folder)
         env[WEB_FLAG] = "1" if web else "0"
         env[FETCH_CAP] = str(int(web_fetch_cap))
+        env[HOOK_FLAG] = "1"
         return env
 
     def parse(self, line, office):

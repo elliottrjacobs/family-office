@@ -111,18 +111,25 @@ Web runs allow market commands, research, and scoped report/journal/correction
 bookkeeping; `fo start` and `fo brief` require explicit `--level none` (or
 `--level=none`). Other household commands remain denied. Reports can be read and
 written for drafting, parts, and verification. WebSearch and WebFetch are offered
-only at level `none`; the hook denies them and every `fo research` subcommand in
-non-web runs. Research queries (including deep questions) and URLs use the same
-logging boundary as WebSearch/WebFetch; a missing run folder denies access. Put
-the research query or URL before subcommand options.
+only at level `none`; the hook denies them in non-web runs. The CLI enforces the
+same command allowlist and research gate for both runners whenever `FO_SERVE_RUN`
+is set, refusing every `fo research` subcommand outside web runs. Research queries
+(including deep questions) and URLs use the same logging boundary as
+WebSearch/WebFetch; a missing run folder denies access. Put the research query or
+URL before subcommand options.
 
-The hook checks fetch URLs against `fo.netguard`: HTTP(S) only, no credentials,
+The hook and CLI check fetch URLs against `fo.netguard`: HTTP(S) only, no credentials,
 localhost, tailnet names, or hosts resolving to non-public addresses. WebFetch and
 `fo research fetch` share the per-run `web_fetch_cap` (default 20). Its counter
 and scrubbed query/URL log, `web.jsonl`, live in the run folder, which the run
 cannot read or write. The run log shows accepted queries and URLs; each refusal
 has a stable reason code. Hostile web evidence can shape reports, which later
 briefs treat as untrusted text.
+
+Claude sets `FO_SERVE_HOOK_ACTIVE=1`: its hook counts and logs research calls, and
+the CLI validates them without counting or logging again. Codex leaves that flag
+unset, so the CLI counts and logs its research calls. The hook validates every
+`&&` segment before any segment consumes a fetch or logs web use.
 
 Codex engine. A Codex run (`codex exec --json`) is isolated differently, and more
 weakly. It gets its own Codex home and `HOME` in its run folder, so no user config,
@@ -141,6 +148,8 @@ says otherwise), and Claude Code stays the recommended engine. Codex has no budg
 flag: its runs are bounded only by `run_timeout_minutes`, and the budget is recorded
 for information. The gate is in
 [research providers](docs/development/research-providers.md#codex-isolation).
+Codex's built-in web search at level `none` is not logged by `fo` or covered by
+its fetch cap; this remains a residual limitation alongside the read limitations.
 
 Accepted risk: reports, corrections, and decisions are fed back into later briefs,
 so text planted in provider data or an earlier report can steer later advice. The

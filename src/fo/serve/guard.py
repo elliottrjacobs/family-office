@@ -69,11 +69,12 @@ VALUE_LIMIT = 2000
 OPERATOR = set("|;&<>()")
 # `$` may introduce an amount ($100, $1.5B) but never an expansion ($HOME, $(...), ${...}).
 EXPANSION = re.compile(r"\$(?![\d\s.,]|$)")
+CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 
 
 def command_denial(command, env=None, resolver=None):
     env = os.environ if env is None else env
-    if not command or "\n" in command or "`" in command or EXPANSION.search(command):
+    if not command or CONTROL.search(command) or "`" in command or EXPANSION.search(command):
         return "Advisor runs may run only plain fo commands."
     try:
         lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
@@ -94,6 +95,7 @@ def command_denial(command, env=None, resolver=None):
             segments[-1].append(token)
     if any(not segment or segment[0] != "fo" for segment in segments):
         return "Advisor runs may run only fo commands."
+    commands = []
     for segment in segments:
         # Match OfficeGroup's global flag handling, stopping at the CLI separator.
         words = []
@@ -101,7 +103,7 @@ def command_denial(command, env=None, resolver=None):
         while index < len(segment):
             word = segment[index]
             if word == "--":
-                words.extend(segment[index + 1 :])
+                words.extend(segment[index:])
                 break
             if word == "--office":
                 index += 2
@@ -109,48 +111,71 @@ def command_denial(command, env=None, resolver=None):
             if word not in ("--json", "--read-only") and not word.startswith("--office="):
                 words.append(word)
             index += 1
-        if words[:1] == ["research"]:
-            if env.get(WEB_FLAG) != "1":
-                return "Research is on only in web runs (web_off)"
-            if len(words) > 1 and words[1] not in ("fetch", "search", "deep"):
-                return "This command is unavailable in web runs (web_household_command)"
-            if len(words) < 3:
-                return "Research requires a query or URL (missing_query)"
-            value = words[2:]
-            if value[:1] == ["--"]:
-                value = value[1:]
-            if not value or value[0].startswith("-"):
-                return "Put the research query or URL before options (missing_query)"
-            tool = "WebFetch" if words[1] == "fetch" else "WebSearch"
-            key = "url" if tool == "WebFetch" else "query"
-            reason = web_denial(tool, {key: value[0]}, env, resolver)
-            if reason:
-                return reason
-        elif env.get(WEB_FLAG) == "1":
-            allowed = bool(words) and words[0] in WEB_COMMANDS
-            if allowed:
-                subcommands = WEB_COMMANDS[words[0]]
-                allowed = subcommands is None or (
-                    words[1] in subcommands if len(words) > 1 else not subcommands
-                )
-            if words[:1] in (["start"], ["brief"]):
-                levels = [
-                    words[i + 1] if word == "--level" and i + 1 < len(words) else word[8:]
+        commands.append(words)
+    # Validate the entire shell command before any segment takes a fetch or logs web use.
+    for words in commands:
+        reason = words_denial(words, env, resolver, record=False)
+        if reason:
+            return reason
+    for words in commands:
+        reason = words_denial(words, env, resolver)
+        if reason:
+            return reason
+    return None
+
+
+def words_denial(words, env=None, resolver=None, *, record=True):
+    """Shared hook/CLI policy for command words after global flags are removed.
+
+    record=False validates without consuming fetches or logging, so the hook can check
+    every shell segment first and a CLI under an active hook avoids counting twice.
+    """
+    env = os.environ if env is None else env
+    separator = "--" in words
+    if words[:1] == ["--"]:
+        words = words[1:]
+    if words[:1] == ["research"]:
+        if env.get(WEB_FLAG) != "1":
+            return "Research is on only in web runs (web_off)"
+        if len(words) > 1 and words[1] not in ("fetch", "search", "deep"):
+            return "This command is unavailable in web runs (web_household_command)"
+        if len(words) < 3:
+            return "Research requires a query or URL (missing_query)"
+        value = words[2:]
+        if value[:1] == ["--"]:
+            value = value[1:]
+        if not value or value[0].startswith("-"):
+            return "Put the research query or URL before options (missing_query)"
+        tool = "WebFetch" if words[1] == "fetch" else "WebSearch"
+        key = "url" if tool == "WebFetch" else "query"
+        reason = web_denial(tool, {key: value[0]}, env, resolver, record=record)
+        if reason:
+            return reason
+    elif env.get(WEB_FLAG) == "1":
+        allowed = bool(words) and words[0] in WEB_COMMANDS
+        if allowed:
+            subcommands = WEB_COMMANDS[words[0]]
+            allowed = subcommands is None or (
+                words[1] in subcommands if len(words) > 1 else not subcommands
+            )
+        if words[:1] in (["start"], ["brief"]):
+            levels = [
+                words[i + 1] if word == "--level" and i + 1 < len(words) else word[8:]
+                for i, word in enumerate(words)
+                if word == "--level" or word.startswith("--level=")
+            ]
+            allowed = (
+                not separator
+                and bool(levels)
+                and all(level == "none" for level in levels)
+                and not any(
+                    words[i - 1] in ("--for", "--skill", "--report", "--subject")
                     for i, word in enumerate(words)
                     if word == "--level" or word.startswith("--level=")
-                ]
-                allowed = (
-                    "--" not in segment
-                    and bool(levels)
-                    and all(level == "none" for level in levels)
-                    and not any(
-                        words[i - 1] in ("--for", "--skill", "--report", "--subject")
-                        for i, word in enumerate(words)
-                        if word == "--level" or word.startswith("--level=")
-                    )
                 )
-            if not allowed:
-                return "This command is unavailable in web runs (web_household_command)"
+            )
+        if not allowed:
+            return "This command is unavailable in web runs (web_household_command)"
     return None
 
 
@@ -211,7 +236,7 @@ def log_web(folder, kind, value):
     locked(os.path.join(folder, WEB_LOG), lambda stream: stream.write(line))
 
 
-def web_denial(tool, arguments, env, resolver=None):
+def web_denial(tool, arguments, env, resolver=None, *, record=True):
     if env.get(WEB_FLAG) != "1":
         return "Web search and fetch are on only at context level none (web_off)"
     folder = env.get(RUN_FOLDER)
@@ -221,7 +246,8 @@ def web_denial(tool, arguments, env, resolver=None):
         query = arguments.get("query")
         if not isinstance(query, str) or not query.strip():
             return "The search names no query (missing_query)"
-        log_web(folder, "search", query)
+        if record:
+            log_web(folder, "search", query)
         return None
     url = arguments.get("url")
     if not isinstance(url, str) or not url.strip():
@@ -229,6 +255,8 @@ def web_denial(tool, arguments, env, resolver=None):
     reason = netguard.reject(url, resolver)
     if reason:
         return f"{netguard.REASONS[reason]} ({reason})"
+    if not record:
+        return None
     try:
         cap = int(env.get(FETCH_CAP, "0"))
     except ValueError:

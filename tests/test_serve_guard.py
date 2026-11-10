@@ -73,6 +73,13 @@ def test_other_shell_commands_are_denied(office, command):
     assert call("Bash", office, command=command)
 
 
+@pytest.mark.parametrize("control", [chr(value) for value in (*range(32), 127)])
+def test_ascii_control_characters_are_denied(office, web_env, control):
+    command = f'fo research search "ACME{control}earnings"'
+    assert web(office, web_env, "Bash", command=command)
+    assert not os.path.exists(os.path.join(web_env["FO_SERVE_RUN_DIR"], "web.jsonl"))
+
+
 def test_reads_stay_inside_the_office_and_out_of_private_folders(office):
     assert call("Read", office, file_path="reports/research/ACME/r.md") is None
     assert call("Read", office, file_path=str(office / "profile/ips.json")) is None
@@ -353,6 +360,16 @@ def test_research_fetch_shares_web_cap_and_url_checks(office, web_env):
         ("fetch", "https://93.184.215.14/page"),
         ("fetch", "https://93.184.215.14/other"),
     ]
+
+
+@pytest.mark.parametrize(
+    "suffix", ["fo export", "fo research fetch http://127.0.0.1/", "fo research search"]
+)
+def test_denied_segments_do_not_consume_fetches_or_log(office, web_env, suffix):
+    command = f"fo research fetch https://93.184.215.14/page && {suffix}"
+    assert web(office, web_env, "Bash", command=command)
+    for name in ("web-fetches", "web.jsonl"):
+        assert not os.path.exists(os.path.join(web_env["FO_SERVE_RUN_DIR"], name))
 
 
 @pytest.mark.parametrize("suffix", ["", "unknown", "fetch", "search --limit 5 ACME"])
