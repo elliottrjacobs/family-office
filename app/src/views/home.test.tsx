@@ -1,8 +1,8 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type { ChecklistItem } from "@/api/office"
-import { ChecklistCard } from "@/views/home"
+import { ChecklistCard, Home } from "@/views/home"
 
 afterEach(() => {
   cleanup()
@@ -46,4 +46,24 @@ describe("ChecklistCard", () => {
     const again = render(<ChecklistCard items={items()} />)
     expect(again.container.innerHTML).toBe("")
   })
+})
+
+vi.mock("@/app-data", async (original) => ({
+  ...await original<typeof import("@/app-data")>(),
+  useAppData: () => ({}),
+}))
+
+vi.mock("@/api/use-api", () => ({
+  useApi: (key: string) => ({
+    data: key === "networth"
+      ? { total: null, groups: [], missing_accounts: [], non_usd_accounts: ["euro"] }
+      : undefined,
+    loading: false,
+    reload: vi.fn(),
+  }),
+}))
+
+it("explains why a non-USD account makes net worth unknown", () => {
+  render(<Home />)
+  expect(screen.getByText("1 account(s) are not in USD, so net worth is unknown.")).toBeDefined()
 })

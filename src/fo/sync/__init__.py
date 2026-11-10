@@ -215,6 +215,8 @@ def ingest(
             for k, v in account.get("balance", {}).items()
             if k in ("net_value", "cash", "debt", "buying_power") and v is not None
         }
+        if "currency" in account.get("balance", {}):
+            balances["currency"] = account["balance"]["currency"]
         digest = hashlib.sha256(
             canonical(
                 [sorted(positions, key=lambda p: (p["symbol"], p.get("lot_id") or "")), balances]

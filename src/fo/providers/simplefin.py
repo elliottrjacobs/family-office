@@ -1,3 +1,4 @@
+import re
 import time
 from datetime import UTC, datetime
 from urllib.parse import unquote, urlsplit, urlunsplit
@@ -61,7 +62,15 @@ class SimpleFIN:
                         .isoformat()
                         .replace("+00:00", "Z"),
                         "positions": [],
-                        "balance": {"net_value": item["balance"]},
+                        "balance": {
+                            "net_value": item["balance"],
+                            "currency": (
+                                item.get("currency")
+                                if item.get("currency") is None
+                                or re.fullmatch(r"[A-Z]{3}", str(item["currency"]))
+                                else "XXX"
+                            ),
+                        },
                         "transactions": transactions,
                         "transaction_window": {
                             "start": datetime.fromtimestamp(params["start-date"], UTC)

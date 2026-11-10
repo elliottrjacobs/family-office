@@ -7,7 +7,8 @@
     "stale_providers",
     "total",
     "groups",
-    "missing_accounts"
+    "missing_accounts",
+    "non_usd_accounts"
   ],
   "properties": {
     "as_of": {
@@ -59,6 +60,12 @@
     },
     "missing_accounts": {
       "type": "array"
+    },
+    "non_usd_accounts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     }
   }
 }

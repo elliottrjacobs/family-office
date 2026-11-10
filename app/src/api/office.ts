@@ -87,6 +87,7 @@ export interface NetWorth extends Freshness {
   total: Decimal
   groups: { name: string; value: Decimal }[]
   missing_accounts: string[]
+  non_usd_accounts: string[]
 }
 
 export interface Band {
