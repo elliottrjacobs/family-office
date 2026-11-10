@@ -295,7 +295,18 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/status":
             return self.send_json(200, self.app.status(self.headers))
         if path == "/api/onboarding":
-            return self.send_json(200, onboarding.derive(self.app.locator))
+            try:
+                root = self.app.locator.root()
+            except OfficeError:
+                return self.send_json(200, onboarding.derive(self.app.locator))
+            key = (path, ())
+            value = self.app.cache.get(
+                root, key, lambda: onboarding.derive(self.app.locator), DOCTOR_TTL
+            )
+            # Only a ready office is worth caching; setup steps must show up at once.
+            if value["state"] != "ready":
+                self.app.cache.forget(key)
+            return self.send_json(200, value)
         if path == "/api/heartbeat":
             return self.stream(self.heartbeat())
         route, params = resolve(path)

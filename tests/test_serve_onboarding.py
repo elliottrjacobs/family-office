@@ -249,3 +249,39 @@ def test_checklist_reaches_the_route(tmp_path):
         items = checklist(client.get("/api/onboarding")[1])
     assert items["account_connected"] and items["first_sync"]
     assert not items["device_paired"]
+
+
+@pytest.mark.parametrize("ready", [True, False])
+def test_onboarding_caches_only_ready_until_doctor_ttl(tmp_path, monkeypatch, ready):
+    from fo.serve import onboarding
+    from fo.serve.routes_read import DOCTOR_TTL
+
+    root = synthetic(tmp_path / "office")
+    secrets(root)
+    calls = []
+    checks = [] if ready else [{"name": "providers", "status": "warn", "reason": "Connect"}]
+
+    def diagnose(root):
+        calls.append(root)
+        return checks
+
+    monkeypatch.setattr(onboarding, "diagnose", diagnose)
+    now = [0]
+    with serving(root, tmp_path) as (app, client):
+        app.cache.clock = lambda: now[0]
+        expected = "ready" if ready else "stale"
+        assert client.get("/api/onboarding")[1]["state"] == expected
+        now[0] = DOCTOR_TTL - 1
+        assert client.get("/api/onboarding")[1]["state"] == expected
+        assert len(calls) == (1 if ready else 2)
+        checks[:] = [{"name": "providers", "status": "warn", "reason": "Connect"}]
+        now[0] = DOCTOR_TTL
+        assert client.get("/api/onboarding")[1]["state"] == "stale"
+        assert len(calls) == (2 if ready else 3)
+        checks.clear()
+        assert client.get("/api/onboarding")[1]["state"] == "ready"
+        assert len(calls) == (3 if ready else 4)
+        (root / "profile/household.md").write_text("Updated synthetic household")
+        now[0] += app.cache.cycle
+        assert client.get("/api/onboarding")[1]["state"] == "ready"
+        assert len(calls) == (4 if ready else 5)
