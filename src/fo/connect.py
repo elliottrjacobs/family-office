@@ -11,7 +11,7 @@ import re
 import tomllib
 
 from fo.auth import save_keys, save_secret_json
-from fo.config import credentials_dir, read_config, read_secrets
+from fo.config import credentials_dir, ensure_credentials, read_config, read_secrets
 from fo.errors import OfficeError
 from fo.lock import office_lock
 from fo.office import atomic_write, contained
@@ -104,6 +104,7 @@ def store(root, provider, raw_key):
         raise OfficeError("invalid_query", "EDGAR takes --user-agent, not a key.")
     key = clean_key(raw_key)
     VALIDATE[provider](key)
+    ensure_credentials(root)
     with office_lock(root):
         save_secret_json(root, provider, {"api_key": key})
     return {"provider": provider, "connected": True}
@@ -111,6 +112,7 @@ def store(root, provider, raw_key):
 
 def remove(root, provider):
     provider_name(provider)
+    ensure_credentials(root)
     if provider == "edgar":
         with office_lock(root):
             set_edgar(root, None)

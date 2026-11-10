@@ -57,11 +57,8 @@ def fix(root, name):
         return fo("sync", root=root), None
     if name == "providers":
         return fo("auth", "simplefin", root=root), "Or connect Schwab with fo auth schwab."
-    if name == "credentials.perms":
-        directory = credentials_dir(root)
-        secrets = shlex.quote(str(directory))
-        base = shlex.quote(str(directory.parent))
-        return f"chmod 700 {base} {secrets} && chmod 600 {secrets}/*", None
+    if name in {"credentials.perms", "secrets.in_office"}:
+        return fo("doctor", "--fix", root=root), "Download any .icloud placeholders first."
     if name.startswith("profile.") or name == "accounts.roles":
         return None, ONBOARD
     if name.startswith("sync.errors."):
@@ -89,12 +86,12 @@ def choose(locator, value):
 
 def paired(root):
     """Whether local devices.json lists a device; an unreadable file counts as none."""
-    path = credentials_dir(root) / DEVICES
-    if not path.is_file():
-        return False
     try:
+        path = credentials_dir(root) / DEVICES
+        if not path.is_file():
+            return False
         records = json.loads(path.read_text()).get("devices")
-    except (ValueError, AttributeError, OSError):
+    except (OfficeError, ValueError, AttributeError, OSError):
         return False
     return isinstance(records, list) and bool(records)
 
@@ -144,7 +141,10 @@ def derive(locator):
         }
     result["office"] = str(root)
     config = read_config(root)
-    connected = sorted(set(public_config(root)["secrets"]) & set(LIVE))
+    try:
+        connected = sorted(set(public_config(root)["secrets"]) & set(LIVE))
+    except (OfficeError, OSError):
+        connected = []
     registry = load(root, "accounts")["accounts"]
     registered = {a["provider"] for a in registry}
     result["providers"] = [

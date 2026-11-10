@@ -21,7 +21,8 @@ office credential directories are 0700; `keys.toml`, `<provider>.json`,
 `schwab-token.json`, and `devices.json` are 0600. Connect each machine separately.
 This change uses files; macOS Keychain is possible future hardening.
 
-Legacy `secrets/` files migrate on credential access. Identical destination copies
+Legacy `secrets/` files migrate on `fo doctor --fix`, `fo serve`, or a credential
+command; read-only commands never migrate or write `office.toml`. Identical destination copies
 allow removal of the office copy; differing copies remain for manual resolution
 and `fo doctor` flags them. The empty legacy directory is removed. The office
 still ignores and blocks `secrets/` in Git for defense in depth.

@@ -51,8 +51,10 @@ an outside, per-machine folder keyed by `[office].id` in `office.toml`: on macOS
 `~/Library/Application Support/FamilyOffice/credentials/<office-id>/`; elsewhere,
 `${XDG_DATA_HOME:-~/.local/share}/family-office/credentials/<office-id>/`.
 `FO_CREDENTIALS_HOME` overrides the base directory. Directories are 0700 and files
-0600. Each machine connects separately. Legacy `secrets/` files migrate on first
-credential access; differing local copies are retained and flagged by `fo doctor`.
+0600. Each machine connects separately. Legacy `secrets/` files migrate once when
+`fo doctor --fix`, `fo serve`, or a credential command runs; reads never migrate.
+Differing local copies are retained and flagged by `fo doctor`; iCloud `.icloud`
+placeholders are skipped until downloaded.
 macOS Keychain storage is possible future hardening; it is not used here.
 
 ### No trade execution

@@ -9,7 +9,7 @@ import httpx
 import typer
 
 from fo.accounts import register
-from fo.config import credentials_dir, read_secrets
+from fo.config import credentials_dir, ensure_credentials, read_secrets
 from fo.errors import OfficeError
 from fo.office import atomic_write, write_json
 from fo.store.authored import load
@@ -30,12 +30,12 @@ def save_keys(root, keys):
                 )
         return lines
 
-    atomic_write(credentials_dir(root) / "keys.toml", "\n".join(table(keys)) + "\n", 0o600)
+    atomic_write(ensure_credentials(root) / "keys.toml", "\n".join(table(keys)) + "\n", 0o600)
 
 
 def save_secret_json(root, name, value):
     """Write <name>.json at 0600 in the machine-local credentials directory."""
-    write_json(credentials_dir(root) / f"{name}.json", value, 0o600)
+    write_json(ensure_credentials(root) / f"{name}.json", value, 0o600)
 
 
 def register_schwab(root, mappings, keys):
@@ -52,6 +52,7 @@ def register_schwab(root, mappings, keys):
 
 
 def authenticate(root, provider):
+    ensure_credentials(root)
     keys = read_secrets(root)
     if provider == "simplefin":
         encoded = typer.prompt("SimpleFIN setup token", hide_input=True)

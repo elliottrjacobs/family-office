@@ -16,7 +16,7 @@ import threading
 import time
 from datetime import UTC, datetime
 
-from fo.config import credentials_dir
+from fo.config import credentials_dir, ensure_credentials
 from fo.errors import OfficeError
 from fo.office import atomic_write
 
@@ -84,7 +84,12 @@ class Devices:
         return credentials_dir(self.root()) / FILE
 
     def load(self):
-        path = self.path()
+        try:
+            path = self.path()
+        except OfficeError as exc:
+            if exc.reason == "credentials_not_migrated":
+                return []
+            raise
         if not path.is_file():
             return []
         try:
@@ -97,7 +102,7 @@ class Devices:
         return [r for r in records if isinstance(r, dict) and isinstance(r.get("id"), str)]
 
     def save(self, records):
-        path = self.path()
+        path = ensure_credentials(self.root()) / FILE
         directory = path.parent
         directory.mkdir(mode=0o700, parents=True, exist_ok=True)
         directory.chmod(0o700)
@@ -130,7 +135,7 @@ class Devices:
     def pair(self, code, name):
         name = clean_name(name)
         # A refusal that is no fault of the code must not spend it.
-        self.path()
+        ensure_credentials(self.root())
         if not self.consume(code):
             raise OfficeError("invalid_pairing_code", "The pairing code is invalid or expired.")
         token = secrets.token_urlsafe(32)

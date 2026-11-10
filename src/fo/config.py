@@ -1,5 +1,4 @@
 import copy
-import fcntl
 import json
 import math
 import os
@@ -21,40 +20,52 @@ def read_config(root: Path) -> dict:
 
 
 def credentials_dir(root: Path) -> Path:
-    """Machine-local credentials, migrating legacy office copies without overwriting."""
+    """Resolve credentials without writing or migrating anything."""
+    office_id = read_config(root).get("office", {}).get("id")
+    if office_id is None:
+        raise OfficeError(
+            "credentials_not_migrated",
+            "Run fo doctor --fix (or a credential-writing command) once to migrate credentials.",
+        )
+    if not isinstance(office_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", office_id):
+        raise OfficeError("invalid_config", "office.id must be a non-empty path-safe id.")
+    if os.environ.get("FO_CREDENTIALS_HOME"):
+        base = Path(os.environ["FO_CREDENTIALS_HOME"]).expanduser()
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library/Application Support/FamilyOffice/credentials"
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share")
+        base = base / "family-office/credentials"
+    base = base.absolute()
+    if base.resolve().is_relative_to(root.resolve()):
+        raise OfficeError("unsafe_path", "Credentials must live outside the office folder.")
+    directory = base / office_id
+    for path in (base, directory, root / "secrets"):
+        if path.is_symlink():
+            raise OfficeError("unsafe_path", "Credentials directories must not be symlinks.")
+    if directory.exists() and any(path.is_symlink() for path in directory.iterdir()):
+        raise OfficeError("unsafe_path", "Credential files must not be symlinks.")
+    return directory
+
+
+def ensure_credentials(root: Path) -> Path:
+    """Create the identity and local directory, then migrate legacy secrets."""
+    from fo.lock import office_lock
     from fo.office import atomic_write
 
-    # Lock the directory separately: callers may already hold the office write lock.
-    fd = os.open(root, os.O_RDONLY)
+    if read_config(root).get("office", {}).get("id") is None:
+        with office_lock(root, wait=LOCK_WAIT):
+            if read_config(root).get("office", {}).get("id") is None:
+                _write_config(root, "office.id", uuid.uuid4().hex)
+    directory = credentials_dir(root)
     try:
-        fcntl.flock(fd, fcntl.LOCK_EX)
-        office_id = read_config(root).get("office", {}).get("id")
-        if office_id is None:
-            office_id = uuid.uuid4().hex
-            _write_config(root, "office.id", office_id)
-        if not isinstance(office_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", office_id):
-            raise OfficeError("invalid_config", "office.id must be a non-empty path-safe id.")
-        if os.environ.get("FO_CREDENTIALS_HOME"):
-            base = Path(os.environ["FO_CREDENTIALS_HOME"]).expanduser()
-        elif sys.platform == "darwin":
-            base = Path.home() / "Library/Application Support/FamilyOffice/credentials"
-        else:
-            base = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share")
-            base = base / "family-office/credentials"
-        base = base.absolute()
-        if base.resolve().is_relative_to(root.resolve()):
-            raise OfficeError("unsafe_path", "Credentials must live outside the office folder.")
-        directory = base / office_id
-        for path in (base, directory):
-            if path.is_symlink():
-                raise OfficeError("unsafe_path", "Credentials directories must not be symlinks.")
-            path.mkdir(mode=0o700, parents=True, exist_ok=True)
+        directory.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        directory.mkdir(mode=0o700, exist_ok=True)
+        directory.chmod(0o700)
         legacy = root / "secrets"
-        if legacy.is_symlink():
-            raise OfficeError("unsafe_path", "The legacy secrets directory must not be a symlink.")
         if legacy.is_dir():
             for source in legacy.iterdir():
-                if source.is_symlink() or not source.is_file():
+                if source.name.endswith(".icloud") or source.is_symlink() or not source.is_file():
                     continue
                 destination = directory / source.name
                 if destination.is_symlink():
@@ -71,15 +82,11 @@ def credentials_dir(root: Path) -> Path:
                 legacy.rmdir()
             except OSError:
                 pass
-        if any(path.is_symlink() for path in directory.iterdir()):
-            raise OfficeError("unsafe_path", "Credential files must not be symlinks.")
         return directory
     except OSError as exc:
         raise OfficeError(
             "credentials_unavailable", "The local credentials folder is unavailable."
         ) from exc
-    finally:
-        os.close(fd)
 
 
 def read_secrets(root: Path) -> dict:
@@ -323,12 +330,7 @@ def set_config(root: Path, key: str, text: str) -> dict:
 
     value = config_value(key, text)
     with office_lock(root, wait=LOCK_WAIT):
-        fd = os.open(root, os.O_RDONLY)
-        try:
-            fcntl.flock(fd, fcntl.LOCK_EX)
-            _write_config(root, key, value)
-        finally:
-            os.close(fd)
+        _write_config(root, key, value)
     return {"key": key, "value": value}
 
 

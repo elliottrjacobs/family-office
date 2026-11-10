@@ -128,7 +128,7 @@ def test_doctor_fixes_name_their_commands(tmp_path):
     items = {item["name"]: item for item in derive(Locator(root))["doctor"]}
     quoted = shlex.quote(str(root))
     assert items["skills.fresh"]["command"] == f"fo skills sync --office {quoted}"
-    assert items["credentials.perms"]["command"].startswith("chmod 700 ")
+    assert "doctor --fix" in items["credentials.perms"]["command"]
     assert items["accounts.roles"]["command"] is None
     assert "onboard" in items["accounts.roles"]["hint"]
 
@@ -250,3 +250,20 @@ def test_checklist_reaches_the_route(tmp_path):
         items = checklist(client.get("/api/onboarding")[1])
     assert items["account_connected"] and items["first_sync"]
     assert not items["device_paired"]
+
+
+def test_derive_with_unmigrated_credentials_still_returns_doctor(tmp_path):
+    from fo.init import initialize
+    from fo.serve.onboarding import derive
+    from fo.serve.server import Locator
+
+    root = tmp_path / "office"
+    initialize(root)
+    config = root / "office.toml"
+    config.write_text('[office]\ntimezone = "UTC"\n')
+    before = config.read_bytes(), config.stat().st_mtime_ns
+    result = derive(Locator(root))
+    check = next(c for c in result["doctor"] if c["name"] == "credentials.perms")
+    assert check["status"] == "fail"
+    assert "doctor --fix" in check["command"]
+    assert (config.read_bytes(), config.stat().st_mtime_ns) == before

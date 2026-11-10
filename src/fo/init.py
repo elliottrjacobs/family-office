@@ -4,6 +4,7 @@ import uuid
 from pathlib import Path
 
 from fo import __version__
+from fo.config import ensure_credentials
 from fo.errors import OfficeError
 from fo.office import atomic_write, git, write_json
 
@@ -56,6 +57,7 @@ def target(path: Path):
 def initialize(path: Path):
     root, exists = target(path)
     if exists:
+        ensure_credentials(root)
         return {"office": str(root), "created": False, "reason": "already_initialized"}
     root.mkdir(parents=True, exist_ok=True)
     for directory in (
@@ -108,6 +110,7 @@ run_timeout_minutes = 30
 keep_runs = 50
 """,
     )
+    ensure_credentials(root)
     examples = {
         "ips": {"bands": [], "prohibitions": []},
         "goals": {"goals": []},
@@ -151,6 +154,8 @@ family-office = {git = "https://github.com/elliottrjacobs/family-office.git", ta
                 "allow": ["Bash(uv run fo *)", "Bash(fo *)", "Read", "Edit(reports/**)"],
                 "deny": [
                     "Read(secrets/**)",
+                    "Read(~/Library/Application Support/FamilyOffice/credentials/**)",
+                    "Read(~/.local/share/family-office/credentials/**)",
                     "Edit(data/**)",
                     "Edit(notebook/**)",
                     "Bash(python *)",
