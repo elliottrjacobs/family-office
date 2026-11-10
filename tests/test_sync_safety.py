@@ -151,7 +151,10 @@ def test_simplefin_unmapped_accounts_do_not_block_sync(office, monkeypatch, ambi
 
     monkeypatch.setattr(SimpleFIN, "__init__", initialize_adapter)
     result = synchronize(office, provider="simplefin")[0]
-    assert read_rows(office, "data/sync_log.jsonl") == [result]
+    log = read_rows(office, "data/sync_log.jsonl")[-1]
+    assert (log["status"], log.get("unmapped_accounts")) == (
+        ("failed", None) if ambiguous else ("complete", 1)
+    )
     if ambiguous:
         assert result["status"] == "failed"
         assert result["reason"] == "unmapped_account"
