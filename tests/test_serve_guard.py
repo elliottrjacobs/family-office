@@ -370,20 +370,36 @@ def test_web_research_fails_closed_for_unrecognized_forms(office, web_env, suffi
         "fo quote ACME",
         "fo fundamentals ACME",
         "fo filings ACME",
-        "fo macro",
-        "fo screen value",
-        "fo score fisher ACME",
+        "fo macro GDP",
+        "fo screen --concept Revenues --period CY2025",
+        "fo score ACME --playbook fisher",
         "fo playbooks list",
         "fo report parts --kind research --subject ACME",
         "fo report path --kind research --subject ACME",
         "fo report write --report reports/x.md --body-file reports/d.md",
         "fo reports index",
         "fo journal add ACME --action HOLD --thesis growth --invalidate margins",
-        "fo corrections add --text synthetic",
-        "fo skill verify reports/x.md",
+        'fo corrections add "synthetic"',
+        "fo skill verify --path reports/x.md",
         "fo skill research",
         "fo skills list",
     ],
 )
 def test_web_runs_allow_level_none_workflow(office, web_env, command):
     assert web(office, web_env, "Bash", command=command) is None
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "fo start tax -- --level=none",
+        "fo brief --for --level=none",
+        "fo brief --skill --level=none",
+        "fo start tax ACME --report --level=none",
+        "fo brief --for --level none",
+        "fo start tax ACME --report --level none",
+        "fo -- start tax ACME --level none",
+    ],
+)
+def test_web_runs_deny_ambiguous_level_options(office, web_env, command):
+    assert web(office, web_env, "Bash", command=command).endswith("(web_household_command)")

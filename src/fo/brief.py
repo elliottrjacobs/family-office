@@ -1,7 +1,9 @@
 import json
+import os
 
 from fo import compute, notebook, reports
 from fo.errors import OfficeError
+from fo.serve.runner import WEB_FLAG
 from fo.skills import assets, parse_skill
 from fo.store.authored import load
 
@@ -67,6 +69,8 @@ def estimate(value):
 
 
 def brief(root, level="household", subject=None, skill=None, full=False):
+    if os.environ.get(WEB_FLAG) == "1" and level != "none":
+        raise OfficeError("web_level", "Web runs require context level none.")
     if level not in {"none", "household", "full"}:
         raise OfficeError("invalid_context", "Use none, household, or full.")
     corrections = notebook.corrections(root, skill, subject, all_scopes=level == "full")
@@ -140,6 +144,8 @@ def start(root, skill, subject, level=None, report=None):
     meta, _ = parse_skill(path)
     settings = meta["metadata"]
     level = level or settings["default-context"]
+    if os.environ.get(WEB_FLAG) == "1" and level != "none":
+        raise OfficeError("web_level", "Web runs require context level none.")
     if level not in settings["allowed-context"]:
         raise OfficeError("invalid_context", "This context level is not allowed by the skill.")
     result = {}

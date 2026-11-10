@@ -134,13 +134,21 @@ def command_denial(command, env=None, resolver=None):
                     words[1] in subcommands if len(words) > 1 else not subcommands
                 )
             if words[:1] in (["start"], ["brief"]):
-                args = words[: words.index("--")] if "--" in words else words
                 levels = [
-                    args[i + 1] if word == "--level" and i + 1 < len(args) else word[8:]
-                    for i, word in enumerate(args)
+                    words[i + 1] if word == "--level" and i + 1 < len(words) else word[8:]
+                    for i, word in enumerate(words)
                     if word == "--level" or word.startswith("--level=")
                 ]
-                allowed = bool(levels) and all(level == "none" for level in levels)
+                allowed = (
+                    "--" not in segment
+                    and bool(levels)
+                    and all(level == "none" for level in levels)
+                    and not any(
+                        words[i - 1] in ("--for", "--skill", "--report", "--subject")
+                        for i, word in enumerate(words)
+                        if word == "--level" or word.startswith("--level=")
+                    )
+                )
             if not allowed:
                 return "This command is unavailable in web runs (web_household_command)"
     return None
