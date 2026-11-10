@@ -244,6 +244,7 @@ function Cashflow() {
   const flow = useApi("cashflow", () => cashflow(6), 60_000)
   const current = useApi(`spend:${month}`, () => spend(month), 60_000)
   if (flow.loading) return <Loading />
+  const uncategorized = (flow.data?.months ?? []).reduce((sum, m) => sum + m.uncategorized_count, 0)
   const categories = Object.entries(current.data?.categories ?? {})
     .filter(([, value]) => value !== null && value !== 0)
     .sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))
@@ -263,7 +264,7 @@ function Cashflow() {
           <TableBody>
             {(flow.data?.months ?? []).map((m) => (
               <TableRow key={m.month}>
-                <TableCell>{monthLabel(m.month)}</TableCell>
+                <TableCell>{monthLabel(m.month)}{m.partial ? " (so far)" : ""}</TableCell>
                 <TableCell className="text-right">
                   <Money value={m.income} />
                 </TableCell>
@@ -280,6 +281,11 @@ function Cashflow() {
           </TableBody>
         </Table>
       </div>
+      {uncategorized > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {uncategorized} transactions are uncategorized; add category rules so transfers and card payments are not counted as spending.
+        </p>
+      )}
       <section>
         <SectionTitle>Spending by category, {monthLabel(month)}</SectionTitle>
         {categories.length ? (
@@ -295,7 +301,7 @@ function Cashflow() {
           <p className="text-sm text-muted-foreground">No categorized spending this month yet.</p>
         )}
         <p className="mt-2 text-xs text-muted-foreground">
-          Trades, dividends, and transfers are portfolio activity and are left out.
+          Trades and dividends are left out. Transfers and card payments are left out once a category rule marks them as transfers.
         </p>
       </section>
     </div>

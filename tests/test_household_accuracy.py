@@ -1,4 +1,5 @@
 import json
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -124,9 +125,15 @@ def test_cash_months_counts_bank_cash(office, monkeypatch):
     monkeypatch.setattr(
         compute,
         "cashflow",
-        lambda *a, **k: {"months": [{"spend": Decimal(3000)}] * 3},
+        lambda *a, **k: {"months": [{"spend": Decimal(3000), "partial": False}] * 3},
     )
     assert metric_observations(office, "", "cash_months")[0]["value"] == "10"
+    monkeypatch.setattr(
+        compute,
+        "cashflow",
+        lambda *a, **k: {"months": [{"spend": None, "partial": False}] * 3},
+    )
+    assert metric_observations(office, "", "cash_months") == []
 
 
 def test_doctor_flags_accounts_without_a_role(office):
@@ -145,3 +152,41 @@ def test_holding_period_uses_the_anniversary():
     assert compute.held_long(date(2023, 3, 1), date(2024, 3, 2))
     assert not compute.held_long(date(2024, 2, 29), date(2025, 2, 28))
     assert compute.held_long(date(2024, 2, 29), date(2025, 3, 1))
+
+
+def test_uncategorized_inflows_are_reported_without_netting_spend(office):
+    (office / "profile/categories.yaml").write_text("rules: []\n")
+    result = compute.spend(office, "2026-08")
+    assert result["income"] == 0
+    assert result["spend"] == Decimal(300)
+    assert result["categories"] == {"needs-review": Decimal(300)}
+    assert result["uncategorized_count"] == 3
+    assert result["uncategorized_inflow"] == Decimal(5100)
+
+    (office / "profile/categories.yaml").write_text(
+        "rules:\n  - pattern: Payroll\n    category: income-salary\n"
+    )
+    result = compute.spend(office, "2026-08")
+    assert result["income"] == Decimal(5000)
+    assert result["spend"] == Decimal(300)
+    assert result["uncategorized_count"] == 2
+    assert result["uncategorized_inflow"] == Decimal(100)
+
+
+def test_cashflow_marks_partial_month_and_runway_uses_complete_months(office, monkeypatch):
+    class Today(date):
+        @classmethod
+        def today(cls):
+            return cls(2026, 9, 2)
+
+    monkeypatch.setattr(compute, "date", Today)
+    (office / "profile/categories.yaml").write_text("rules: []\n")
+    rows = compute.cashflow(office, 4, True)["months"]
+    assert [row["month"] for row in rows] == ["2026-06", "2026-07", "2026-08", "2026-09"]
+    assert [row["partial"] for row in rows] == [False, False, False, True]
+    assert [row["uncategorized_count"] for row in rows] == [0, 0, 3, 0]
+    assert metric_observations(office, "", "cash_months")[0]["value"] == "300"
+
+    # The same spending is excluded when August itself is still in progress.
+    monkeypatch.setattr(Today, "today", classmethod(lambda cls: cls(2026, 8, 2)))
+    assert metric_observations(office, "", "cash_months") == []

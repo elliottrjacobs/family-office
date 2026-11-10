@@ -258,11 +258,16 @@ def spend(root, month, category=None, read_only=False):
     rows = [t for t in dated if t.get("kind") not in INVESTMENT_KINDS]
     groups = defaultdict(lambda: Decimal(0))
     income = Decimal(0)
+    uncategorized_count = 0
+    uncategorized_inflow = Decimal(0)
     for tx in rows:
         value, name = number(tx["amount"]), tx["category"].casefold()
-        if value > 0 and (
-            name in income_categories or name.startswith("income") or name == "needs-review"
-        ):
+        if name == "needs-review":
+            uncategorized_count += 1
+            if value > 0:
+                uncategorized_inflow += value
+                continue
+        if value > 0 and (name in income_categories or name.startswith("income")):
             income += value
         else:
             # A refund lowers its category instead of inflating income.
@@ -274,6 +279,8 @@ def spend(root, month, category=None, read_only=False):
         income=income,
         categories=dict(groups),
         transaction_count=len(rows),
+        uncategorized_count=uncategorized_count,
+        uncategorized_inflow=uncategorized_inflow,
         excluded_investment_transactions=len(dated) - len(rows),
     )
 
@@ -290,6 +297,8 @@ def cashflow(root, months=3, read_only=False):
         rows.append(
             {
                 "month": row["month"],
+                "partial": offset == 0,
+                "uncategorized_count": row["uncategorized_count"],
                 "income": row["income"],
                 "spend": row["spend"],
                 "net": row["income"] - row["spend"],

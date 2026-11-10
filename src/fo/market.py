@@ -151,12 +151,14 @@ def metric_observations(root, symbol, metric, decision=None):
             state = context(root, True)
             registry = {a["id"]: a for a in load(root, "accounts")["accounts"]}
             cash = cash_holdings(state, registry)
-            outflow = total(m["spend"] for m in cashflow(root, 3, True)["months"]) / 3
+            outflow = total(
+                m["spend"] for m in cashflow(root, 4, True)["months"] if not m["partial"]
+            )
             if cash is None or not outflow:
                 return []
             return [
                 {
-                    "value": str(cash / outflow),
+                    "value": str(cash / (outflow / 3)),
                     "as_of": state["as_of"],
                     "source": "balances.cash/cashflow.average_spend_3m",
                 }
