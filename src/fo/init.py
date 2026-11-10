@@ -1,5 +1,6 @@
 import json
 import platform
+import uuid
 from pathlib import Path
 
 from fo import __version__
@@ -69,13 +70,12 @@ def initialize(path: Path):
         "hooks",
         ".claude",
         ".codex",
-        "secrets",
     ):
         (root / directory).mkdir(parents=True, exist_ok=True)
-    (root / "secrets").chmod(0o700)
     atomic_write(
         root / "office.toml",
         f"""[office]
+id = "{uuid.uuid4().hex}"
 timezone = "America/New_York"
 
 [hosts]

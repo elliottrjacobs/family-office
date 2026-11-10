@@ -103,7 +103,7 @@ public enum TerminalCommand: Sendable, Equatable, Identifiable {
         case .auth("simplefin"):
             return
                 "fo auth simplefin asks for a SimpleFIN setup token (typing stays hidden) and "
-                + "exchanges it for an access link stored in the office's secrets folder."
+                + "exchanges it for an access link stored in the per-machine credentials folder outside the office."
         case .auth(let provider):
             return "fo auth \(provider) asks for its credentials; typing stays hidden."
         case .setup:

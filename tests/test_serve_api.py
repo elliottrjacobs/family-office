@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 
 from fo import reports
 from fo.cli import app as cli
+from fo.config import credentials_dir
 from fo.envelope import FAILED
 from fo.errors import OfficeError
 from fo.init import initialize
@@ -443,7 +444,7 @@ def test_watch_parent_stops_the_server_when_the_pid_is_gone():
 def test_public_config_reports_keys_stored_by_fo_connect(office):
     from fo.config import public_config
 
-    secrets = office / "secrets"
+    secrets = credentials_dir(office)
     secrets.mkdir(mode=0o700, exist_ok=True)
     path = secrets / "exa.json"
     path.write_text('{"api_key": "SYNTHETIC-KEY-0000"}')

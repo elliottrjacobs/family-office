@@ -88,12 +88,12 @@ def contained(root: Path, relative: str) -> Path:
     return target
 
 
-def atomic_write(path: Path, text: str, mode: int = 0o644) -> None:
+def atomic_write(path: Path, text: str | bytes, mode: int = 0o644) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, name = tempfile.mkstemp(prefix=".fo-", dir=path.parent)
     try:
         os.fchmod(fd, mode)
-        with os.fdopen(fd, "w") as stream:
+        with os.fdopen(fd, "wb" if isinstance(text, bytes) else "w") as stream:
             stream.write(text)
             stream.flush()
             os.fsync(stream.fileno())

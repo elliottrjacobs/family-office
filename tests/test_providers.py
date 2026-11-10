@@ -3,6 +3,7 @@ import json
 import httpx
 import pytest
 
+from fo.config import credentials_dir
 from fo.errors import OfficeError
 from fo.init import initialize
 from fo.providers.schwab import normalize_accounts
@@ -218,7 +219,7 @@ def test_schwab_accounts_with_fake_client_maps_hashes_and_hides_failures(tmp_pat
 
     root = tmp_path / "office"
     initialize(root)
-    secrets = root / "secrets"
+    secrets = credentials_dir(root)
     secrets.mkdir(mode=0o700, exist_ok=True)
     (secrets / "keys.toml").write_text('[schwab.account_hashes]\na = "HASH-A"\n')
 

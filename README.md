@@ -43,11 +43,17 @@ without either connection. Optional market-data API keys are separate from
 brokerage credentials.
 
 After authorization, supported providers return account identifiers automatically.
-The CLI creates the local registry and keeps Schwab account hashes in secrets,
-so you normally do not need to look up IDs. Ambiguous matches stop for resolution;
+The CLI creates the local registry and keeps Schwab account hashes in local
+credentials, so you normally do not need to look up IDs. Ambiguous matches stop for resolution;
 you may still need to identify account owners or clarify account labels.
-Credentials are stored only in the private office's Git-ignored `secrets/`
-directory, with restrictive file permissions.
+The office may live in iCloud Drive or another synced folder. Credentials stay in
+an outside, per-machine folder keyed by `[office].id` in `office.toml`: on macOS,
+`~/Library/Application Support/FamilyOffice/credentials/<office-id>/`; elsewhere,
+`${XDG_DATA_HOME:-~/.local/share}/family-office/credentials/<office-id>/`.
+`FO_CREDENTIALS_HOME` overrides the base directory. Directories are 0700 and files
+0600. Each machine connects separately. Legacy `secrets/` files migrate on first
+credential access; differing local copies are retained and flagged by `fo doctor`.
+macOS Keychain storage is possible future hardening; it is not used here.
 
 ### No trade execution
 
@@ -246,7 +252,7 @@ Codex needs the Codex CLI installed and signed in once in a terminal (`codex log
 the server links each run to that sign-in and never copies it). If `fo serve` cannot
 find `codex` on its `PATH`, set `FO_CODEX_EXECUTABLE` to its full path. It is off by
 default: Codex confines reads by refusing a list of commands rather than by path, so a
-command the list misses could print a file such as one in `secrets/` (see
+command the list misses could print a file such as one in the credentials folder (see
 [SECURITY.md](SECURITY.md)). Turn it on with `fo config set serve.engines.codex.enabled
 true` if you accept that. What differs from Claude Code: each run has its own scratch
 workspace in its run folder, where the advisor drafts the report before writing it

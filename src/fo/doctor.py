@@ -1,8 +1,7 @@
 from datetime import UTC, datetime
 
-from fo.config import load_json, read_config
+from fo.config import credentials_dir, load_json, read_config
 from fo.errors import OfficeError
-from fo.office import contained, git
 from fo.store.authored import PROFILE_FILES, load
 
 
@@ -39,38 +38,42 @@ def diagnose(root):
             )
     except OfficeError:
         pass
-    secret_dir = contained(root, "secrets")
-    bad = secret_dir.exists() and (secret_dir.stat().st_mode & 0o777 != 0o700)
-    if secret_dir.exists():
+    secret_dir = None
+    try:
+        secret_dir = credentials_dir(root)
+        bad = any(p.stat().st_mode & 0o777 != 0o700 for p in (secret_dir.parent, secret_dir))
         for path in secret_dir.rglob("*"):
             expected = 0o700 if path.is_dir() else 0o600
             bad |= path.is_symlink() or path.stat().st_mode & 0o777 != expected
+        checks.append(
+            check(
+                "credentials.perms",
+                "fail" if bad else "pass",
+                "Incorrect credential permissions." if bad else "Credential permissions valid.",
+            )
+        )
+    except (OfficeError, OSError):
+        checks.append(check("credentials.perms", "fail", "Local credentials are unavailable."))
+    legacy = root / "secrets"
+    leftover = legacy.is_symlink() or (
+        legacy.exists() and any(p.is_file() or p.is_symlink() for p in legacy.rglob("*"))
+    )
     checks.append(
         check(
-            "secrets.perms",
-            "fail" if bad else "pass",
-            "Incorrect secret permissions." if bad else "Secret permissions valid.",
+            "secrets.in_office",
+            "fail" if leftover else "pass",
+            "Credentials remain in office secrets/. Run a fo command to migrate them, "
+            "or move them outside the office; resolve differing copies manually."
+            if leftover
+            else "No credentials in the office folder.",
         )
     )
-    repo = git(root, "rev-parse", "--show-toplevel", check=False)
-    ignored = git(root, "check-ignore", "secrets/probe", check=False).returncode == 0
-    tracked = git(root, "ls-files", "secrets", check=False).stdout.strip()
-    good = repo.returncode == 0 and ignored and not tracked
-    checks.append(
-        check(
-            "secrets.ignored",
-            "pass" if good else "fail",
-            "Secrets excluded from Git."
-            if good
-            else "Secrets are tracked, not ignored, or office is not a Git repository.",
-        )
-    )
-    if not (secret_dir / "keys.toml").exists():
+    if secret_dir is None or not (secret_dir / "keys.toml").exists():
         checks.append(
             check("providers", "warn", "Offline mode: no provider credentials configured.")
         )
-    token = contained(root, "secrets/schwab-token.json")
-    if token.exists():
+    token = secret_dir / "schwab-token.json" if secret_dir else None
+    if token and token.exists():
         try:
             expiry = load_json(token)["refresh_token_expires_at"]
             hours = (

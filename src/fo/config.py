@@ -1,8 +1,12 @@
 import copy
+import fcntl
 import json
 import math
+import os
 import re
+import sys
 import tomllib
+import uuid
 from pathlib import Path
 
 from fo.errors import OfficeError
@@ -16,8 +20,70 @@ def read_config(root: Path) -> dict:
         raise OfficeError("invalid_config", "office.toml is unreadable or invalid TOML.") from exc
 
 
+def credentials_dir(root: Path) -> Path:
+    """Machine-local credentials, migrating legacy office copies without overwriting."""
+    from fo.office import atomic_write
+
+    # Lock the directory separately: callers may already hold the office write lock.
+    fd = os.open(root, os.O_RDONLY)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        office_id = read_config(root).get("office", {}).get("id")
+        if office_id is None:
+            office_id = uuid.uuid4().hex
+            _write_config(root, "office.id", office_id)
+        if not isinstance(office_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", office_id):
+            raise OfficeError("invalid_config", "office.id must be a non-empty path-safe id.")
+        if os.environ.get("FO_CREDENTIALS_HOME"):
+            base = Path(os.environ["FO_CREDENTIALS_HOME"]).expanduser()
+        elif sys.platform == "darwin":
+            base = Path.home() / "Library/Application Support/FamilyOffice/credentials"
+        else:
+            base = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share")
+            base = base / "family-office/credentials"
+        base = base.absolute()
+        if base.resolve().is_relative_to(root.resolve()):
+            raise OfficeError("unsafe_path", "Credentials must live outside the office folder.")
+        directory = base / office_id
+        for path in (base, directory):
+            if path.is_symlink():
+                raise OfficeError("unsafe_path", "Credentials directories must not be symlinks.")
+            path.mkdir(mode=0o700, parents=True, exist_ok=True)
+        legacy = root / "secrets"
+        if legacy.is_symlink():
+            raise OfficeError("unsafe_path", "The legacy secrets directory must not be a symlink.")
+        if legacy.is_dir():
+            for source in legacy.iterdir():
+                if source.is_symlink() or not source.is_file():
+                    continue
+                destination = directory / source.name
+                if destination.is_symlink():
+                    continue
+                try:
+                    if not destination.exists():
+                        atomic_write(destination, source.read_bytes(), 0o600)
+                    if destination.read_bytes() == source.read_bytes():
+                        destination.chmod(0o600)
+                        source.unlink()
+                except OSError:
+                    continue  # Doctor reports office copies that could not be migrated.
+            try:
+                legacy.rmdir()
+            except OSError:
+                pass
+        if any(path.is_symlink() for path in directory.iterdir()):
+            raise OfficeError("unsafe_path", "Credential files must not be symlinks.")
+        return directory
+    except OSError as exc:
+        raise OfficeError(
+            "credentials_unavailable", "The local credentials folder is unavailable."
+        ) from exc
+    finally:
+        os.close(fd)
+
+
 def read_secrets(root: Path) -> dict:
-    path = contained(root, "secrets/keys.toml")
+    path = credentials_dir(root) / "keys.toml"
     if not path.exists():
         return {}
     try:
@@ -29,8 +95,8 @@ def read_secrets(root: Path) -> dict:
 
 
 def provider_key(root: Path, provider: str) -> str | None:
-    """The API key fo connect stored in secrets/<provider>.json, else one fo auth stored."""
-    path = contained(root, f"secrets/{provider}.json")
+    """The local <provider>.json API key, falling back to the key fo auth stored."""
+    path = credentials_dir(root) / f"{provider}.json"
     if path.exists():
         try:
             key = json.loads(path.read_text()).get("api_key")
@@ -54,12 +120,12 @@ def masked(value):
 def public_config(root: Path) -> dict:
     """Settings plus which secrets exist, every value masked.
 
-    Keys `fo connect` stores in secrets/<provider>.json show up beside the keys.toml
-    entries so a client can tell which providers are connected without reading secrets/.
+    Local <provider>.json keys show up beside keys.toml entries so clients can
+    tell which providers are connected without reading credentials.
     """
     secrets = masked(read_secrets(root))
     for provider in PROVIDERS:
-        if contained(root, f"secrets/{provider}.json").exists():
+        if (credentials_dir(root) / f"{provider}.json").exists():
             secrets[provider] = {"api_key": "***"}
     return {"settings": read_config(root), "secrets": secrets}
 
@@ -254,34 +320,44 @@ def set_config(root: Path, key: str, text: str) -> dict:
     refused rather than rewritten.
     """
     from fo.lock import office_lock
-    from fo.office import atomic_write
 
     value = config_value(key, text)
     with office_lock(root, wait=LOCK_WAIT):
-        path = contained(root, "office.toml")
+        fd = os.open(root, os.O_RDONLY)
         try:
-            original = path.read_text()
-            mode = path.stat().st_mode & 0o777
-        except OSError as exc:
-            raise OfficeError("invalid_config", "office.toml is unreadable.") from exc
-        try:
-            before = tomllib.loads(original)
-        except tomllib.TOMLDecodeError as exc:
-            raise OfficeError("invalid_config", "office.toml is not valid TOML.") from exc
-        updated = _edit(original, key, value)
-        try:
-            after = tomllib.loads(updated)
-        except tomllib.TOMLDecodeError:
-            after = None
-        if after != _assign(before, key, value):
-            raise OfficeError(
-                "config_layout",
-                f"office.toml defines {key.rsplit('.', 1)[0]} in a form fo config set "
-                "cannot edit safely; change it by hand.",
-            )
-        if updated != original:
-            atomic_write(path, updated, mode)
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            _write_config(root, key, value)
+        finally:
+            os.close(fd)
     return {"key": key, "value": value}
+
+
+def _write_config(root: Path, key: str, value):
+    from fo.office import atomic_write
+
+    path = contained(root, "office.toml")
+    try:
+        original = path.read_text()
+        mode = path.stat().st_mode & 0o777
+    except OSError as exc:
+        raise OfficeError("invalid_config", "office.toml is unreadable.") from exc
+    try:
+        before = tomllib.loads(original)
+    except tomllib.TOMLDecodeError as exc:
+        raise OfficeError("invalid_config", "office.toml is not valid TOML.") from exc
+    updated = _edit(original, key, value)
+    try:
+        after = tomllib.loads(updated)
+    except tomllib.TOMLDecodeError:
+        after = None
+    if after != _assign(before, key, value):
+        raise OfficeError(
+            "config_layout",
+            f"office.toml defines {key.rsplit('.', 1)[0]} in a form fo config set "
+            "cannot edit safely; change it by hand.",
+        )
+    if updated != original:
+        atomic_write(path, updated, mode)
 
 
 def get_config(root: Path, key: str) -> dict:
