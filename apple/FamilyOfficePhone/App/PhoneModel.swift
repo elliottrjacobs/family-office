@@ -72,17 +72,18 @@ final class PhoneModel {
 
     /// Trades the device token for a session; a 401 lands on pairing with the reason.
     func connect() async {
-        guard case .paired = session.state else { return }
+        guard case .paired = session.state, phase != .connecting else { return }
         phase = .connecting
         do {
             try await session.login()
-            phase = .connected
             await reachability?.check()
+            phase = .connected
+            reload()
         } catch DeviceSessionError.unpaired {
             stopAfterUnpairing()
         } catch let error as DeviceSessionError {
-            phase = .offline(error.message)
             await reachability?.check()
+            phase = .offline(error.message)
         } catch {
             phase = .offline(nil)
         }
@@ -96,10 +97,10 @@ final class PhoneModel {
         reloadToken += 1
     }
 
-    /// A 401 seen in the web view or by a probe: forget the token and show pairing.
-    func revoked(reason: String? = nil) {
-        session.unauthorized(reason: reason)
-        stopAfterUnpairing()
+    /// A cookie 401 may mean the Mac restarted; authenticate with the stored token again.
+    func sessionExpired() {
+        guard phase != .connecting else { return }
+        Task { await connect() }
     }
 
     /// Forgets the pairing on this phone only.
@@ -125,7 +126,7 @@ final class PhoneModel {
 
     /// `GET /api/status` with the session cookie when there is one. Any HTTP answer (even one
     /// this build cannot decode) means the Mac is up; a 401 while holding a session cookie
-    /// means this phone was revoked.
+    /// means the session needs a fresh login.
     private func probe() async -> Bool {
         guard let client = session.apiClient else { return false }
         do {
@@ -133,7 +134,7 @@ final class PhoneModel {
             return true
         } catch APIError.http(401, _) {
             if client.hasSessionCookie {
-                revoked()
+                sessionExpired()
             }
             return true
         } catch APIError.http, APIError.decoding {

@@ -83,8 +83,8 @@ struct OfficeScreen: View {
             Divider()
             OfficeWebView(
                 url: url, cookies: model.session.cookies, reloadToken: model.reloadToken
-            ) { reason in
-                model.revoked(reason: reason)
+            ) { _ in
+                model.sessionExpired()
             }
             .ignoresSafeArea(edges: .bottom)
         }
