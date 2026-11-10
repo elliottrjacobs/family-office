@@ -34,7 +34,9 @@
           "month",
           "income",
           "spend",
-          "net"
+          "net",
+          "partial",
+          "uncategorized_count"
         ],
         "properties": {
           "income": {
@@ -57,6 +59,12 @@
               "null"
             ],
             "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
+          },
+          "partial": {
+            "type": "boolean"
+          },
+          "uncategorized_count": {
+            "type": "integer"
           }
         }
       }

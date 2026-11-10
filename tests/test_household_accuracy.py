@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from fo import compute
+from fo import compute, market
 from fo.doctor import diagnose
 from fo.init import initialize
 from fo.market import metric_observations
@@ -121,19 +121,65 @@ def test_spend_ignores_portfolio_activity_and_nets_refunds(office):
     assert result["excluded_investment_transactions"] == 1
 
 
-def test_cash_months_counts_bank_cash(office, monkeypatch):
-    monkeypatch.setattr(
-        compute,
-        "cashflow",
-        lambda *a, **k: {"months": [{"spend": Decimal(3000), "partial": False}] * 3},
+@pytest.mark.parametrize(
+    ("start", "as_of", "expected"),
+    [
+        ("2026-07-01", "2026-10-20T12:00:00Z", "10"),
+        ("2026-08-01", "2026-10-20T00:00:00Z", None),
+        ("2026-10-20", "2026-10-20T12:00:00Z", None),
+        ("2026-07-01", "2026-10-31T23:00:00Z", "6"),
+    ],
+)
+def test_cash_months_requires_three_covered_months(tmp_path, monkeypatch, start, as_of, expected):
+    office = tmp_path / "office"
+    initialize(office)
+    (office / "profile/accounts.json").write_text(
+        json.dumps(
+            {
+                "accounts": [
+                    {"id": "checking", "provider": "simplefin", "type": "checking", "last4": ""}
+                ]
+            }
+        )
     )
-    assert metric_observations(office, "", "cash_months")[0]["value"] == "10"
-    monkeypatch.setattr(
-        compute,
-        "cashflow",
-        lambda *a, **k: {"months": [{"spend": None, "partial": False}] * 3},
+
+    class Today(date):
+        @classmethod
+        def today(cls):
+            return cls(2026, 11, 2)
+
+    monkeypatch.setattr(market, "date", Today)
+    ingest(
+        office,
+        "simplefin",
+        [
+            {
+                "account_id": "checking",
+                "as_of": as_of,
+                "balance": {"net_value": "30000"},
+                "transactions": [
+                    {
+                        "provider_id": f"c{i}",
+                        "amount": amount,
+                        "transacted_at": day,
+                        "posted_date": max(day, start),
+                        "description": "Hardware Store",
+                    }
+                    for i, (day, amount) in enumerate(
+                        [
+                            ("2026-07-01", "-3000"),
+                            ("2026-08-01", "-3000"),
+                            ("2026-09-01", "-3000"),
+                            ("2026-10-01", "-9000"),
+                        ],
+                        1,
+                    )
+                ],
+            }
+        ],
     )
-    assert metric_observations(office, "", "cash_months") == []
+    result = metric_observations(office, "", "cash_months")
+    assert (result[0]["value"] if result else None) == expected
 
 
 def test_doctor_flags_accounts_without_a_role(office):
@@ -180,11 +226,30 @@ def test_cashflow_marks_partial_month_and_runway_uses_complete_months(office, mo
             return cls(2026, 9, 2)
 
     monkeypatch.setattr(compute, "date", Today)
+    monkeypatch.setattr(market, "date", Today)
+    ingest(
+        office,
+        "simplefin",
+        [
+            {
+                "account_id": "checking",
+                "as_of": "2026-09-01T00:00:00Z",
+                "balance": {"net_value": "20000"},
+                "transactions": [
+                    {
+                        "provider_id": "history",
+                        "amount": "0",
+                        "transacted_at": "2026-06-01",
+                    }
+                ],
+            }
+        ],
+    )
     (office / "profile/categories.yaml").write_text("rules: []\n")
     rows = compute.cashflow(office, 4, True)["months"]
     assert [row["month"] for row in rows] == ["2026-06", "2026-07", "2026-08", "2026-09"]
     assert [row["partial"] for row in rows] == [False, False, False, True]
-    assert [row["uncategorized_count"] for row in rows] == [0, 0, 3, 0]
+    assert [row["uncategorized_count"] for row in rows] == [1, 0, 3, 0]
     assert metric_observations(office, "", "cash_months")[0]["value"] == "300"
 
     # The same spending is excluded when August itself is still in progress.

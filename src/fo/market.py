@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 from fo.errors import OfficeError
@@ -146,14 +146,30 @@ def metric_observations(root, symbol, metric, decision=None):
     decision = decision or {}
     try:
         if metric == "cash_months":
-            from fo.compute import cash_holdings, cashflow, context, total
+            from fo.compute import cash_holdings, context, spend, total
 
             state = context(root, True)
             registry = {a["id"]: a for a in load(root, "accounts")["accounts"]}
             cash = cash_holdings(state, registry)
-            outflow = total(
-                m["spend"] for m in cashflow(root, 4, True)["months"] if not m["partial"]
-            )
+            dates = [
+                date.fromisoformat(day[:10])
+                for t in state["transactions"]
+                if (day := t.get("posted_date") or t.get("transacted_at"))
+            ]
+            if not state["as_of"] or not dates:
+                return []
+            as_of = date.fromisoformat(state["as_of"][:10])
+            # Only months ending by the sync date and before the current month qualify.
+            end = min(date.today().replace(day=1), (as_of + timedelta(days=1)).replace(day=1))
+            index = end.year * 12 + end.month - 1
+            spending = []
+            for offset in (3, 2, 1):
+                year, month = divmod(index - offset, 12)
+                first = date(year, month + 1, 1)
+                if min(dates) > first:
+                    return []
+                spending.append(spend(root, first.strftime("%Y-%m"), read_only=True)["spend"])
+            outflow = total(spending)
             if cash is None or not outflow:
                 return []
             return [
