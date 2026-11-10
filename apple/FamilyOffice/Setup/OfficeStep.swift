@@ -15,7 +15,7 @@ struct OfficeStep: View {
             StepHeader(
                 title: "Where should your office live?",
                 detail: "Your office is one folder on this Mac: profile, accounts, reports and notes. "
-                    + "Choose a local folder outside iCloud Drive, Desktop, Documents, Dropbox and other synced folders."
+                    + "Create a new one, or open one you already have."
             )
             if let session = model.setupSession {
                 terminal(session)
@@ -85,7 +85,7 @@ struct OfficeStep: View {
 
     private var openForm: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Choose the folder that contains office.toml. It should be a local folder outside iCloud Drive, Desktop, Documents, Dropbox and other synced folders.")
+            Text("Choose the folder that contains office.toml. It may live anywhere on this Mac.")
                 .foregroundStyle(.secondary)
             Button("Choose Office Folder…") { model.openExisting(state: state) }
         }

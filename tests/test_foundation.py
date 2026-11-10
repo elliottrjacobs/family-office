@@ -1,12 +1,5 @@
 import json
 import subprocess
-from pathlib import Path
-
-import pytest
-
-from fo.doctor import diagnose
-from fo.errors import OfficeError
-from fo.init import initialize, target
 
 
 def fo(*args, cwd=None):
@@ -114,55 +107,3 @@ def test_symlink_target_rejected(tmp_path):
     root.symlink_to(outside, target_is_directory=True)
     assert fo("init", root, "--json").returncode != 0
     assert list(outside.iterdir()) == []
-
-
-@pytest.mark.parametrize(
-    "location",
-    [
-        "Library/Mobile Documents/com~apple~CloudDocs",
-        "Library/CloudStorage/Dropbox",
-        "Dropbox",
-        "Google Drive",
-        "OneDrive",
-        "OneDrive-Personal",
-        "OneDrive - Work",
-        "Box",
-        "Desktop",
-        "Documents",
-    ],
-)
-def test_init_refuses_cloud_synced_paths(tmp_path, monkeypatch, location):
-    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
-    root = tmp_path / location / "office"
-    with pytest.raises(OfficeError) as error:
-        target(root)
-    assert error.value.reason == "cloud_synced_path"
-    assert "~/FamilyOffice" in error.value.message
-    assert not root.exists()
-
-
-def test_init_checks_resolved_cloud_path(tmp_path, monkeypatch):
-    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
-    (tmp_path / "Documents").mkdir()
-    (tmp_path / "alias").symlink_to(tmp_path / "Documents", target_is_directory=True)
-    with pytest.raises(OfficeError) as error:
-        target(tmp_path / "alias/office")
-    assert error.value.reason == "cloud_synced_path"
-
-
-@pytest.mark.parametrize("location", ["FamilyOffice", "DocumentsBackup", "Library/Other"])
-def test_init_allows_local_paths(tmp_path, monkeypatch, location):
-    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
-    root = tmp_path / location
-    assert target(root) == (root.resolve(), False)
-
-
-def test_existing_cloud_office_opens_and_doctor_warns(tmp_path, monkeypatch):
-    root = tmp_path / "Documents/office"
-    initialize(root)
-    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
-    assert target(root) == (root.resolve(), True)
-    assert initialize(root)["created"] is False
-    checks = {item["name"]: item for item in diagnose(root)}
-    assert checks["office.location"]["status"] == "warn"
-    assert "~/FamilyOffice" in checks["office.location"]["reason"]
