@@ -206,13 +206,35 @@ def test_cache_recomputes_only_when_the_office_changes(office):
 
     assert cache.get(office, "k", compute) == 1
     assert cache.get(office, "k", compute) == 1
+    cache.get(office, "old", lambda: "old")
     (office / "notebook/corrections.md").write_text("# Standing corrections\n\nChanged.\n")
     assert cache.get(office, "k", compute) == 1  # within the poll cycle
     clock[0] = 3.0
     assert cache.get(office, "k", compute) == 2
+    assert set(cache.entries) == {"k"}
     clock[0] = 6.0
     assert cache.get(office, "k", compute) == 2
     assert cache.get(office, "k", compute, ttl=1) == 3
+
+
+def test_cache_prunes_entries_using_their_own_ttl(tmp_path):
+    office = tmp_path / "office"
+    office.mkdir()
+    clock = [0.0]
+    cache = ResponseCache(clock=lambda: clock[0])
+    cache.get(office, "short", lambda: "short", ttl=25)
+    cache.get(office, "long", lambda: "long", ttl=300)
+    cache.get(office, "unlimited", lambda: "unlimited")
+
+    clock[0] = 24.0
+    assert cache.get(office, "unlimited", lambda: None) == "unlimited"
+    assert set(cache.entries) == {"short", "long", "unlimited"}
+    clock[0] = 25.0
+    assert cache.get(office, "unlimited", lambda: None) == "unlimited"
+    assert set(cache.entries) == {"long", "unlimited"}
+    clock[0] = 300.0
+    assert cache.get(office, "unlimited", lambda: None) == "unlimited"
+    assert set(cache.entries) == {"unlimited"}
 
 
 def test_cached_route_refreshes_when_the_date_changes(office, tmp_path, monkeypatch):
@@ -237,6 +259,9 @@ def test_cached_route_refreshes_when_the_date_changes(office, tmp_path, monkeypa
         september = client.get("/api/spend")
         assert september == client.get("/api/spend?month=2026-09")
         assert september != august
+        clock[0] = routes_read.FINGERPRINT_TTL
+        assert client.get("/api/spend") == september
+        assert all(key[2] == today[0] for key in app.cache.entries)
     assert_unchanged(before, tree(office))
 
 
@@ -247,6 +272,13 @@ def test_cached_route_refreshes_when_the_date_changes(office, tmp_path, monkeypa
 def test_cached_routes_expire_without_file_changes(office, tmp_path, monkeypatch, path, ttl):
     clock = [0.0]
     calls = []
+
+    class ClockDate(date):
+        @classmethod
+        def today(cls):
+            return date(2026, 8, 31)
+
+    monkeypatch.setattr(server, "date", ClockDate)
 
     def compute(root, query):
         calls.append(1)

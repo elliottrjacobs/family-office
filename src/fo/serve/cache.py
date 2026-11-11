@@ -50,17 +50,22 @@ class ResponseCache:
             return self.current
 
     def get(self, root, key, compute, ttl=None):
-        """A cached value for this office state; ttl also expires inputs outside it."""
+        """Cache this office state, pruning obsolete or expired entries on access."""
         current = self.fingerprint(root)
         with self.lock:
-            entry = self.entries.get(key)
-        now = self.clock()
+            now = self.clock()
+            self.entries = {
+                key: entry
+                for key, entry in self.entries.items()
+                if entry[0] == self.current and (entry[3] is None or now < entry[3])
+            }
+            entry = self.entries.get(key) if self.root == root else None
         if entry and entry[0] == current and (ttl is None or now - entry[1] < ttl):
             return entry[2]
         value = compute()
         with self.lock:
-            if self.root == root:
-                self.entries[key] = (current, now, value)
+            if self.root == root and self.current == current:
+                self.entries[key] = (current, now, value, None if ttl is None else now + ttl)
         return value
 
     def forget(self, key):
