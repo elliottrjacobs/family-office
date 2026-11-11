@@ -63,3 +63,18 @@ def test_urls_inside_code_fences_are_ignored(office):
 def test_reports_without_urls_are_unaffected(office):
     path = write(office, "briefing", "# Briefing\n\nHoldings are unchanged.")
     assert reports.verify(office, path)["valid"]
+
+
+@pytest.mark.parametrize("path", ["profile/household.md", "notebook/corrections.md"])
+def test_verify_rejects_non_report_before_parsing(tmp_path, monkeypatch, path):
+    target = tmp_path / path
+    target.parent.mkdir(parents=True)
+    target.write_text("---\nprivate: [synthetic household text\n---\n")
+
+    def no_parse(*args):
+        pytest.fail("Non-report files must be rejected before parsing")
+
+    monkeypatch.setattr(reports, "parse", no_parse)
+    with pytest.raises(OfficeError) as caught:
+        reports.verify(tmp_path, path)
+    assert caught.value.reason == "unsafe_path"

@@ -802,10 +802,15 @@ the refusal for a request that did not come over the tailnet. Revoke with
 ### When the Mac says 401
 
 The token is sent only to `POST /api/devices/login`, as `Authorization: Bearer`; every other
-request uses the session cookie. A 401 from that login, from a page the web view loads, or
-from a status probe made with the session cookie means the Mac no longer knows this phone
-(usually a revoke in Settings > Devices). The phone deletes the Keychain item and opens
-pairing with "This iPhone is no longer paired with the Mac." Pairing again with a new code
-works at once. A Mac that does not answer is not a 401: the phone stays paired and shows the
+request uses the session cookie. A cookie 401 from the web view or a status probe triggers
+one automatic re-login with the stored token, since the Mac may have restarted. If another
+cookie 401 arrives before a status probe succeeds, the phone keeps the Keychain token and
+shows "The Mac keeps rejecting this phone's session. Tap Retry." It stops automatic logins
+until a status probe succeeds, the user taps Retry, or a fresh pairing happens.
+
+Only a 401 from the token login means the Mac no longer knows this phone (usually a revoke
+in Settings > Devices). The phone deletes the Keychain item and opens pairing with "This
+iPhone is no longer paired with the Mac." Pairing again with a new code works at once.
+A Mac that does not answer is not a 401: the phone stays paired and shows the
 connection screen. A 403 `forbidden_login` while pairing means the request arrived without a
 Tailscale identity the office allows, and the phone says so.

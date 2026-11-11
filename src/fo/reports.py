@@ -183,13 +183,7 @@ def unlisted_source(body):
 def verify(root, path):
     from fo.notebook import decisions
 
-    target = Path(path)
-    if target.is_absolute():
-        try:
-            target = target.relative_to(root)
-        except ValueError as exc:
-            raise OfficeError("unsafe_path", "Report is outside the office.") from exc
-    file = contained(root, str(target))
+    file = contained(root, report_file(root, path))
     row = parse(file, root)
     meta = row["frontmatter"]
     if not re.fullmatch(r"reports/[^/]+/[^/]+/\d{4}-\d{2}-\d{2}-.+\.md", row["path"]):
