@@ -1,3 +1,4 @@
+import re
 import time
 from datetime import UTC, datetime
 from urllib.parse import unquote, urlsplit, urlunsplit
@@ -6,6 +7,14 @@ import httpx
 
 from fo.errors import OfficeError
 from fo.providers.text import local_date, untrusted_text
+
+
+def currency_code(value):
+    """An ISO 4217 code, None when absent, or XXX for anything else; there is no FX."""
+    if value is None:
+        return None
+    code = str(value).strip().upper()
+    return code if re.fullmatch(r"[A-Z]{3}", code) else "XXX"
 
 
 class SimpleFIN:
@@ -66,7 +75,10 @@ class SimpleFIN:
                         .isoformat()
                         .replace("+00:00", "Z"),
                         "positions": [],
-                        "balance": {"net_value": item["balance"]},
+                        "balance": {
+                            "net_value": item["balance"],
+                            "currency": currency_code(item.get("currency")),
+                        },
                         "transactions": transactions,
                         "transaction_window": {
                             "start": datetime.fromtimestamp(params["start-date"], UTC)

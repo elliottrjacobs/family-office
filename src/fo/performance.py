@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
-from fo.compute import account_role, context, envelope, number, total
+from fo.compute import account_role, context, envelope, number, total, usd
 from fo.config import read_config
 from fo.errors import OfficeError
 from fo.store.authored import load
@@ -57,8 +57,8 @@ def performance(root, since, account=None, benchmark=None, read_only=False):
     rows = []
     for account_id in sorted(chosen):
         first, last = opening.get(account_id), closing.get(account_id)
-        begin = number(first.get("net_value")) if first else None
-        end = number(last.get("net_value")) if last else None
+        begin = usd(first, "net_value") if first else None
+        end = usd(last, "net_value") if last else None
         start = local_day(first["as_of"]) if first else None
         finish = local_day(last["as_of"]) if last else None
         activity = [

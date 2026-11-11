@@ -21,7 +21,10 @@ FIELDS = {
         ["run_id", "account_id", "symbol", "value"],
     ),
     "balances": (
-        dict.fromkeys(("net_value", "cash", "debt", "buying_power"), NUMBER),
+        {
+            **dict.fromkeys(("net_value", "cash", "debt", "buying_power"), NUMBER),
+            "currency": {"type": ["string", "null"], "pattern": "^[A-Z]{3}$"},
+        },
         ["run_id", "account_id"],
     ),
     "transactions": (
