@@ -5,12 +5,16 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from fo.errors import OfficeError
 from fo.init import initialize
 from fo.serve.onboarding import derive
-from fo.serve.server import Locator
+from fo.serve.runs import RunManager
+from fo.serve.server import ONBOARDING_TTL, Locator
 from fo.sync import ingest
 from tests.offices import synthetic
 from tests.serving import serving
+from tests.test_serve_devices import OWNER, paired, remote
+from tests.test_serve_runs import COMPLETE, runner_for
 
 
 def commands(result):
@@ -252,10 +256,10 @@ def test_checklist_reaches_the_route(tmp_path):
 
 
 @pytest.mark.parametrize("ready", [True, False])
-def test_onboarding_caches_only_ready_until_doctor_ttl(tmp_path, monkeypatch, ready):
+def test_onboarding_caches_only_ready_for_25_seconds(tmp_path, monkeypatch, ready):
     from fo.serve import onboarding
-    from fo.serve.routes_read import DOCTOR_TTL
 
+    assert ONBOARDING_TTL == 25
     root = synthetic(tmp_path / "office")
     secrets(root)
     calls = []
@@ -271,11 +275,11 @@ def test_onboarding_caches_only_ready_until_doctor_ttl(tmp_path, monkeypatch, re
         app.cache.clock = lambda: now[0]
         expected = "ready" if ready else "stale"
         assert client.get("/api/onboarding")[1]["state"] == expected
-        now[0] = DOCTOR_TTL - 1
+        now[0] = ONBOARDING_TTL - 1
         assert client.get("/api/onboarding")[1]["state"] == expected
         assert len(calls) == (1 if ready else 2)
         checks[:] = [{"name": "providers", "status": "warn", "reason": "Connect"}]
-        now[0] = DOCTOR_TTL
+        now[0] = ONBOARDING_TTL
         assert client.get("/api/onboarding")[1]["state"] == "stale"
         assert len(calls) == (2 if ready else 3)
         checks.clear()
@@ -285,3 +289,63 @@ def test_onboarding_caches_only_ready_until_doctor_ttl(tmp_path, monkeypatch, re
         now[0] += app.cache.cycle
         assert client.get("/api/onboarding")[1]["state"] == "ready"
         assert len(calls) == (4 if ready else 5)
+
+
+def test_pairing_and_revoking_refresh_cached_onboarding(tmp_path):
+    root = synthetic(tmp_path / "office")
+    secrets(root)
+    with serving(root, tmp_path, access=remote()) as (app, client):
+        app.cache.clock = lambda: 0
+
+        def current():
+            status, value = client.get("/api/onboarding", headers=OWNER)
+            assert status == 200 and value["state"] == "ready"
+            assert ("/api/onboarding", ()) in app.cache.entries
+            return checklist(value)["device_paired"]
+
+        assert current() is False
+        device = paired(client)
+        assert current() is True
+        assert client.request("DELETE", f"/api/devices/{device['id']}", headers=OWNER)[0] == 200
+        assert current() is False
+
+
+def test_launching_an_advisor_refreshes_cached_onboarding(tmp_path, monkeypatch):
+    root = synthetic(tmp_path / "office")
+    secrets(root)
+    runner, _ = runner_for(tmp_path, COMPLETE)
+    runs = RunManager(runner)
+    # Persist the queued run without starting an advisor process.
+    monkeypatch.setattr(runs, "begin", lambda *args: None)
+    with serving(root, tmp_path, runs=runs) as (app, client):
+        app.cache.clock = lambda: 0
+        status, before = client.get("/api/onboarding")
+        assert status == 200 and before["state"] == "ready"
+        assert checklist(before)["first_run"] is False
+        assert ("/api/onboarding", ()) in app.cache.entries
+        status, record = client.post("/api/runs", {"skill": "research", "subject": "BETA"})
+        assert status == 200 and record["status"] == "queued"
+        status, after = client.get("/api/onboarding")
+        assert status == 200 and after["state"] == "ready"
+        assert checklist(after)["first_run"] is True
+
+
+@pytest.mark.parametrize("stage", ["signature", "fingerprint"])
+@pytest.mark.parametrize("error", [OfficeError("unsafe_path", "Unsafe test path"), OSError()])
+def test_onboarding_falls_back_when_cache_fingerprinting_fails(tmp_path, monkeypatch, stage, error):
+    root = synthetic(tmp_path / "office")
+    secrets(root)
+    expected = derive(Locator(root))
+    assert expected["state"] == "ready"
+
+    def fail(root):
+        raise error
+
+    with serving(root, tmp_path) as (app, client):
+        with monkeypatch.context() as failing:
+            failing.setattr(f"fo.serve.cache.{stage}", fail)
+            status, value = client.get("/api/onboarding")
+            assert status == 200 and value == expected
+            assert ("/api/onboarding", ()) not in app.cache.entries
+        status, value = client.get("/api/onboarding")
+        assert status == 200 and value == expected
