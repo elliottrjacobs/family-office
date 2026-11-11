@@ -2,8 +2,22 @@
 
 ## Unreleased
 
-- A provider sync that returns accounts but matches none in the registry now fails
-  with `no_mapped_accounts`. It does not count as a completed sync for freshness or
+- `fo auth`, `fo setup`, `fo connect edgar` and `fo skills sync` commit the tracked
+  files they write (`profile/accounts.json`, `office.toml`, `AGENTS.md`, `CLAUDE.md`),
+  so they no longer block `fo commit` or the nightly sync. `fo doctor` warns with
+  `office.uncommitted` when changes outside notebook/, reports/ and data/ would block it.
+- Failed syncs retain institution error and unmapped account counts without error
+  text. Institution failures point to provider repairs. SimpleFIN registration
+  requires a new setup token. First-sync onboarding shows the repair before retrying.
+- Offices ignore machine-specific `launchd/` files. `fo doctor --fix` adds the rule
+  for existing offices and untracks old plists without deleting local files.
+  Settings changes and credential repairs create local commits of managed files.
+  Repeating `fo config set` or running `fo doctor --fix` recovers failed commits.
+  Doctor warns about unrecorded ignore changes and tracked plists. Office commits
+  handle an empty reports folder and refuse unfinished merges, rebases, and cherry-picks.
+- A provider sync that returns accounts but matches none in the registry and has
+  no institution errors now fails with `no_mapped_accounts`.
+  It does not count as a completed sync for freshness or
   onboarding, and `fo doctor` shows `sync.unmapped.<provider>` with the fix:
   `fo auth <provider>`, then `fo sync`.
 - Scheduling always includes `sync --commit --if-writer`; non-writer hosts skip

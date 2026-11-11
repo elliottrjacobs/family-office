@@ -64,6 +64,13 @@ def fix(root, name):
         return fo("auth", "simplefin", root=root), "Or connect Schwab with fo auth schwab."
     if name in {"credentials.perms", "credentials.agent_reads", "secrets.in_office"}:
         return fo("doctor", "--fix", root=root), "Download any .icloud placeholders first."
+    if name == "office.ignore":
+        return fo("doctor", "--fix", root=root), None
+    if name == "office.uncommitted":
+        return None, (
+            "Commit or resolve changes outside notebook/, reports/ and data/ in Git, "
+            "then retry fo commit or fo sync --commit."
+        )
     if name.startswith("profile.") or name == "accounts.roles":
         return None, ONBOARD
     if name.startswith("sync.errors."):
@@ -196,9 +203,19 @@ def derive(locator):
             ],
         )
     elif not complete:
+        repairs = [
+            item
+            for item in result["doctor"]
+            if item["name"].startswith(("sync.unmapped.", "sync.errors."))
+        ]
+        purpose = " ".join(
+            [item["hint"] for item in repairs if not item["command"] and item["hint"]]
+            + ["Pull balances, positions, and transactions."]
+        )
         state, steps = (
             "never_synced",
-            [step(fo("sync", root=root), "Pull balances, positions, and transactions.")],
+            [step(item["command"], item["reason"]) for item in repairs if item["command"]]
+            + [step(fo("sync", root=root), purpose)],
         )
         writer = config.get("hosts", {}).get("writer", "")
         hostname = platform.node()

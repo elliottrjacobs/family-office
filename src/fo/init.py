@@ -11,6 +11,7 @@ from fo.office import atomic_write, git, write_json
 OFFICE_IGNORE = """secrets/
 cache/
 imports/
+launchd/
 medical/
 store.sqlite*
 .fo.lock

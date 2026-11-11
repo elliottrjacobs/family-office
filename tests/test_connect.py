@@ -8,8 +8,11 @@ from typer.testing import CliRunner
 
 from fo.auth import save_keys
 from fo.cli import app
+from fo.commits import commit_office
 from fo.config import credentials_dir, provider_key
 from fo.init import initialize
+from fo.lock import office_lock
+from fo.office import git
 from fo.providers import http
 
 KEY = "fixture-key-0001"
@@ -161,6 +164,21 @@ def test_edgar_needs_a_name_and_email(office):
             args[2:2] = ["--user-agent", value]
         code, data = invoke(*args)
         assert (code, data["reason"]) == (1, "invalid_user_agent")
+
+
+@pytest.mark.parametrize("remove", [False, True])
+def test_edgar_records_settings_before_publication(office, remove):
+    assert (
+        invoke(
+            "connect", "edgar", "--user-agent", "Fixture ops@example.com", "--office", str(office)
+        )[0]
+        == 0
+    )
+    if remove:
+        assert invoke("connect", "edgar", "--remove", "--office", str(office))[0] == 0
+    with office_lock(office):
+        assert commit_office(office) == {"committed": False, "pushed": False}
+    assert git(office, "status", "--porcelain").stdout == ""
 
 
 @pytest.mark.parametrize(

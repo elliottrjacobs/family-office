@@ -1,12 +1,94 @@
 import os
 import shutil
 import subprocess
+import tempfile
+from pathlib import Path
 
 from fo.config import read_config
 from fo.errors import OfficeError
 from fo.office import git
 
 HIDDEN = "Hidden files or folders under reports/ cannot be committed."
+
+
+def git_status(root):
+    # List every untracked file, including hidden files inside new folders.
+    return git(root, "status", "--porcelain", "-z", "--no-renames", "--untracked-files=all").stdout
+
+
+def changes_outside(status, allowed):
+    return [
+        row[3:]
+        for row in status.split("\0")
+        if row and not any(row[3:] == p or row[3:].startswith(p + "/") for p in allowed)
+    ]
+
+
+def check_commit_state(root):
+    for marker in (
+        "MERGE_HEAD",
+        "REBASE_HEAD",
+        "CHERRY_PICK_HEAD",
+        "rebase-merge",
+        "rebase-apply",
+    ):
+        path = Path(git(root, "rev-parse", "--git-path", marker).stdout.strip())
+        if (root / path).exists():
+            raise OfficeError(
+                "merge_in_progress",
+                "Finish or abort the Git merge or rebase in the office before fo commits.",
+            )
+    status = git_status(root)
+    if any("U" in row[:2] or row[:2] in {"AA", "DD"} for row in status.split("\0") if row):
+        raise OfficeError(
+            "merge_in_progress",
+            "Finish or abort the Git merge or rebase in the office before fo commits.",
+        )
+    return status
+
+
+def record(root, paths, message):
+    if not paths or not (root / ".git").exists():
+        return
+    check_commit_state(root)
+    changed = any(
+        git(root, "diff", *cached, "--quiet", "HEAD", "--", *paths, check=False).returncode
+        for cached in ([], ["--cached"])
+    )
+    untracked = git(root, "ls-files", "--others", "--exclude-standard", "--", *paths).stdout
+    if not changed and not untracked:
+        return
+    stage = [
+        path
+        for path in paths
+        if git(root, "check-ignore", "--quiet", "--", path, check=False).returncode != 0
+    ]
+    if stage:
+        git(root, "add", "--", *stage)
+    staged = git(root, "diff", "--cached", "--no-renames", "--name-only", "-z").stdout.split("\0")
+    unrelated = [
+        path
+        for path in staged
+        if path and not any(path == p or path.startswith(p + "/") for p in paths)
+    ]
+    index = root / git(root, "rev-parse", "--git-path", "index").stdout.strip()
+    with tempfile.TemporaryDirectory(prefix="fo-record-", dir=index.parent) as directory:
+        isolated = Path(directory) / "index"
+        shutil.copyfile(index, isolated)
+        env = {**os.environ, "GIT_INDEX_FILE": str(isolated)}
+        if unrelated:
+            git(root, "reset", "-q", "HEAD", "--", *unrelated, env=env)
+        git(
+            root,
+            "-c",
+            "user.name=Family Office",
+            "-c",
+            "user.email=office@localhost",
+            "commit",
+            "-qm",
+            message,
+            env=env,
+        )
 
 
 def scan_history(root):
@@ -32,17 +114,16 @@ def scan_history(root):
 
 def commit_office(root, include_data=False):
     allowed = ["notebook", "reports"] + (["data"] if include_data else [])
-    # Every untracked file is listed, so a hidden file inside a new folder is seen too.
-    status = git(root, "status", "--porcelain", "-z", "--untracked-files=all").stdout
+    status = check_commit_state(root)
+    if changes_outside(status, allowed):
+        raise OfficeError(
+            "dirty_office",
+            "Unrelated office changes must be committed or resolved before publication.",
+        )
     for row in status.split("\0"):
         if not row:
             continue
         path = row[3:]
-        if not any(path == p or path.startswith(p + "/") for p in allowed):
-            raise OfficeError(
-                "dirty_office",
-                "Unrelated office changes must be committed or resolved before publication.",
-            )
         # Hidden entries under reports/ (.claude/, .git/, ...) would reach later sessions.
         if path.startswith("reports/") and any(
             part.startswith(".") for part in path.split("/")[1:]
@@ -57,6 +138,8 @@ def commit_office(root, include_data=False):
     git(root, "add", "--", *paths)
     changed = git(root, "diff", "--cached", "--quiet", check=False).returncode != 0
     if changed:
+        # The status check above admits only allowed paths, so the index holds nothing else.
+        # A pathspec would fail on an allowed folder that exists but is empty.
         git(
             root,
             "-c",
@@ -66,8 +149,6 @@ def commit_office(root, include_data=False):
             "commit",
             "-qm",
             "Record office updates",
-            "--",
-            *paths,
         )
     remote = read_config(root).get("hosts", {}).get("remote")
     if remote:

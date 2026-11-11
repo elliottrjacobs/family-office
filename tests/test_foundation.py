@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from fo.config import credentials_dir, ensure_credentials
+from fo.office import git
 
 
 def fo(*args, cwd=None):
@@ -40,11 +41,189 @@ def test_init_doctor_idempotent_and_discovery(tmp_path):
     )
 
 
+@pytest.mark.parametrize("missing_file", [False, True])
+def test_doctor_repairs_and_records_launchd_ignore(tmp_path, missing_file):
+    from fo.init import initialize
+    from fo.serve.onboarding import derive
+    from fo.serve.server import Locator
+
+    root = tmp_path / "office"
+    initialize(root)
+    path = root / ".gitignore"
+    original = path.read_text().replace("launchd/\n", "").rstrip("\n")
+    if missing_file:
+        path.unlink()
+    else:
+        path.write_text(original)
+    result = fo("doctor", "--office", root, "--json")
+    checks = {c["name"]: c for c in json.loads(result.stdout)}
+    assert checks["office.ignore"]["status"] == "warn"
+    item = next(c for c in derive(Locator(root))["doctor"] if c["name"] == "office.ignore")
+    assert "fo doctor --fix" in item["command"]
+    result = fo("doctor", "--fix", "--office", root, "--json")
+    assert result.returncode == 0, result.stdout + result.stderr
+    checks = {c["name"]: c for c in json.loads(result.stdout)}
+    assert checks["office.ignore"]["status"] == "pass"
+    assert path.read_text() == ("" if missing_file else original + "\n") + "launchd/\n"
+    assert git(root, "status", "--porcelain", "--", ".gitignore").stdout == ""
+    if not missing_file:
+        assert git(root, "status", "--porcelain").stdout == ""
+    head = git(root, "rev-parse", "HEAD").stdout
+    assert fo("doctor", "--fix", "--office", root, "--json").returncode == 0
+    assert git(root, "rev-parse", "HEAD").stdout == head
+
+
 def test_public_repo_cannot_be_an_office(tmp_path):
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     result = fo("init", tmp_path / "office", "--json")
     assert result.returncode != 0
     assert json.loads(result.stdout)["reason"] == "nested_repository"
+
+
+@pytest.mark.parametrize(
+    "change", ["clean", "allowed", "profile", "staged", "deleted", "untracked"]
+)
+def test_doctor_reports_changes_that_block_nightly_commit(tmp_path, change):
+    from fo.commits import commit_office
+    from fo.doctor import diagnose
+    from fo.errors import OfficeError
+    from fo.init import initialize
+    from fo.serve.onboarding import fix
+
+    root = tmp_path / "office"
+    initialize(root)
+    if change == "allowed":
+        for directory in ("notebook", "reports", "data"):
+            (root / directory / "new file\nwith newline.txt").write_text("Update\n")
+    elif change in {"profile", "staged"}:
+        path = root / "profile/household.md"
+        path.write_text(path.read_text() + "\nUser edit.\n")
+        if change == "staged":
+            git(root, "add", "--", "profile/household.md")
+    elif change == "deleted":
+        (root / "profile/household.md").unlink()
+    elif change == "untracked":
+        (root / "reports-other").mkdir()
+        (root / "reports-other/new file\nwith newline.txt").write_text("Unrelated\n")
+    before = git(root, "status", "--porcelain", "-z").stdout
+    item = next(c for c in diagnose(root) if c["name"] == "office.uncommitted")
+    assert git(root, "status", "--porcelain", "-z").stdout == before
+    assert item["status"] == ("pass" if change in {"clean", "allowed"} else "warn")
+    if item["status"] == "warn":
+        assert item["reason"].startswith("1 uncommitted change(s)")
+        assert "block fo commit and the nightly sync" in item["reason"]
+        command, hint = fix(root, item["name"])
+        assert command is None and "commit or resolve" in hint.lower()
+        with pytest.raises(OfficeError) as exc:
+            commit_office(root, include_data=True)
+        assert exc.value.reason == "dirty_office"
+    else:
+        assert commit_office(root, include_data=True)["committed"] == (change == "allowed")
+
+
+def test_doctor_skips_uncommitted_check_without_git(tmp_path):
+    from fo.doctor import diagnose
+    from fo.init import initialize
+
+    root = tmp_path / "office"
+    initialize(root)
+    (root / ".git").rename(tmp_path / "git-backup")
+    assert "office.uncommitted" not in {c["name"] for c in diagnose(root)}
+
+
+@pytest.mark.parametrize("managed", [".gitignore", ".claude/settings.json", "office.toml"])
+def test_doctor_retries_recording_after_index_lock(tmp_path, managed):
+    from fo.init import initialize
+
+    root = tmp_path / "office"
+    initialize(root)
+    path = root / managed
+    if managed == ".gitignore":
+        path.write_text(path.read_text().replace("launchd/\n", ""))
+    elif managed == ".claude/settings.json":
+        path.write_text("{}\n")
+    else:
+        path.write_text(
+            "".join(
+                line
+                for line in path.read_text().splitlines(keepends=True)
+                if not line.startswith("id = ")
+            )
+        )
+    lock = root / ".git/index.lock"
+    lock.touch()
+    result = fo("doctor", "--fix", "--office", root, "--json")
+    assert result.returncode == 1
+    assert json.loads(result.stdout)["reason"] == "git_failed"
+    if managed == ".gitignore":
+        assert "launchd/" in path.read_text().splitlines()
+        checks = json.loads(fo("doctor", "--office", root, "--json").stdout)
+        check = next(c for c in checks if c["name"] == "office.ignore")
+        assert check["status"] == "warn"
+        assert "fo doctor --fix" in check["reason"]
+    lock.unlink()
+    result = fo("doctor", "--fix", "--office", root, "--json")
+    checks = json.loads(result.stdout)
+    assert [c["name"] for c in checks if c["status"] == "fail"] == (
+        ["skills.fresh"] if managed == "office.toml" else []
+    )
+    assert git(root, "status", "--porcelain").stdout == ""
+    assert fo("commit", "--office", root, "--json").returncode == 0
+    head = git(root, "rev-parse", "HEAD").stdout
+    result = fo("doctor", "--fix", "--office", root, "--json")
+    assert isinstance(json.loads(result.stdout), list)
+    assert git(root, "rev-parse", "HEAD").stdout == head
+
+
+@pytest.mark.parametrize("ignore_present", [False, True])
+def test_doctor_untracks_launchd_and_keeps_local_files(tmp_path, ignore_present):
+    from fo.commits import commit_office
+    from fo.init import initialize
+
+    root = tmp_path / "office"
+    initialize(root)
+    ignore = root / ".gitignore"
+    if not ignore_present:
+        ignore.write_text(ignore.read_text().replace("launchd/\n", ""))
+    plist = root / "launchd/local.family-office.sync.plist"
+    plist.parent.mkdir()
+    plist.write_text("old host\n")
+    git(root, "add", "-f", "--", ".gitignore", "launchd")
+    git(
+        root,
+        "-c",
+        "user.name=t",
+        "-c",
+        "user.email=t@example.invalid",
+        "commit",
+        "-qm",
+        "Old workaround",
+    )
+    unrelated = root / "profile/household.md"
+    before = git(root, "show", "HEAD:profile/household.md").stdout
+    unrelated.write_text(unrelated.read_text() + "\nUnrelated edit\n")
+    git(root, "add", "--", "profile/household.md")
+    checks = json.loads(fo("doctor", "--office", root, "--json").stdout)
+    check = next(c for c in checks if c["name"] == "office.ignore")
+    assert check["status"] == "warn"
+    assert "fo doctor --fix" in check["reason"]
+    plist.write_text("regenerated before repair\n")
+    result = fo("doctor", "--fix", "--office", root, "--json")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert (
+        next(c for c in json.loads(result.stdout) if c["name"] == "office.ignore")["status"]
+        == "pass"
+    )
+    assert git(root, "ls-files", "--", "launchd").stdout == ""
+    assert git(root, "ls-tree", "--name-only", "HEAD", "--", "launchd").stdout == ""
+    assert plist.read_text() == "regenerated before repair\n"
+    assert git(root, "show", "HEAD:profile/household.md").stdout == before
+    assert git(root, "status", "--porcelain", "--", "profile/household.md").stdout.startswith("M ")
+    git(root, "restore", "--staged", "--worktree", "--", "profile/household.md")
+    plist.write_text("new host\n")
+    (root / "notebook/plan.md").write_text("Updated plan\n")
+    assert commit_office(root) == {"committed": True, "pushed": False}
+    assert git(root, "status", "--porcelain").stdout == ""
 
 
 def test_missing_office_is_structured(tmp_path):
@@ -131,6 +310,7 @@ def test_credentials_migrate_once_outside_office(tmp_path):
         (legacy / name).write_bytes(value)
         (legacy / name).chmod(0o600)
     directory = ensure_credentials(root)
+    assert git(root, "status", "--porcelain").stdout == ""
     assert directory.parent == tmp_path / "credentials"
     assert directory.name == read_config(root)["office"]["id"]
     assert not directory.is_relative_to(root)
@@ -455,6 +635,7 @@ def test_existing_office_credential_read_denies_are_checked_and_repaired(
     assert not legacy.exists()
     check = next(c for c in diagnose(root) if c["name"] == "credentials.agent_reads")
     assert check["status"] == "pass"
+    assert git(root, "status", "--porcelain").stdout == ""
     before = path.read_bytes(), path.stat().st_mtime_ns
     ensure_credentials(root)
     assert (path.read_bytes(), path.stat().st_mtime_ns) == before
@@ -496,6 +677,58 @@ def test_office_id_creation_holds_the_config_write_lock(tmp_path, monkeypatch):
     monkeypatch.setattr(fo.config, "_write_config", locked_write)
     ensure_credentials(root)
     assert fo.config.read_config(root)["office"]["timezone"] == "UTC"
+
+
+def test_doctor_git_repairs_refuse_a_concurrent_office_lock(tmp_path, monkeypatch):
+    from contextlib import ExitStack
+
+    from typer.testing import CliRunner
+
+    from fo.cli import app
+    from fo.init import initialize
+    from fo.lock import office_lock
+
+    root = tmp_path / "office"
+    initialize(root)
+    ignore = root / ".gitignore"
+    original = ignore.read_text().replace("launchd/\n", "")
+    ignore.write_text(original)
+    head = git(root, "rev-parse", "HEAD").stdout
+    with ExitStack() as locks:
+
+        def ensure_then_lock(root):
+            directory = ensure_credentials(root)
+            locks.enter_context(office_lock(root))
+            return directory
+
+        monkeypatch.setattr("fo.config.ensure_credentials", ensure_then_lock)
+        result = CliRunner().invoke(app, ["doctor", "--fix", "--office", str(root), "--json"])
+    assert result.exit_code == 1
+    assert json.loads(result.output)["reason"] == "office_locked"
+    assert ignore.read_text() == original
+    assert git(root, "rev-parse", "HEAD").stdout == head
+    assert git(root, "diff", "--cached", "--name-only").stdout == ""
+
+
+def test_existing_identity_credential_recording_waits_for_office_lock(tmp_path, monkeypatch):
+    from fo.errors import OfficeError
+    from fo.init import initialize
+    from fo.lock import office_lock
+
+    root = tmp_path / "office"
+    initialize(root)
+    (root / ".claude/settings.json").write_text("{}\n")
+    head = git(root, "rev-parse", "HEAD").stdout
+    monkeypatch.setattr("fo.config.LOCK_WAIT", 0.05)
+    with office_lock(root):
+        with pytest.raises(OfficeError) as error:
+            ensure_credentials(root)
+    assert error.value.reason == "office_locked"
+    assert git(root, "rev-parse", "HEAD").stdout == head
+    assert git(root, "diff", "--cached", "--name-only").stdout == ""
+    result = fo("doctor", "--fix", "--office", root, "--json")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert git(root, "status", "--porcelain").stdout == ""
 
 
 @pytest.mark.parametrize("read_only", [True, False])

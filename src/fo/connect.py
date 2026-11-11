@@ -11,6 +11,7 @@ import re
 import tomllib
 
 from fo.auth import save_keys, save_secret_json
+from fo.commits import record
 from fo.config import credentials_dir, ensure_credentials, read_config, read_secrets
 from fo.errors import OfficeError
 from fo.lock import office_lock
@@ -116,6 +117,7 @@ def remove(root, provider):
     if provider == "edgar":
         with office_lock(root):
             set_edgar(root, None)
+            record(root, ["office.toml"], "Remove EDGAR contact")
         return {"provider": provider, "connected": False}
     with office_lock(root):
         path = credentials_dir(root) / f"{provider}.json"
@@ -139,6 +141,7 @@ def edgar(root, user_agent):
         )
     with office_lock(root):
         set_edgar(root, value)
+        record(root, ["office.toml"], "Set EDGAR contact")
     return {"provider": "edgar", "connected": True}
 
 

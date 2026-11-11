@@ -1,4 +1,6 @@
 import json
+import subprocess
+from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
@@ -296,7 +298,10 @@ def test_no_mapped_accounts_fail_without_completing(
     assert logs == ([] if dry_run else [log])
     if returned_accounts:
         assert result["reason"] == "no_mapped_accounts"
+        assert result["unmapped_accounts"] == 1
         assert f"fo auth {provider}" in result["message"] and "then `fo sync`" in result["message"]
+        if provider == "simplefin":
+            assert "new SimpleFIN setup token" in result["message"]
         assert "PRIVATE-UNMAPPED" not in response.output and "99990000" not in response.output
         assert project(office)["providers"] == {}
         checks = {c["name"]: c for c in diagnose(office)}
@@ -305,11 +310,229 @@ def test_no_mapped_accounts_fail_without_completing(
         if not dry_run:
             assert checks[f"sync.unmapped.{provider}"]["status"] == "warn"
             assert f"fo auth {provider}" in checks[f"sync.unmapped.{provider}"]["reason"]
+            if provider == "simplefin":
+                assert "new SimpleFIN setup token" in checks[f"sync.unmapped.{provider}"]["reason"]
         onboarding = derive(Locator(office))
         assert onboarding["last_sync"] is None
         assert not next(c["done"] for c in onboarding["checklist"] if c["id"] == "first_sync")
+        if not dry_run:
+            assert onboarding["steps"][0]["command"].startswith(f"fo auth {provider} ")
+            assert onboarding["steps"][-1]["command"].startswith("fo sync ")
     else:
         assert result["account_ids"] == []
+
+
+@pytest.mark.parametrize("dry_run", [False, True])
+@pytest.mark.parametrize("mapped", [False, True])
+def test_simplefin_institution_errors_keep_counts_and_point_to_provider(
+    office, monkeypatch, dry_run, mapped
+):
+    import httpx
+
+    from fo.auth import save_keys
+    from fo.doctor import diagnose
+    from fo.providers.simplefin import SimpleFIN
+    from fo.serve.onboarding import derive
+    from fo.serve.server import Locator
+    from fo.store.jsonl import read_rows
+
+    registry = [
+        {
+            "id": "a",
+            "provider": "simplefin",
+            "provider_ref": "bridge-a",
+            "last4": "",
+            "role": "cash",
+        }
+    ]
+    (office / "profile/accounts.json").write_text(json.dumps({"accounts": registry}))
+    save_keys(office, {"simplefin": {"access_url": "https://u:p@bridge.example/base"}})
+    body = {
+        "accounts": [{"id": "PRIVATE-UNMAPPED"}],
+        "errors": ["PRIVATE-INSTITUTION-ERROR"],
+    }
+    if mapped:
+        body["accounts"].append({"id": "bridge-a", "balance": "15.20", "balance-date": 1789200000})
+    original = SimpleFIN.__init__
+
+    def initialize_adapter(self, access_url, timezone):
+        original(
+            self,
+            access_url,
+            timezone=timezone,
+            transport=httpx.MockTransport(lambda req: httpx.Response(200, json=body)),
+        )
+
+    monkeypatch.setattr(SimpleFIN, "__init__", initialize_adapter)
+    result = synchronize(office, provider="simplefin", dry_run=dry_run)[0]
+    assert result["status"] == ("complete" if mapped else "failed")
+    assert result["provider_errors"] == 1
+    assert result["unmapped_accounts"] == 1
+    if not mapped:
+        assert result["reason"] == "institution_errors"
+        assert "repair them at the provider" in result["message"]
+        assert "fo auth" not in result["message"]
+        assert project(office)["providers"] == {}
+    logs = read_rows(office, "data/sync_log.jsonl")
+    assert logs == ([] if dry_run else [{k: v for k, v in result.items() if k != "dry_run"}])
+    if not dry_run:
+        checks = [c for c in diagnose(office) if c["name"] == "sync.errors.simplefin"]
+        assert len(checks) == 1 and checks[0]["status"] == "warn"
+        if not mapped:
+            onboarding = derive(Locator(office))
+            assert onboarding["state"] == "never_synced"
+            assert len(onboarding["steps"]) == 1
+            assert onboarding["steps"][0]["command"].startswith("fo sync ")
+            assert "Repair the institution connection" in onboarding["steps"][0]["purpose"]
+            assert "fo auth" not in json.dumps(onboarding["steps"])
+        body["errors"] = []
+        body["accounts"] = [{"id": "bridge-a", "balance": "15.20", "balance-date": 1789200000}]
+        assert synchronize(office, provider="simplefin")[0]["status"] == "complete"
+        assert not any(c["name"] == "sync.errors.simplefin" for c in diagnose(office))
+    assert "PRIVATE-UNMAPPED" not in json.dumps(result)
+    assert "PRIVATE-INSTITUTION-ERROR" not in json.dumps(result) + json.dumps(logs)
+
+
+def test_empty_ingest_with_institution_errors_does_not_complete(office):
+    from fo.store.jsonl import read_rows
+
+    with pytest.raises(OfficeError) as error:
+        ingest(office, "simplefin", [], provider_errors=2)
+    assert error.value.reason == "institution_errors"
+    assert read_rows(office, "data/sync_log.jsonl") == []
+
+
+def test_record_includes_a_new_managed_file_and_skips_unchanged_files(office):
+    from fo.commits import record
+
+    path = office / ".claude/local.json"
+    path.write_text("{}\n")
+    record(office, [".claude/local.json"], "Record synthetic settings")
+    assert git(office, "show", "HEAD:.claude/local.json").stdout == "{}\n"
+    assert git(office, "status", "--porcelain").stdout == ""
+    head = git(office, "rev-parse", "HEAD").stdout
+    record(office, [".claude/local.json"], "No changes")
+    assert git(office, "rev-parse", "HEAD").stdout == head
+
+
+@pytest.mark.parametrize("source", ["Unrelated.md", "profile/unrelated.md"])
+def test_record_preserves_unrelated_staged_rename(office, source):
+    from fo.commits import record
+
+    (office / source).write_text("Unrelated contents\n")
+    record(office, [source], "Create synthetic note")
+    git(office, "mv", "--", source, "profile/renamed.md")
+    before = git(office, "diff", "--cached", "--raw").stdout
+    (office / ".claude/local.json").write_text("{}\n")
+    record(office, [".claude/local.json"], "Record synthetic settings")
+    assert git(office, "show", f"HEAD:{source}").stdout == "Unrelated contents\n"
+    assert git(office, "cat-file", "-e", "HEAD:profile/renamed.md", check=False).returncode
+    assert git(office, "diff", "--cached", "--raw").stdout == before
+    assert git(office, "show", "--format=", "--name-only", "HEAD").stdout.splitlines() == [
+        ".claude/local.json"
+    ]
+
+
+def test_record_without_a_repository_does_not_create_one(tmp_path):
+    from fo.commits import record
+
+    (tmp_path / "office.toml").write_text('[office]\nid = "fixture"\n')
+    record(tmp_path, ["office.toml"], "Record synthetic settings")
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["office.toml"]
+
+
+@pytest.mark.parametrize("command", ["office", "record"])
+def test_commits_do_not_conclude_a_conflicted_merge(office, command):
+    from fo.commits import commit_office, record
+
+    identity = ["-c", "user.name=t", "-c", "user.email=t@example.invalid"]
+    note = office / "notebook/plan.md"
+    base = git(office, "symbolic-ref", "--short", "HEAD").stdout.strip()
+    git(office, "checkout", "-qb", "other")
+    note.write_text("other host\n")
+    git(office, "add", "--", "notebook")
+    git(office, *identity, "commit", "-qm", "other")
+    git(office, "checkout", "-q", base)
+    note.write_text("this host\n")
+    git(office, "add", "--", "notebook")
+    git(office, *identity, "commit", "-qm", "mine")
+    assert git(office, *identity, "merge", "other", check=False).returncode
+    head = git(office, "rev-parse", "HEAD").stdout
+    status = git(office, "status", "--porcelain").stdout
+    with pytest.raises(OfficeError) as error:
+        if command == "office":
+            commit_office(office)
+        else:
+            record(office, ["notebook/plan.md"], "Record plan")
+    assert error.value.reason == "merge_in_progress"
+    assert (
+        error.value.message
+        == "Finish or abort the Git merge or rebase in the office before fo commits."
+    )
+    assert git(office, "rev-parse", "HEAD").stdout == head
+    assert git(office, "status", "--porcelain").stdout == status
+    assert "<<<<<<<" not in git(office, "show", "HEAD:notebook/plan.md").stdout
+
+
+@pytest.mark.parametrize("command", ["office", "record"])
+@pytest.mark.parametrize(
+    "marker", ["MERGE_HEAD", "REBASE_HEAD", "CHERRY_PICK_HEAD", "rebase-merge", "rebase-apply"]
+)
+def test_commits_refuse_unfinished_git_operations_even_when_clean(office, marker, command):
+    from fo.commits import commit_office, record
+
+    marker_path = Path(git(office, "rev-parse", "--git-path", marker).stdout.strip())
+    marker_path = office / marker_path
+    if marker.startswith("rebase-"):
+        marker_path.mkdir()
+    else:
+        marker_path.write_text(git(office, "rev-parse", "HEAD").stdout)
+    with pytest.raises(OfficeError) as error:
+        if command == "office":
+            commit_office(office)
+        else:
+            record(office, ["office.toml"], "Record settings")
+    assert error.value.reason == "merge_in_progress"
+
+
+@pytest.mark.parametrize("command", ["office", "record"])
+@pytest.mark.parametrize(
+    "status,stages",
+    [
+        ("DD", [1]),
+        ("AU", [2]),
+        ("UD", [1, 2]),
+        ("UA", [3]),
+        ("DU", [1, 3]),
+        ("AA", [2, 3]),
+        ("UU", [1, 2, 3]),
+    ],
+)
+def test_commits_refuse_unmerged_index_without_operation_markers(office, status, stages, command):
+    from fo.commits import commit_office, record
+
+    path = "notebook/corrections.md"
+    oid = git(office, "rev-parse", f"HEAD:{path}").stdout.strip()
+    entries = f"0 {'0' * 40}\t{path}\n" + "".join(
+        f"100644 {oid} {stage}\t{path}\n" for stage in stages
+    )
+    subprocess.run(
+        ["git", "-C", str(office), "update-index", "--index-info"],
+        input=entries,
+        text=True,
+        check=True,
+    )
+    before = git(office, "status", "--porcelain").stdout
+    assert before.startswith(status + " ")
+    head = git(office, "rev-parse", "HEAD").stdout
+    with pytest.raises(OfficeError) as error:
+        if command == "office":
+            commit_office(office)
+        else:
+            record(office, ["office.toml"], "Record settings")
+    assert error.value.reason == "merge_in_progress"
+    assert git(office, "status", "--porcelain").stdout == before
+    assert git(office, "rev-parse", "HEAD").stdout == head
 
 
 @pytest.mark.parametrize("writer", [False, True])

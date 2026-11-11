@@ -8,6 +8,7 @@ from pathlib import Path
 import yaml
 
 from fo import __version__
+from fo.commits import record
 from fo.config import read_config
 from fo.errors import OfficeError
 from fo.office import atomic_write, contained, write_json
@@ -94,6 +95,7 @@ def tier_config(config, host, tier):
 
 
 def sync(root):
+    """Render office instructions and skills while the caller holds office_lock."""
     config = read_config(root)
     stamp = contained(root, ".agents/skills/.fo-stamp.json")
     count = 0
@@ -182,6 +184,7 @@ def sync(root):
             if path.is_file() and path != stamp:
                 tracked[str(path.relative_to(root))] = hashlib.sha256(path.read_bytes()).hexdigest()
     write_json(stamp, {"version": __version__, "digest": digest(root), "files": tracked})
+    record(root, ["AGENTS.md", "CLAUDE.md"], "Update office instructions")
     return {"skills": count, "version": __version__}
 
 
