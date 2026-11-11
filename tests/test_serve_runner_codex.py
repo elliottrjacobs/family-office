@@ -114,6 +114,7 @@ def test_environment_has_the_run_homes_and_nothing_from_claude(tmp_path, auth, m
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", "/elsewhere")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "synthetic")
     monkeypatch.setenv("SECRET_THING", "synthetic")
+    monkeypatch.setenv("FO_SERVE_HOOK_ACTIVE", "1")
     runner = CodexRunner(executable=["/opt/codex/bin/codex"], auth_home=auth)
     folder = tmp_path / "run"
     env = runner.environment(tmp_path, folder, web=True, web_fetch_cap=7)
@@ -124,6 +125,7 @@ def test_environment_has_the_run_homes_and_nothing_from_claude(tmp_path, auth, m
     assert (env["FO_SERVE_WEB"], env["FO_SERVE_WEB_FETCH_CAP"]) == ("1", "7")
     assert not [key for key in env if key.startswith(("CLAUDE", "ANTHROPIC"))]
     assert "SECRET_THING" not in env
+    assert "FO_SERVE_HOOK_ACTIVE" not in env
     assert env["PATH"].split(os.pathsep) == [
         str(Path(sys.executable).parent),
         "/opt/codex/bin",

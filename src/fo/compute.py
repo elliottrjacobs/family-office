@@ -313,9 +313,10 @@ def cashflow(root, months=3, read_only=False):
                 "month": row["month"],
                 "partial": offset == 0,
                 "uncategorized_count": row["uncategorized_count"],
+                "uncategorized_inflow": row["uncategorized_inflow"],
                 "income": row["income"],
                 "spend": row["spend"],
-                "net": row["income"] - row["spend"],
+                "net": None if row["uncategorized_inflow"] else row["income"] - row["spend"],
             }
         )
     return envelope(state, months=rows)

@@ -62,3 +62,7 @@ class ResponseCache:
             if self.root == root:
                 self.entries[key] = (current, now, value)
         return value
+
+    def forget(self, key):
+        with self.lock:
+            self.entries.pop(key, None)

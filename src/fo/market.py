@@ -146,29 +146,46 @@ def metric_observations(root, symbol, metric, decision=None):
     decision = decision or {}
     try:
         if metric == "cash_months":
-            from fo.compute import cash_holdings, categorized, context, spend, total
+            from fo.compute import (
+                INVESTMENT_KINDS,
+                cash_holdings,
+                categorized,
+                context,
+                spend,
+                total,
+            )
 
             state = context(root, True)
             registry = {a["id"]: a for a in load(root, "accounts")["accounts"]}
             cash = cash_holdings(state, registry)
-            dates = [
-                date.fromisoformat(day[:10])
-                for t in state["transactions"]
-                if (day := t.get("posted_date") or t.get("transacted_at"))
-            ]
-            if not state["as_of"] or not dates:
+            rules = load(root, "categories")["rules"]
+            transactions = categorized(root, state, rules)
+            first_by_account = {}
+            for tx in transactions:
+                day = tx.get("posted_date") or tx.get("transacted_at")
+                if (
+                    not day
+                    or tx.get("pending")
+                    or tx.get("status") == "expired"
+                    or tx["transfer"]
+                    or tx.get("kind") in INVESTMENT_KINDS
+                    or (tx["category"].casefold() == "needs-review" and Decimal(tx["amount"]) > 0)
+                ):
+                    continue
+                first = date.fromisoformat(day[:10])
+                account = tx["account_id"]
+                first_by_account[account] = min(first_by_account.get(account, first), first)
+            if not state["as_of"] or not first_by_account:
                 return []
             as_of = date.fromisoformat(state["as_of"][:10])
             # Only months ending by the sync date and before the current month qualify.
             end = min(date.today().replace(day=1), (as_of + timedelta(days=1)).replace(day=1))
             index = end.year * 12 + end.month - 1
-            rules = load(root, "categories")["rules"]
-            transactions = categorized(root, state, rules)
             spending = []
             for offset in (3, 2, 1):
                 year, month = divmod(index - offset, 12)
                 first = date(year, month + 1, 1)
-                if min(dates) > first:
+                if any(day > first for day in first_by_account.values()):
                     return []
                 spending.append(
                     spend(
@@ -181,7 +198,7 @@ def metric_observations(root, symbol, metric, decision=None):
                     )["spend"]
                 )
             outflow = total(spending)
-            if cash is None or not outflow:
+            if cash is None or outflow <= 0:
                 return []
             return [
                 {
