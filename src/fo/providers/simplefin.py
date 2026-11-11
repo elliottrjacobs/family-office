@@ -9,6 +9,14 @@ from fo.errors import OfficeError
 from fo.providers.text import local_date, untrusted_text
 
 
+def currency_code(value):
+    """An ISO 4217 code, None when absent, or XXX for anything else; there is no FX."""
+    if value is None:
+        return None
+    code = str(value).strip().upper()
+    return code if re.fullmatch(r"[A-Z]{3}", code) else "XXX"
+
+
 class SimpleFIN:
     def __init__(self, access_url, transport=None, timezone=UTC):
         parts = urlsplit(access_url)
@@ -64,12 +72,7 @@ class SimpleFIN:
                         "positions": [],
                         "balance": {
                             "net_value": item["balance"],
-                            "currency": (
-                                item.get("currency")
-                                if item.get("currency") is None
-                                or re.fullmatch(r"[A-Z]{3}", str(item["currency"]))
-                                else "XXX"
-                            ),
+                            "currency": currency_code(item.get("currency")),
                         },
                         "transactions": transactions,
                         "transaction_window": {

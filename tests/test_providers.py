@@ -293,3 +293,13 @@ def test_simplefin_currency_is_stored(tmp_path, currency):
     ingest(root, "simplefin", client.accounts(registry))
     row = list(read_rows(root, "data/balances.jsonl"))[0]
     assert row["currency"] == ("XXX" if currency and currency.startswith("https:") else currency)
+
+
+@pytest.mark.parametrize(
+    ("raw", "code"),
+    [(None, None), ("USD", "USD"), (" usd", "USD"), ("eur\n", "EUR"), ("", "XXX"), ("EU", "XXX")],
+)
+def test_simplefin_currency_code_normalizes_iso_codes(raw, code):
+    from fo.providers.simplefin import currency_code
+
+    assert currency_code(raw) == code
