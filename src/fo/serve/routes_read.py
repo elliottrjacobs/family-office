@@ -20,6 +20,8 @@ from fo.store.jsonl import read_rows
 
 # Doctor shells out to git and reads permissions and token expiry outside the fingerprint.
 DOCTOR_TTL = 30
+# Bound time-dependent provider staleness even when office files do not change.
+FINGERPRINT_TTL = 300
 
 
 @dataclass
