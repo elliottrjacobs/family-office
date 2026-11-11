@@ -148,8 +148,9 @@ says otherwise), and Claude Code stays the recommended engine. Codex has no budg
 flag: its runs are bounded only by `run_timeout_minutes`, and the budget is recorded
 for information. The gate is in
 [research providers](docs/development/research-providers.md#codex-isolation).
-Codex's built-in web search at level `none` is not logged by `fo` or covered by
-its fetch cap; this remains a residual limitation alongside the read limitations.
+Codex's built-in web search at level `none` appears as `web` events in the run log,
+but it bypasses `web.jsonl`, the fetch cap, and the netguard URL checks; this remains
+a residual limitation alongside the read limitations.
 
 Accepted risk: reports, corrections, and decisions are fed back into later briefs,
 so text planted in provider data or an earlier report can steer later advice. The
