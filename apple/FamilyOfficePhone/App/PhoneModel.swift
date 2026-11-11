@@ -24,6 +24,8 @@ final class PhoneModel {
     private(set) var reloadToken = 0
 
     private var loop: Task<Void, Never>?
+    /// One automatic re-login is allowed; a second attempt waits for Retry or a good probe.
+    private var automaticReloginAttempts = 0
     private static let lastSeenKey = "lastSeen"
     private static let interval: Duration = .seconds(10)
 
@@ -63,6 +65,7 @@ final class PhoneModel {
 
     func pair(payload: PairingPayload, name: String) async throws {
         try await session.pair(payload: payload, name: name)
+        automaticReloginAttempts = 0
         if case .paired(let url, _, _) = session.state {
             reachability = makeReachability(for: url)
         }
@@ -72,13 +75,17 @@ final class PhoneModel {
 
     /// Trades the device token for a session; a 401 lands on pairing with the reason.
     func connect() async {
-        guard case .paired = session.state, phase != .connecting else { return }
+        guard case .paired = session.state, phase != .connecting,
+            automaticReloginAttempts < 2
+        else { return }
         phase = .connecting
         do {
             try await session.login()
-            await reachability?.check()
             phase = .connected
             reload()
+            // Let the post-login probe report a rejected cookie instead of ignoring it
+            // while connecting, and preserve any offline phase it sets.
+            await reachability?.check()
         } catch DeviceSessionError.unpaired {
             stopAfterUnpairing()
         } catch let error as DeviceSessionError {
@@ -90,6 +97,7 @@ final class PhoneModel {
     }
 
     func retry() {
+        automaticReloginAttempts = 0
         Task { await connect() }
     }
 
@@ -97,9 +105,15 @@ final class PhoneModel {
         reloadToken += 1
     }
 
-    /// A cookie 401 may mean the Mac restarted; authenticate with the stored token again.
+    /// A cookie 401 may mean the Mac restarted; try the stored token once until a good probe.
     func sessionExpired() {
-        guard phase != .connecting else { return }
+        guard case .paired = session.state, phase != .connecting else { return }
+        if automaticReloginAttempts >= 1 {
+            automaticReloginAttempts = 2
+            phase = .offline("The Mac keeps rejecting this phone's session. Tap Retry.")
+            return
+        }
+        automaticReloginAttempts += 1
         Task { await connect() }
     }
 
@@ -131,6 +145,7 @@ final class PhoneModel {
         guard let client = session.apiClient else { return false }
         do {
             _ = try await client.status()
+            automaticReloginAttempts = 0
             return true
         } catch APIError.http(401, _) {
             if client.hasSessionCookie {
