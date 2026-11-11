@@ -180,7 +180,7 @@ def test_simplefin_unmapped_accounts_do_not_block_sync(office, monkeypatch, ambi
 @pytest.mark.parametrize("provider", ["simplefin", "schwab"])
 @pytest.mark.parametrize("returned_accounts", [False, True])
 @pytest.mark.parametrize("dry_run", [False, True])
-def test_no_mapped_accounts_fail_without_completing_or_committing(
+def test_no_mapped_accounts_fail_without_completing(
     office, monkeypatch, provider, returned_accounts, dry_run
 ):
     import httpx
@@ -297,6 +297,7 @@ def test_sync_if_writer_skips_without_writes_or_syncs(office, monkeypatch, write
     else:
         assert results[0]["status"] == "skipped"
         assert results[0]["reason"] == "not_writer"
+        assert commits == []
         assert {p: p.read_bytes() for p in office.rglob("*") if p.is_file()} == before
         assert read_rows(office, "data/sync_log.jsonl") == []
         assert commits == []
