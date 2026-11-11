@@ -383,6 +383,21 @@ def _assign(settings: dict, key: str, value) -> dict:
     return result
 
 
+TIMEZONE_NOTE = (
+    "Stored transaction dates were not rewritten. The next `fo sync` re-dates Schwab and "
+    "SimpleFIN transactions from the last 30 days in {new}; `fo sync --full` reaches 90 days. "
+    "Older ones keep their {old} date, so a transaction near midnight can sit one day off "
+    "and month totals next to the change can move."
+)
+
+
+def _has_transactions(root: Path) -> bool:
+    try:
+        return contained(root, "data/transactions.jsonl").stat().st_size > 0
+    except OSError:
+        return False
+
+
 def set_config(root: Path, key: str, text: str) -> dict:
     """Set one schema key in office.toml, atomically and under the office lock.
 
@@ -395,9 +410,10 @@ def set_config(root: Path, key: str, text: str) -> dict:
 
     value = config_value(key, text)
     with office_lock(root, wait=LOCK_WAIT):
-        writer_changed = (
-            key == "hosts.writer" and read_config(root).get("hosts", {}).get("writer") != value
-        )
+        before = read_config(root)
+        writer_changed = key == "hosts.writer" and before.get("hosts", {}).get("writer") != value
+        old_zone = before.get("office", {}).get("timezone", "UTC")
+        zone_changed = key == "office.timezone" and old_zone != value and _has_transactions(root)
         _write_config(root, key, value)
         record(root, ["office.toml"], f"Set {key}")
     result = {"key": key, "value": value}
@@ -406,6 +422,8 @@ def set_config(root: Path, key: str, text: str) -> dict:
             f"Run `fo schedule install` on {value} if it has not been scheduled there. "
             "The old host's sync job will now skip (with --if-writer)."
         )
+    if zone_changed:
+        result["note"] = TIMEZONE_NOTE.format(old=old_zone, new=value)
     return result
 
 

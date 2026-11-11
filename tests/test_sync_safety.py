@@ -179,6 +179,54 @@ def test_simplefin_unmapped_accounts_do_not_block_sync(office, monkeypatch, ambi
     assert "PRIVATE-UNMAPPED" not in json.dumps(result)
 
 
+def test_timezone_change_redates_in_window_transactions_once(office, monkeypatch):
+    import httpx
+
+    from fo.auth import save_keys
+    from fo.config import set_config
+    from fo.providers.simplefin import SimpleFIN
+
+    registry = [{"id": "a", "provider": "simplefin", "provider_ref": "bridge-a", "last4": ""}]
+    (office / "profile/accounts.json").write_text(json.dumps({"accounts": registry}))
+    save_keys(office, {"simplefin": {"access_url": "https://u:p@bridge.example/base"}})
+    monkeypatch.setattr("fo.providers.simplefin.time.time", lambda: 1789200000)
+    body = {
+        "accounts": [
+            {
+                "id": "bridge-a",
+                "balance": "15.20",
+                "balance-date": 1789200000,
+                "transactions": [
+                    {"id": "t", "amount": "-5", "posted": 1788222600, "description": "Cafe"}
+                ],
+            }
+        ]
+    }
+    original = SimpleFIN.__init__
+
+    def initialize_adapter(self, access_url, timezone):
+        original(
+            self,
+            access_url,
+            timezone=timezone,
+            transport=httpx.MockTransport(lambda req: httpx.Response(200, json=body)),
+        )
+
+    monkeypatch.setattr(SimpleFIN, "__init__", initialize_adapter)
+    assert synchronize(office, provider="simplefin")[0]["transaction_rows"] == 1
+    before = project(office)["transactions"]
+    assert len(before) == 1
+    assert before[0]["posted_date"] == "2026-08-31"
+    set_config(office, "office.timezone", "UTC")
+    assert synchronize(office, provider="simplefin")[0]["transaction_rows"] == 1
+    after = project(office)["transactions"]
+    assert len(after) == 1
+    assert after[0]["transaction_id"] == before[0]["transaction_id"]
+    assert after[0]["revision"] == 2
+    assert after[0]["posted_date"] == "2026-09-01"
+    assert synchronize(office, provider="simplefin")[0]["transaction_rows"] == 0
+
+
 @pytest.mark.parametrize("provider", ["simplefin", "schwab"])
 @pytest.mark.parametrize("returned_accounts", [False, True])
 @pytest.mark.parametrize("dry_run", [False, True])
