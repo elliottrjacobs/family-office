@@ -40,6 +40,14 @@ refund lowers its category. Mark an income rule with `income: true` in
 Monthly cashflow includes `partial` for the current month and `uncategorized_inflow`
 for excluded positive needs-review amounts, with `net` null while those amounts remain.
 
+## Currency
+
+Family Office assumes every account is in USD and does no currency conversion.
+A balance's `currency` is recorded, and net worth, allocation, cash holdings, and
+goals show unknown when any account is not in USD. `fo spend` and monthly
+cashflow do not check currency: transactions from a non-USD account are still
+counted as USD. This is a known limitation, kept on purpose.
+
 ## Companion app settings
 
 `fo serve` reads an optional `[serve]` table in `office.toml`: `port` (default
