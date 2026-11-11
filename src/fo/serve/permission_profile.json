@@ -8,6 +8,8 @@
   ],
   "deny": [
     "Read(secrets/**)",
+    "Read(~/Library/Application Support/FamilyOffice/credentials/**)",
+    "Read(~/.local/share/family-office/credentials/**)",
     "Read(cache/**)",
     "Read(imports/**)",
     "Read(medical/**)",

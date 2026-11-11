@@ -1,9 +1,10 @@
 """Paired devices: revocable bearer tokens for the iOS app, and the codes that issue them.
 
 A device token is 32 random bytes shown once in the pairing response and stored only as
-its SHA-256 in secrets/devices.json (0600 inside a 0700 directory), so the file never
-holds a usable credential. Pairing codes and login sessions live only in memory: a
-restart forgets them but keeps every paired device.
+its SHA-256 in devices.json in the per-machine credentials folder outside the office
+(0600 inside a 0700 directory), so the file never holds a usable credential. Pairing
+codes and login sessions live only in memory: a restart forgets them but keeps every
+paired device.
 """
 
 import hashlib
@@ -15,8 +16,9 @@ import threading
 import time
 from datetime import UTC, datetime
 
+from fo.config import credentials_dir, ensure_credentials
 from fo.errors import OfficeError
-from fo.office import atomic_write, contained
+from fo.office import atomic_write
 
 # No 0, O, 1, I, or L, so a code read off a screen cannot be mistyped into another one.
 ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
@@ -27,7 +29,7 @@ CODE_ATTEMPTS = 10
 SEEN_INTERVAL = 60.0
 NAME_LIMIT = 64
 DEVICE_ID = re.compile(r"dev_[0-9a-f]{12}")
-FILE = "secrets/devices.json"
+FILE = "devices.json"
 
 
 def digest(token):
@@ -79,23 +81,28 @@ class Devices:
         self.sessions = {}
 
     def path(self):
-        return contained(self.root(), FILE)
+        return credentials_dir(self.root()) / FILE
 
     def load(self):
-        path = self.path()
+        try:
+            path = self.path()
+        except OfficeError as exc:
+            if exc.reason == "credentials_not_migrated":
+                return []
+            raise
         if not path.is_file():
             return []
         try:
             value = json.loads(path.read_text())
         except ValueError as exc:
-            raise OfficeError("invalid_devices", "secrets/devices.json is unreadable.") from exc
+            raise OfficeError("invalid_devices", "The local devices.json is unreadable.") from exc
         records = value.get("devices") if isinstance(value, dict) else None
         if not isinstance(records, list):
-            raise OfficeError("invalid_devices", "secrets/devices.json is unreadable.")
+            raise OfficeError("invalid_devices", "The local devices.json is unreadable.")
         return [r for r in records if isinstance(r, dict) and isinstance(r.get("id"), str)]
 
     def save(self, records):
-        path = self.path()
+        path = ensure_credentials(self.root()) / FILE
         directory = path.parent
         directory.mkdir(mode=0o700, parents=True, exist_ok=True)
         directory.chmod(0o700)
@@ -128,7 +135,7 @@ class Devices:
     def pair(self, code, name):
         name = clean_name(name)
         # A refusal that is no fault of the code must not spend it.
-        self.path()
+        ensure_credentials(self.root())
         if not self.consume(code):
             raise OfficeError("invalid_pairing_code", "The pairing code is invalid or expired.")
         token = secrets.token_urlsafe(32)

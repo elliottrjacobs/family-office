@@ -9,8 +9,9 @@ copy its financial data into this checkout; development uses synthetic fixtures.
 - Python 3.12 through uv. Run `uv sync` and `uv run pytest`.
 - Run `uv run ruff check .` and `uv run ruff format --check .` before committing.
 - Account providers are read-only; no order, trade, or money-movement operations.
-- Secrets belong only in a private office's ignored secrets/ directory, at 0600
-  inside a 0700 directory. Never print provider exceptions or raw credentials.
+- Credentials belong in the per-machine credentials folder outside the office,
+  at 0600 inside a 0700 directory. The office may live in iCloud Drive.
+  Never print provider exceptions or raw credentials.
 - Canonical derived files are append-only JSONL; SQLite is a disposable index.
 - Test financial arithmetic, complete snapshots, identity changes, offline reads,
   interrupted writes, and privacy failures with synthetic data.

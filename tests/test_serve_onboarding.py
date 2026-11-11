@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from fo.config import credentials_dir
 from fo.errors import OfficeError
 from fo.init import initialize
 from fo.serve.onboarding import derive
@@ -22,8 +23,8 @@ def commands(result):
 
 
 def secrets(root, text='[simplefin]\naccess_url = "https://example.invalid/fake"\n'):
-    (root / "secrets").chmod(0o700)
-    path = root / "secrets/keys.toml"
+    credentials_dir(root).chmod(0o700)
+    path = credentials_dir(root) / "keys.toml"
     path.write_text(text)
     path.chmod(0o600)
 
@@ -90,7 +91,7 @@ def test_doctor_warning_after_sync_is_stale_with_its_fix(tmp_path):
     root = synthetic(tmp_path / "office")
     secrets(root)
     expiry = (datetime.now(UTC) + timedelta(hours=10)).isoformat().replace("+00:00", "Z")
-    token = root / "secrets/schwab-token.json"
+    token = credentials_dir(root) / "schwab-token.json"
     token.write_text(json.dumps({"refresh_token_expires_at": expiry}))
     token.chmod(0o600)
     result = derive(Locator(root))
@@ -122,7 +123,7 @@ def test_csv_only_office_ignores_the_offline_provider_warning(tmp_path):
 def test_doctor_fixes_name_their_commands(tmp_path):
     root = synthetic(tmp_path / "office")
     secrets(root)
-    (root / "secrets/keys.toml").chmod(0o644)
+    (credentials_dir(root) / "keys.toml").chmod(0o644)
     (root / ".agents/skills/.fo-stamp.json").unlink()
     profile = json.loads((root / "profile/accounts.json").read_text())
     profile["accounts"][0].pop("role")
@@ -131,7 +132,7 @@ def test_doctor_fixes_name_their_commands(tmp_path):
     items = {item["name"]: item for item in derive(Locator(root))["doctor"]}
     quoted = shlex.quote(str(root))
     assert items["skills.fresh"]["command"] == f"fo skills sync --office {quoted}"
-    assert items["secrets.perms"]["command"].startswith("chmod 700 ")
+    assert "doctor --fix" in items["credentials.perms"]["command"]
     assert items["accounts.roles"]["command"] is None
     assert "onboard" in items["accounts.roles"]["hint"]
 
@@ -238,7 +239,7 @@ def test_checklist_follows_the_office(tmp_path):
     (runs / "run-1.json").write_text("{}")
     assert checklist(derive(Locator(root)))["first_run"] is True
 
-    devices = root / "secrets/devices.json"
+    devices = credentials_dir(root) / "devices.json"
     devices.write_text(json.dumps({"devices": []}))
     assert checklist(derive(Locator(root)))["device_paired"] is False
     devices.write_text("{not json")
@@ -253,6 +254,23 @@ def test_checklist_reaches_the_route(tmp_path):
         items = checklist(client.get("/api/onboarding")[1])
     assert items["account_connected"] and items["first_sync"]
     assert not items["device_paired"]
+
+
+def test_derive_with_unmigrated_credentials_still_returns_doctor(tmp_path):
+    from fo.init import initialize
+    from fo.serve.onboarding import derive
+    from fo.serve.server import Locator
+
+    root = tmp_path / "office"
+    initialize(root)
+    config = root / "office.toml"
+    config.write_text('[office]\ntimezone = "UTC"\n')
+    before = config.read_bytes(), config.stat().st_mtime_ns
+    result = derive(Locator(root))
+    check = next(c for c in result["doctor"] if c["name"] == "credentials.perms")
+    assert check["status"] == "fail"
+    assert "doctor --fix" in check["command"]
+    assert (config.read_bytes(), config.stat().st_mtime_ns) == before
 
 
 @pytest.mark.parametrize("ready", [True, False])

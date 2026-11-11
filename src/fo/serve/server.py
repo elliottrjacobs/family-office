@@ -105,7 +105,7 @@ class App:
     runs: object | None = None
     # Each engine's last preflight, by name: (monotonic time, result, refusal).
     runner_status: dict = field(default_factory=dict)
-    # Paired phones, kept in the office's secrets/devices.json.
+    # Paired phones, kept in the machine-local credentials folder's devices.json.
     devices: Devices | None = None
 
     def __post_init__(self):

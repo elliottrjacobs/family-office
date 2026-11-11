@@ -97,11 +97,12 @@ public struct ConnectOutcome: Sendable, Equatable {
     }
 }
 
-/// Connection states from the server's routes, without reading `secrets/` from Swift:
+/// Connection states from the server's routes. Swift never reads the per-machine
+/// credentials folder outside the office:
 /// - account providers: `GET /api/onboarding` `providers[].connected`, else a masked entry in
-///   `GET /api/config` `secrets` (from `secrets/keys.toml`);
+///   `GET /api/config` `secrets` (from `keys.toml` in that folder);
 /// - key providers: the last Save or Remove in this session, else a masked `secrets` entry
-///   (the route lists `secrets/keys.toml` entries and the `secrets/<provider>.json` files
+///   (the route lists `keys.toml` entries and the `<provider>.json` files in that folder
 ///   `fo connect` writes, as `{"<provider>": {"api_key": "***"}}`), else not connected; not
 ///   reported only while the config route has not answered;
 /// - EDGAR: `settings.providers.edgar.user_agent` in `GET /api/config`.

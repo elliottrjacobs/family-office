@@ -9,9 +9,9 @@ import httpx
 import typer
 
 from fo.accounts import register
-from fo.config import read_secrets
+from fo.config import credentials_dir, ensure_credentials, read_secrets
 from fo.errors import OfficeError
-from fo.office import atomic_write, contained, write_json
+from fo.office import atomic_write, write_json
 from fo.store.authored import load
 
 
@@ -30,21 +30,12 @@ def save_keys(root, keys):
                 )
         return lines
 
-    secrets_dir(root)
-    atomic_write(contained(root, "secrets/keys.toml"), "\n".join(table(keys)) + "\n", 0o600)
-
-
-def secrets_dir(root):
-    directory = contained(root, "secrets")
-    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-    directory.chmod(0o700)
-    return directory
+    atomic_write(ensure_credentials(root) / "keys.toml", "\n".join(table(keys)) + "\n", 0o600)
 
 
 def save_secret_json(root, name, value):
-    """Write secrets/<name>.json atomically at 0600 inside the 0700 secrets directory."""
-    secrets_dir(root)
-    write_json(contained(root, f"secrets/{name}.json"), value, 0o600)
+    """Write <name>.json at 0600 in the machine-local credentials directory."""
+    write_json(ensure_credentials(root) / f"{name}.json", value, 0o600)
 
 
 def register_schwab(root, mappings, keys):
@@ -61,6 +52,7 @@ def register_schwab(root, mappings, keys):
 
 
 def authenticate(root, provider):
+    ensure_credentials(root)
     keys = read_secrets(root)
     if provider == "simplefin":
         encoded = typer.prompt("SimpleFIN setup token", hide_input=True)
@@ -102,7 +94,7 @@ def authenticate(root, provider):
             raise OfficeError("invalid_callback", "Use the registered HTTPS loopback callback URL.")
         settings["callback_url"] = callback
         expiry = (datetime.now(UTC) + timedelta(days=7)).isoformat().replace("+00:00", "Z")
-        path = contained(root, "secrets/schwab-token.json")
+        path = credentials_dir(root) / "schwab-token.json"
         path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         path.parent.chmod(0o700)
 

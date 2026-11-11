@@ -104,6 +104,9 @@ RESTRICTED = [
     ["notify", "hello", "--json"],
     ["migrate-v1", "elsewhere", "--dry-run", "--json"],
     ["serve", "--port", "0", "--json"],
+    ["doctor", "--fix", "--json"],
+    ["--json", "--", "doctor", "--fix"],
+    ["doctor", "--json", "--fix", "--read-only"],
     # Click drops a "--" separator, so the check must see the command after it.
     ["--json", "--", "sync"],
     ["--json", "--", "reindex"],
@@ -193,7 +196,14 @@ def test_shell_completion_is_not_offered(office, tmp_path, monkeypatch, flag):
 
 @pytest.mark.parametrize(
     "args",
-    [["status"], ["sync", "status"], ["journal", "list"], ["skills", "list"], ["reports", "list"]],
+    [
+        ["status"],
+        ["doctor"],
+        ["sync", "status"],
+        ["journal", "list"],
+        ["skills", "list"],
+        ["reports", "list"],
+    ],
 )
 def test_serve_run_marker_allows_read_commands(office, monkeypatch, args):
     monkeypatch.setenv("FO_SERVE_RUN", str(office))

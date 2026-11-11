@@ -1,3 +1,4 @@
+import os
 from collections.abc import Callable
 from pathlib import Path
 
@@ -140,10 +141,19 @@ def setup_command(
 
 
 @app.command()
-def doctor(ctx: typer.Context, notify: bool = False):
+def doctor(ctx: typer.Context, notify: bool = False, fix: bool = False):
     def execute():
-        if notify:
+        if notify or fix:
             writable(ctx)
+        if fix:
+            from fo.config import ensure_credentials
+
+            directory = ensure_credentials(root(ctx))
+            if not os.environ.get("FO_CREDENTIALS_HOME"):
+                directory.parent.chmod(0o700)
+            for path in directory.rglob("*"):
+                if not path.is_symlink():
+                    path.chmod(0o700 if path.is_dir() else 0o600)
         checks = diagnose(root(ctx))
         if notify and any(c["status"] in {"warn", "fail"} for c in checks):
             from fo.operations import notification
@@ -230,10 +240,12 @@ def print_skill(ctx: typer.Context, name: str, path: Path | None = None):
 @app.command("auth")
 def auth_command(ctx: typer.Context, provider: str):
     from fo.auth import authenticate
+    from fo.config import ensure_credentials
 
     def execute():
         writable(ctx)
         office = root(ctx)
+        ensure_credentials(office)
         with office_lock(office):
             return authenticate(office, provider)
 

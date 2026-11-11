@@ -2,7 +2,7 @@
 
 Advisor runs reach the web only through `fo`: `fo research` for Exa, Firecrawl, and
 Gemini Deep Research, and `fo connect` for the keys they need. Keys stay in the
-office's `secrets/`; runs load no user MCP servers.
+per-machine credentials folder outside the office; runs load no user MCP servers.
 
 ## Keys: `fo connect`
 
@@ -24,11 +24,12 @@ argument, trimmed, and checked with one request:
 | firecrawl | `GET https://api.firecrawl.dev/v2/team/credit-usage` (spends no credits) |
 | gemini | `GET https://generativelanguage.googleapis.com/v1beta/models?pageSize=1` |
 
-On success the key is written to `secrets/<provider>.json` as `{"api_key": ...}`,
-atomically, at 0600 inside the 0700 `secrets/` directory, under the office lock.
+On success the key is written to `<provider>.json` as `{"api_key": ...}`,
+atomically, at 0600 inside the 0700 per-machine credentials directory outside
+the office, under the office lock.
 On failure nothing is written. `--remove` deletes the file and any key `fo auth`
-stored for that provider in `secrets/keys.toml`. Market commands read either place,
-the JSON file first.
+stored for that provider in the credentials folder's `keys.toml`. Market commands
+read either place, the JSON file first.
 
 EDGAR needs no key. `--user-agent` must look like `Name email@example.com`; it is
 written to `[providers.edgar] user_agent` in `office.toml` by a one-line rewrite
