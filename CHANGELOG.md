@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Sync skips unmapped provider accounts and reports how many were skipped;
+  `fo doctor` directs users to `fo auth <provider>` to register them.
+  `fo config set` now accepts `hosts.writer` and `office.timezone`.
 - `fo serve`: an optional local web app with a read-only dashboard (home, finances
   against policy bands, reports, decisions, profile, advisor directory) and guided
   onboarding from an empty folder to a synced office. Loopback by default, a

@@ -11,7 +11,8 @@ from tests.test_store import snapshot
 
 
 @pytest.fixture
-def office(tmp_path):
+def office(tmp_path, monkeypatch):
+    monkeypatch.setattr("platform.node", lambda: "example-host")
     root = tmp_path / "office"
     initialize(root)
     return root
@@ -117,3 +118,58 @@ def test_commit_refuses_hidden_paths_under_reports(office, relative):
     assert error.value.reason == "unsafe_path"
     assert git(office, "rev-parse", "HEAD").stdout == head
     assert not git(office, "diff", "--cached", "--name-only").stdout
+
+
+@pytest.mark.parametrize("ambiguous", [False, True])
+def test_simplefin_unmapped_accounts_do_not_block_sync(office, monkeypatch, ambiguous):
+    import httpx
+
+    from fo.auth import save_keys
+    from fo.doctor import diagnose
+    from fo.providers.simplefin import SimpleFIN
+    from fo.store.jsonl import read_rows
+
+    registry = [{"id": "a", "provider": "simplefin", "provider_ref": "bridge-a", "last4": ""}]
+    if ambiguous:
+        registry.append({**registry[0], "id": "b"})
+    (office / "profile/accounts.json").write_text(json.dumps({"accounts": registry}))
+    save_keys(office, {"simplefin": {"access_url": "https://u:p@bridge.example/base"}})
+    body = {
+        "accounts": [
+            {"id": "bridge-a", "balance": "15.20", "balance-date": 1789200000},
+            {"id": "PRIVATE-UNMAPPED"},
+        ]
+    }
+    original = SimpleFIN.__init__
+
+    def initialize_adapter(self, access_url, timezone):
+        original(
+            self,
+            access_url,
+            timezone=timezone,
+            transport=httpx.MockTransport(lambda req: httpx.Response(200, json=body)),
+        )
+
+    monkeypatch.setattr(SimpleFIN, "__init__", initialize_adapter)
+    result = synchronize(office, provider="simplefin")[0]
+    log = read_rows(office, "data/sync_log.jsonl")[-1]
+    assert (log["status"], log.get("unmapped_accounts")) == (
+        ("failed", None) if ambiguous else ("complete", 1)
+    )
+    if ambiguous:
+        assert result["status"] == "failed"
+        assert result["reason"] == "ambiguous_account"
+        assert project(office)["balances"] == []
+    else:
+        assert result["status"] == "complete"
+        assert result["unmapped_accounts"] == 1
+        assert result["account_ids"] == ["a"]
+        assert project(office)["balances"][0]["net_value"] == "15.20"
+        assert any(
+            c["name"] == "sync.unmapped.simplefin" and c["status"] == "warn"
+            for c in diagnose(office)
+        )
+        body["accounts"].pop()
+        assert synchronize(office, provider="simplefin")[0]["unmapped_accounts"] == 0
+        assert not any(c["name"] == "sync.unmapped.simplefin" for c in diagnose(office))
+    assert "PRIVATE-UNMAPPED" not in json.dumps(result)

@@ -85,6 +85,7 @@ def synchronize(root, provider=None, dry_run=False, full=False, commit=False, be
                         dry_run=dry_run,
                         locked=True,
                         provider_errors=getattr(adapter, "error_count", 0),
+                        unmapped_accounts=getattr(adapter, "unmapped_accounts", 0),
                     )
                 )
             except (OfficeError, ValueError, TypeError, KeyError, OSError) as exc:
@@ -117,10 +118,20 @@ def ingest(
     locked=False,
     import_hashes=None,
     provider_errors=0,
+    unmapped_accounts=0,
 ):
     if not locked:
         with office_lock(root):
-            return ingest(root, provider, accounts, dry_run, True, import_hashes, provider_errors)
+            return ingest(
+                root,
+                provider,
+                accounts,
+                dry_run,
+                True,
+                import_hashes,
+                provider_errors,
+                unmapped_accounts,
+            )
     state = project(root)
     from fo.config import read_config
 
@@ -145,6 +156,7 @@ def ingest(
         "pending_missing_counts": {},
         "import_hashes": import_hashes or [],
         "provider_errors": provider_errors,
+        "unmapped_accounts": unmapped_accounts,
     }
     pending = []
     latest = state["providers"].get(provider, {})

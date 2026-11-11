@@ -18,6 +18,11 @@ from tests.test_serve_devices import OWNER, paired, remote
 from tests.test_serve_runs import COMPLETE, runner_for
 
 
+@pytest.fixture(autouse=True)
+def placeholder_hostname(monkeypatch):
+    monkeypatch.setattr("platform.node", lambda: "example-host")
+
+
 def commands(result):
     return [step["command"] for step in result["steps"]]
 
@@ -85,6 +90,53 @@ def test_connected_without_a_sync_is_never_synced(tmp_path, monkeypatch):
     monkeypatch.setattr("platform.node", lambda: "another-host")
     note = derive(Locator(root))["note"]
     assert "writer host" in note and "not this machine" in note
+
+
+@pytest.mark.parametrize("hostname", ["another-host", "example host's name", ""])
+def test_writer_suggestion_quotes_the_command_and_office(tmp_path, monkeypatch, hostname):
+    root = tmp_path / "My Office"
+    initialize(root)
+    secrets(root)
+    monkeypatch.setattr("platform.node", lambda: hostname)
+    note = derive(Locator(root))["note"]
+    assert "Only the writer host (example-host) syncs" in note
+    if hostname:
+        command = note.split("with:\n", 1)[1]
+        assert command == (
+            f"fo config set hosts.writer {shlex.quote(hostname)} --office {shlex.quote(str(root))}"
+        )
+        assert shlex.split(command) == [
+            "fo",
+            "config",
+            "set",
+            "hosts.writer",
+            hostname,
+            "--office",
+            str(root),
+        ]
+    else:
+        assert note.endswith("Run fo sync there.")
+        assert "fo config set" not in note
+
+
+@pytest.mark.parametrize("provider", ["simplefin", "schwab"])
+def test_unmapped_accounts_suggest_auth_to_register_them(tmp_path, provider):
+    root = tmp_path / "My Office"
+    initialize(root)
+    secrets(root)
+    accounts(root, [{"id": "a", "provider": provider, "last4": "1234", "role": "cash"}])
+    ingest(
+        root, provider, [{"account_id": "a", "balance": {"net_value": "1"}}], unmapped_accounts=2
+    )
+    result = derive(Locator(root))
+    item = next(item for item in result["doctor"] if item["name"] == f"sync.unmapped.{provider}")
+    assert item["status"] == "warn"
+    assert item["reason"] == (
+        f"2 account(s) skipped; run `fo auth {provider}` to register the new accounts."
+    )
+    assert item["command"] == f"fo auth {provider} --office {shlex.quote(str(root))}"
+    assert item["hint"] is None
+    assert item["command"] in commands(result)
 
 
 def test_doctor_warning_after_sync_is_stale_with_its_fix(tmp_path):

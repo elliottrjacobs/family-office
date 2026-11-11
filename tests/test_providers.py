@@ -10,6 +10,11 @@ from fo.providers.schwab import normalize_accounts
 from fo.providers.simplefin import SimpleFIN
 
 
+@pytest.fixture(autouse=True)
+def placeholder_hostname(monkeypatch):
+    monkeypatch.setattr("platform.node", lambda: "example-host")
+
+
 def test_simplefin_uses_get_and_keeps_credentials_out_of_url():
     seen = []
 
@@ -73,8 +78,14 @@ def test_schwab_normalization_short_money_market_and_unmapped():
     result = normalize_accounts(raw, registry)
     assert result[0]["positions"][0]["qty"] == "-1"
     assert "123456789" not in json.dumps(result)
-    with pytest.raises(OfficeError, match="unmapped"):
-        normalize_accounts(raw, [])
+    assert normalize_accounts(raw, []) == []
+    assert (
+        normalize_accounts(raw + [{"securitiesAccount": {"accountNumber": "99990000"}}], registry)
+        == result
+    )
+    with pytest.raises(OfficeError, match="ambiguously") as caught:
+        normalize_accounts(raw, registry + [{**registry[0], "id": "b"}])
+    assert caught.value.reason == "ambiguous_account"
 
 
 def test_readonly_surface():
@@ -242,7 +253,12 @@ def test_schwab_accounts_with_fake_client_maps_hashes_and_hides_failures(tmp_pat
                 "accountNumber": "123456789",
                 "currentBalances": {"liquidationValue": 100, "cashBalance": 100},
             }
-            return Response([{"securitiesAccount": account}])
+            return Response(
+                [
+                    {"securitiesAccount": account},
+                    {"securitiesAccount": {"accountNumber": "99990000"}},
+                ]
+            )
 
         def get_transactions(self, account_hash, start_date=None, end_date=None):
             assert account_hash == "HASH-A"
@@ -250,7 +266,10 @@ def test_schwab_accounts_with_fake_client_maps_hashes_and_hides_failures(tmp_pat
             return Response(body, self.fail)
 
     registry = [{"id": "a", "last4": "6789", "provider": "schwab"}]
-    rows = Schwab(root, client=Client()).accounts(registry)
+    adapter = Schwab(root, client=Client())
+    rows = adapter.accounts(registry)
+    assert len(rows) == 1
+    assert adapter.unmapped_accounts == 1
     assert rows[0]["transactions"][0]["kind"] == "transfer"
     assert rows[0]["transaction_window"]["start"] < rows[0]["transaction_window"]["end"]
     assert "HASH-A" not in json.dumps(rows) and "123456789" not in json.dumps(rows)

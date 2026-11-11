@@ -43,6 +43,7 @@ FIELDS = {
     "sync_log": (
         {
             "provider": TEXT,
+            "unmapped_accounts": {"type": "integer", "minimum": 0},
             "status": {"enum": ["complete", "failed"]},
             "account_ids": {"type": "array", "items": TEXT, "uniqueItems": True},
         },
