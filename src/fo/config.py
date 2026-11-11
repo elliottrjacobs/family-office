@@ -38,7 +38,9 @@ def credentials_read_denied(root: Path, *, fix: bool = False) -> bool:
     permissions = settings.get("permissions", {}) if isinstance(settings, dict) else None
     deny = permissions.get("deny", []) if isinstance(permissions, dict) else None
     if not isinstance(deny, list) or not all(isinstance(rule, str) for rule in deny):
-        raise OfficeError("invalid_config", "Claude permission settings are malformed.")
+        raise OfficeError(
+            "invalid_config", "The office .claude/settings.json permissions are malformed."
+        )
     missing = [rule for rule in CREDENTIAL_READ_DENIES if rule not in deny]
     if missing and fix:
         settings.setdefault("permissions", {}).setdefault("deny", []).extend(missing)
@@ -87,13 +89,19 @@ def ensure_credentials(root: Path) -> Path:
     from fo.lock import office_lock
     from fo.office import atomic_write
 
+    # Check the agent read-deny first, so a bad settings file stops migration before the id.
+    try:
+        credentials_read_denied(root, fix=True)
+    except OSError as exc:
+        raise OfficeError(
+            "invalid_config", "The office .claude/settings.json could not be updated."
+        ) from exc
     if read_config(root).get("office", {}).get("id") is None:
         with office_lock(root, wait=LOCK_WAIT):
             if read_config(root).get("office", {}).get("id") is None:
                 _write_config(root, "office.id", uuid.uuid4().hex)
     directory = credentials_dir(root)
     try:
-        credentials_read_denied(root, fix=True)
         directory.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         directory.mkdir(mode=0o700, exist_ok=True)
         directory.chmod(0o700)
