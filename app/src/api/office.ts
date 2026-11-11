@@ -124,6 +124,8 @@ export interface Positions extends Freshness {
 
 export interface CashflowMonth {
   month: string
+  partial: boolean
+  uncategorized_count: number
   income: Decimal
   spend: Decimal
   net: Decimal
@@ -139,6 +141,8 @@ export interface Spend extends Freshness {
   income: Decimal
   categories: Record<string, Decimal>
   transaction_count: number
+  uncategorized_count: number
+  uncategorized_inflow: Decimal
 }
 
 export interface Goal {
@@ -210,7 +214,7 @@ export async function cashflow(months = 6): Promise<Cashflow> {
   )
   return {
     ...raw,
-    months: raw.months.map((m) => ({ month: String(m.month), ...nums({ income: m.income, spend: m.spend, net: m.net }) })),
+    months: raw.months.map((m) => ({ month: String(m.month), partial: m.partial, uncategorized_count: m.uncategorized_count, ...nums({ income: m.income, spend: m.spend, net: m.net }) })),
   }
 }
 
@@ -222,6 +226,7 @@ export async function spend(month: string): Promise<Spend> {
     ...raw,
     spend: num(raw.spend),
     income: num(raw.income),
+    uncategorized_inflow: num(raw.uncategorized_inflow),
     categories: nums(raw.categories),
   }
 }
