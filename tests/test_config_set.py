@@ -257,6 +257,30 @@ def test_writer_and_timezone_are_settable(office, key, value):
     assert read_config(office)[table][name] == value
 
 
+def test_timezone_change_on_an_office_with_transactions_returns_a_note(office):
+    from fo.sync import ingest
+    from tests.test_store import snapshot
+
+    data = snapshot({})
+    data[0]["transactions"] = [
+        {
+            "provider_id": "fixture",
+            "amount": "-10",
+            "description": "Shop",
+            "transacted_at": "2026-09-10",
+        }
+    ]
+    ingest(office, "fixture", data)
+    code, data = cli(office, "config", "set", "office.timezone", "Europe/London")
+    assert code == 0
+    assert read_config(office)["office"]["timezone"] == "Europe/London"
+    assert "America/New_York" in data["note"]
+    assert "Europe/London" in data["note"]
+    assert "fo sync --full" in data["note"]
+    code, data = cli(office, "config", "set", "office.timezone", "Europe/London")
+    assert (code, data) == (0, {"key": "office.timezone", "value": "Europe/London"})
+
+
 @pytest.mark.parametrize(
     "key,value",
     [

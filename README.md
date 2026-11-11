@@ -342,6 +342,12 @@ After changing `hosts.writer`, run `fo schedule install` on the new writer if it
 has not been scheduled there. Scheduled syncs on the old host skip once their
 job uses `--if-writer`; manual `fo sync` still requires the writer host.
 
+Changing `office.timezone` does not rewrite stored dates. Schwab and SimpleFIN
+transaction dates are fixed in the office timezone when they sync. The next
+`fo sync` re-dates the last 30 days in the new zone, and `fo sync --full` the last
+90. Older transactions keep the old zone and can sit one day off near midnight.
+CSV import dates never change. Set the timezone before the first sync when you can.
+
 ## Storage and migration
 
 The public repository contains code and skills. The private office contains
