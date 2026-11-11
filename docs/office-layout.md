@@ -43,8 +43,8 @@ for excluded positive needs-review amounts, with `net` null while those amounts 
 ## Currency
 
 Family Office assumes every account is in USD and does no currency conversion.
-A balance's `currency` is recorded, and net worth, allocation, cash holdings, and
-goals show unknown when any account is not in USD. `fo spend` and monthly
+A balance's `currency` is recorded, and a net worth, allocation, cash, or goal
+total shows unknown when an account it includes is not in USD. `fo spend` and monthly
 cashflow do not check currency: transactions from a non-USD account are still
 counted as USD. This is a known limitation, kept on purpose.
 

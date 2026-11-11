@@ -2,9 +2,10 @@
 
 ## Unreleased
 
-- A provider sync with returned accounts but no registered matches now fails with
-  `no_mapped_accounts`, directs users to authenticate and sync again, and does not
-  advance sync freshness, finish onboarding's first sync, or commit.
+- A provider sync that returns accounts but matches none in the registry now fails
+  with `no_mapped_accounts`. It does not count as a completed sync for freshness or
+  onboarding, and `fo doctor` shows `sync.unmapped.<provider>` with the fix:
+  `fo auth <provider>`, then `fo sync`.
 - Scheduling always includes `sync --commit --if-writer`; non-writer hosts skip
   cleanly. Changing `hosts.writer` reminds users to schedule the new host.
 - Sync skips unmapped provider accounts and reports how many were skipped;

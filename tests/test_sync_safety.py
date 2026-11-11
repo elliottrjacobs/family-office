@@ -242,7 +242,7 @@ def test_no_mapped_accounts_fail_without_completing_or_committing(
     result = json.loads(response.output)[0]
     assert response.exit_code == (1 if returned_accounts else 0)
     assert result["status"] == ("failed" if returned_accounts else "complete")
-    assert commits == ([True] if not returned_accounts and not dry_run else [])
+    assert commits == ([] if dry_run else [True])
     logs = read_rows(office, "data/sync_log.jsonl")
     log = {k: v for k, v in result.items() if k != "dry_run"}
     assert logs == ([] if dry_run else [log])
@@ -254,6 +254,9 @@ def test_no_mapped_accounts_fail_without_completing_or_committing(
         checks = {c["name"]: c for c in diagnose(office)}
         assert checks["sync.age"]["status"] == "warn"
         assert f"sync.age.{provider}" not in checks
+        if not dry_run:
+            assert checks[f"sync.unmapped.{provider}"]["status"] == "warn"
+            assert f"fo auth {provider}" in checks[f"sync.unmapped.{provider}"]["reason"]
         onboarding = derive(Locator(office))
         assert onboarding["last_sync"] is None
         assert not next(c["done"] for c in onboarding["checklist"] if c["id"] == "first_sync")

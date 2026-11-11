@@ -115,8 +115,7 @@ def synchronize(
                 results.append(failure)
         if not dry_run:
             reindex(root, locked=True)
-            # A run where no provider completed has no account data worth committing.
-            if commit and any(r["status"] == "complete" for r in results):
+            if commit:
                 from fo.commits import commit_office
 
                 commit_office(root, include_data=True)
