@@ -39,7 +39,8 @@ def run_office(explicit: Path | None, args: list[str]) -> Path | None:
 
     args are the command words and options left after the global flags, read before
     dispatch so that flag order cannot move a command past this check. Only `sync status`
-    survives the sync restriction, because it reads the sync log.
+    survives the sync restriction, because it reads the sync log. The hook's command
+    policy also applies here; without that hook the CLI caps and logs research itself.
     """
     marked = os.environ.get(RUN_MARKER)
     if not marked:
@@ -53,6 +54,8 @@ def run_office(explicit: Path | None, args: list[str]) -> Path | None:
     # Click drops a "--" separator before dispatch, so the check drops it too; otherwise
     # `fo -- sync` would hide the command word from the comparison below.
     words = [arg for arg in args if arg != "--"]
+    if words[:1] == ["doctor"] and "--fix" in words:
+        raise OfficeError("serve_run_restricted", "Advisor runs cannot run fo doctor --fix.")
     # The groups with restricted subcommands take no options of their own, so the
     # subcommand is the first word after the group that is not an option. Matching only
     # that word lets `fo journal add ... --action close` through.
@@ -67,6 +70,18 @@ def run_office(explicit: Path | None, args: list[str]) -> Path | None:
                     "providers, sync, commit, schedule, notify, migrate, reindex, retire "
                     "corrections, or settle decisions.",
                 )
+    # Import here: the guard's logging helpers also depend on office path validation.
+    from fo.serve.guard import words_denial
+    from fo.serve.runner import HOOK_FLAG
+
+    try:
+        reason = words_denial(args, record=os.environ.get(HOOK_FLAG) != "1")
+    except (OSError, ValueError) as exc:
+        raise OfficeError(
+            "serve_run_restricted", "The run guard could not check this command."
+        ) from exc
+    if reason:
+        raise OfficeError("serve_run_restricted", reason)
     return office
 
 
@@ -88,12 +103,12 @@ def contained(root: Path, relative: str) -> Path:
     return target
 
 
-def atomic_write(path: Path, text: str, mode: int = 0o644) -> None:
+def atomic_write(path: Path, text: str | bytes, mode: int = 0o644) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, name = tempfile.mkstemp(prefix=".fo-", dir=path.parent)
     try:
         os.fchmod(fd, mode)
-        with os.fdopen(fd, "w") as stream:
+        with os.fdopen(fd, "wb" if isinstance(text, bytes) else "w") as stream:
             stream.write(text)
             stream.flush()
             os.fsync(stream.fileno())

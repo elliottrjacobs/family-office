@@ -14,7 +14,7 @@ uv run fo setup ~/family-office-smoke
 The command initializes the office, reuses configured connections, authenticates
 missing or expired connections, discovers accounts, saves safe registry entries,
 syncs each connected provider, and runs diagnostics. Existing account names and
-household metadata are preserved. Schwab account hashes remain in secrets only.
+household metadata are preserved. Schwab account hashes remain only in the per-machine credentials folder outside the office.
 SimpleFIN account IDs are discovered directly; no manual mapping is required.
 
 Use `--provider schwab` or `--provider simplefin` to connect one provider. If a

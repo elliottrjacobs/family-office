@@ -419,12 +419,13 @@ The key never appears in an argument list: `FOKit.Subprocess` writes it to stdin
 it, the field is emptied the moment Save is pressed, and the row shows only the CLI's
 public result (`Saved. … accepted the key.` or, for example, `The provider rejected the API
 key.`). A field that is empty, contains spaces or is longer than 512 characters is refused
-in the app without running `fo`. The app never reads `secrets/`.
+in the app without running `fo`. The app never reads the per-machine credentials
+folder outside the office.
 
-`fo connect` writes keys to `secrets/<provider>.json`, and `GET /api/config` lists each such
-file in `secrets` as `{"<provider>": {"api_key": "***"}}` beside the masked
-`secrets/keys.toml` entries, so a key saved in an earlier session shows Connected after a
-restart, and a provider the route does not list shows Not connected. "Not reported by the
+`fo connect` writes keys to `<provider>.json` in that credentials folder, and
+`GET /api/config` lists each such file in `secrets` as
+`{"<provider>": {"api_key": "***"}}` beside the masked `keys.toml` entries,
+so a key saved in an earlier session shows Connected after a restart, and a provider the route does not list shows Not connected. "Not reported by the
 server" appears only while the route cannot be read. Alpha Vantage answers
 an unknown key with ordinary data, so its Save can succeed for a made-up key; FRED, Exa,
 Firecrawl and Gemini reject one.
@@ -517,7 +518,7 @@ defaults delete com.familyoffice.app.walkthrough; rm -rf /tmp/fo-dd
 | `account_connected` | a live provider is connected or the account registry lists any account |
 | `first_sync` | `data/sync_log.jsonl` has a complete sync |
 | `first_run` | `cache/serve/runs/` holds a run record |
-| `device_paired` | `secrets/devices.json` lists at least one device |
+| `device_paired` | the credentials folder's `devices.json` lists at least one device |
 
 Home shows a "Getting started" card with the open items and how to finish each, hidden once
 every item is done. Dismiss hides it for good in that browser (`fo.checklist.dismissed.v1`
@@ -658,7 +659,7 @@ Use a synthetic office (`uv run fo setup /tmp/fo-dev-office --offline`),
       and changes nothing. Turning an engine off makes its Server line say it is turned off.
 - [ ] Connectors: saving a made-up FRED key shows `The provider rejected the API key.` and
       writes nothing; saving a real key shows `Saved.`, the row turns Connected, the field
-      is empty, and `secrets/fred.json` exists at 0600. Remove… asks, then deletes it.
+      is empty, and the credentials folder's `fred.json` exists at 0600. Remove… asks, then deletes it.
 - [ ] EDGAR: a name and email save (`fo config get providers.edgar.user_agent`), a name
       without an email cannot be saved, and Remove clears it.
 - [ ] Connect… on Schwab opens the terminal running `fo auth schwab`: the app key and
@@ -801,10 +802,15 @@ the refusal for a request that did not come over the tailnet. Revoke with
 ### When the Mac says 401
 
 The token is sent only to `POST /api/devices/login`, as `Authorization: Bearer`; every other
-request uses the session cookie. A 401 from that login, from a page the web view loads, or
-from a status probe made with the session cookie means the Mac no longer knows this phone
-(usually a revoke in Settings > Devices). The phone deletes the Keychain item and opens
-pairing with "This iPhone is no longer paired with the Mac." Pairing again with a new code
-works at once. A Mac that does not answer is not a 401: the phone stays paired and shows the
+request uses the session cookie. A cookie 401 from the web view or a status probe triggers
+one automatic re-login with the stored token, since the Mac may have restarted. If another
+cookie 401 arrives before a status probe succeeds, the phone keeps the Keychain token and
+shows "The Mac keeps rejecting this phone's session. Tap Retry." It stops automatic logins
+until a status probe succeeds, the user taps Retry, or a fresh pairing happens.
+
+Only a 401 from the token login means the Mac no longer knows this phone (usually a revoke
+in Settings > Devices). The phone deletes the Keychain item and opens pairing with "This
+iPhone is no longer paired with the Mac." Pairing again with a new code works at once.
+A Mac that does not answer is not a 401: the phone stays paired and shows the
 connection screen. A 403 `forbidden_login` while pairing means the request arrived without a
 Tailscale identity the office allows, and the phone says so.

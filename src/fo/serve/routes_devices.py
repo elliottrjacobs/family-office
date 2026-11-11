@@ -45,7 +45,9 @@ def pair(handler):
     if denial:
         return handler.deny(denial, True)
     body = handler.body()
-    return handler.app.devices.pair(body.get("code"), body.get("name"))
+    result = handler.app.devices.pair(body.get("code"), body.get("name"))
+    handler.app.cache.forget(("/api/onboarding", ()))
+    return result
 
 
 def login(handler, params, query):
@@ -72,7 +74,9 @@ def listing(handler, params, query):
 def revoke(handler, params, query):
     if not owner(handler):
         return None
-    return handler.app.devices.revoke(params["id"])
+    result = handler.app.devices.revoke(params["id"])
+    handler.app.cache.forget(("/api/onboarding", ()))
+    return result
 
 
 # Routes reached before any credential check; each applies its own gates.

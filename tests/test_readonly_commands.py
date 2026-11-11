@@ -104,6 +104,9 @@ RESTRICTED = [
     ["notify", "hello", "--json"],
     ["migrate-v1", "elsewhere", "--dry-run", "--json"],
     ["serve", "--port", "0", "--json"],
+    ["doctor", "--fix", "--json"],
+    ["--json", "--", "doctor", "--fix"],
+    ["doctor", "--json", "--fix", "--read-only"],
     # Click drops a "--" separator, so the check must see the command after it.
     ["--json", "--", "sync"],
     ["--json", "--", "reindex"],
@@ -193,7 +196,14 @@ def test_shell_completion_is_not_offered(office, tmp_path, monkeypatch, flag):
 
 @pytest.mark.parametrize(
     "args",
-    [["status"], ["sync", "status"], ["journal", "list"], ["skills", "list"], ["reports", "list"]],
+    [
+        ["status"],
+        ["doctor"],
+        ["sync", "status"],
+        ["journal", "list"],
+        ["skills", "list"],
+        ["reports", "list"],
+    ],
 )
 def test_serve_run_marker_allows_read_commands(office, monkeypatch, args):
     monkeypatch.setenv("FO_SERVE_RUN", str(office))
@@ -228,3 +238,41 @@ def test_serve_run_marker_allows_new_notes_that_mention_restricted_words(office,
     assert code == 0 and data["action"] == "close"
     code, data = invoke("--json", "corrections", "add", "--", "retire")
     assert code == 0 and data["text"] == "retire"
+
+
+@pytest.mark.parametrize("web", [None, "0"])
+@pytest.mark.parametrize("action", ["search", "fetch", "deep"])
+@pytest.mark.parametrize("separator", [[], ["--"]])
+def test_serve_run_refuses_research_outside_web_runs(office, monkeypatch, web, action, separator):
+    monkeypatch.setenv("FO_SERVE_RUN", str(office))
+    if web is None:
+        monkeypatch.delenv("FO_SERVE_WEB", raising=False)
+    else:
+        monkeypatch.setenv("FO_SERVE_WEB", web)
+    code, data = invoke("--json", *separator, "research", action, "ACME")
+    assert (code, data["reason"]) == (1, "serve_run_restricted")
+    assert data["message"].endswith("(web_off)")
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["export"],
+        ["positions"],
+        ["networth"],
+        ["lots", "ACME"],
+        ["--", "export"],
+        ["journal", "list"],
+        ["brief", "--level", "full"],
+        ["start", "research", "ACME"],
+        ["start", "research", "ACME", "--level", "household"],
+        ["brief", "--for", "--level=none"],
+        ["--", "brief", "--level", "none"],
+    ],
+)
+def test_serve_web_run_refuses_household_commands(office, monkeypatch, args):
+    monkeypatch.setenv("FO_SERVE_RUN", str(office))
+    monkeypatch.setenv("FO_SERVE_WEB", "1")
+    code, data = invoke("--json", *args, "--office", str(office))
+    assert (code, data["reason"]) == (1, "serve_run_restricted")
+    assert data["message"].endswith("(web_household_command)")

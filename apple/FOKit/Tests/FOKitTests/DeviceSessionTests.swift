@@ -257,6 +257,33 @@ final class DeviceSessionTests: XCTestCase {
         XCTAssertNil(status.headers["Authorization"])
     }
 
+    func testCookieUnauthorizedCanLoginAgainWithoutLosingTheToken() async throws {
+        serveDevices()
+        let session = session()
+        try await session.pair(payload: payload, name: "Test iPhone")
+        try await session.login()
+        let credential = try XCTUnwrap(store.read())
+
+        DeviceStub.serve { _ in
+            .init(status: 401, body: stubJSON(["reason": "unauthorized"]))
+        }
+        let client = try XCTUnwrap(session.apiClient)
+        XCTAssertTrue(client.hasSessionCookie)
+        do {
+            _ = try await client.status()
+            XCTFail("the old cookie should fail after a restart")
+        } catch APIError.http(401, _) {}
+
+        serveDevices(version: "2.0.1")
+        try await session.login()
+
+        XCTAssertEqual(try store.read(), credential)
+        XCTAssertEqual(session.state, .paired(url: credential.url, deviceId: credential.deviceId, name: credential.name))
+        XCTAssertEqual(session.serverVersion, "2.0.1")
+        XCTAssertEqual(DeviceStub.requests.last?.headers["Authorization"], "Bearer \(token)")
+        _ = try await client.status()
+    }
+
     func testUnauthorizedAfterRevokeClearsTheTokenAndUnpairs() async throws {
         let revoked = Flag()
         serveDevices(revoked: { revoked.value })

@@ -6,6 +6,7 @@ import threading
 import pytest
 
 from fo import __version__
+from fo.config import credentials_dir
 from fo.serve import announce, prepare
 from fo.serve.auth import Access
 from fo.serve.devices import CODE_ATTEMPTS, Devices
@@ -298,7 +299,9 @@ def test_login_sets_a_secure_session_cookie(office, tmp_path, clock):
 def test_devices_file_is_private_and_holds_no_token(office, tmp_path, clock):
     with harness(office, tmp_path, clock) as (app, client):
         device = paired(client)
-        path = office / "secrets" / "devices.json"
+        path = credentials_dir(office) / "devices.json"
+        assert not (office / "secrets").exists()
+        assert not path.is_relative_to(office)
         assert path.stat().st_mode & 0o777 == 0o600
         assert path.parent.stat().st_mode & 0o777 == 0o700
         text = path.read_text()
@@ -315,7 +318,7 @@ def test_devices_file_is_private_and_holds_no_token(office, tmp_path, clock):
 def test_last_seen_moves_at_most_once_a_minute(office, tmp_path, clock):
     with harness(office, tmp_path, clock) as (_, client):
         token = paired(client)["token"]
-        path = office / "secrets" / "devices.json"
+        path = credentials_dir(office) / "devices.json"
         before = path.stat().st_mtime_ns, path.read_text()
         clock.now += 30
         assert client.get("/api/status", host=TAILNET, cookie=False, headers=bearer(token))[0] == (

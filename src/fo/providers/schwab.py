@@ -1,9 +1,9 @@
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-from fo.config import load_json, read_secrets
+from fo.config import credentials_dir, load_json, read_secrets
 from fo.errors import OfficeError
-from fo.office import contained, write_json
+from fo.office import write_json
 from fo.providers.text import local_date
 
 KINDS = {
@@ -128,7 +128,7 @@ class Schwab:
             self._client = client
             return
         settings = read_secrets(root).get("schwab", {})
-        path = contained(root, "secrets/schwab-token.json")
+        path = credentials_dir(root) / "schwab-token.json"
         if not settings.get("app_key") or not settings.get("app_secret") or not path.is_file():
             raise OfficeError("missing_credentials", "Run fo auth schwab locally.")
         saved = load_json(path)
