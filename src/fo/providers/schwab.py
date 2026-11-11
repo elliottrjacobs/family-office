@@ -68,7 +68,7 @@ def normalize_accounts(body, registry):
             continue
         if len(matches) > 1:
             raise OfficeError(
-                "unmapped_account",
+                "ambiguous_account",
                 "Schwab returned an ambiguously mapped account; update the account registry.",
             )
         positions, money_market = [], Decimal(0)

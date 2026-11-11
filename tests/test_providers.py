@@ -10,6 +10,11 @@ from fo.providers.schwab import normalize_accounts
 from fo.providers.simplefin import SimpleFIN
 
 
+@pytest.fixture(autouse=True)
+def placeholder_hostname(monkeypatch):
+    monkeypatch.setattr("platform.node", lambda: "example-host")
+
+
 def test_simplefin_uses_get_and_keeps_credentials_out_of_url():
     seen = []
 
@@ -78,8 +83,9 @@ def test_schwab_normalization_short_money_market_and_unmapped():
         normalize_accounts(raw + [{"securitiesAccount": {"accountNumber": "99990000"}}], registry)
         == result
     )
-    with pytest.raises(OfficeError, match="ambiguously"):
+    with pytest.raises(OfficeError, match="ambiguously") as caught:
         normalize_accounts(raw, registry + [{**registry[0], "id": "b"}])
+    assert caught.value.reason == "ambiguous_account"
 
 
 def test_readonly_surface():

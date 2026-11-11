@@ -327,6 +327,7 @@ pipe: the file must resolve under `reports/` or a run's scratch workspace,
 `fo config set KEY VALUE` changes one setting in `office.toml` under the office
 lock, keeps every other line and comment as it was, and refuses anything outside
 this list with `invalid_key`, or a value of the wrong type with `invalid_value`:
+`hosts.writer` (the writer hostname), `office.timezone` (an IANA timezone key),
 `serve.port` (1 to 65535, not 8182), `serve.tailnet_name`, `serve.allowed_logins`
 (a JSON array or comma-separated), `serve.web_fetch_cap`, `serve.max_budget_usd`,
 `serve.run_timeout_minutes`, `serve.keep_runs`, `serve.engines.default`

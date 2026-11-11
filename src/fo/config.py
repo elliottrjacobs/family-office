@@ -7,7 +7,7 @@ import sys
 import tomllib
 import uuid
 from pathlib import Path
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from zoneinfo import available_timezones
 
 from fo.errors import OfficeError
 from fo.office import contained
@@ -231,11 +231,7 @@ def _token(text):
 
 def _timezone(text):
     text = text.strip()
-    try:
-        ZoneInfo(text)
-    except (ZoneInfoNotFoundError, ValueError):
-        return None
-    return text
+    return text if text in available_timezones() else None
 
 
 def _hostname(text):

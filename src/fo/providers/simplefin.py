@@ -50,7 +50,7 @@ class SimpleFIN:
                     continue
                 if len(matches) > 1:
                     raise OfficeError(
-                        "unmapped_account",
+                        "ambiguous_account",
                         "SimpleFIN returned an ambiguously mapped account; update the account registry.",
                     )
                 transactions = []

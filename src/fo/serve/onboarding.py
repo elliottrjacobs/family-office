@@ -56,6 +56,8 @@ def fix(root, name):
         return fo("skills", "sync", root=root), None
     if name == "schwab.token":
         return fo("auth", "schwab", root=root), None
+    if name.startswith("sync.unmapped."):
+        return fo("auth", name.removeprefix("sync.unmapped."), root=root), None
     if name.startswith("sync.age") or name == "sync.coverage":
         return fo("sync", root=root), None
     if name == "providers":
@@ -199,12 +201,16 @@ def derive(locator):
             [step(fo("sync", root=root), "Pull balances, positions, and transactions.")],
         )
         writer = config.get("hosts", {}).get("writer", "")
-        if writer != platform.node():
+        hostname = platform.node()
+        if writer != hostname:
             result["note"] = (
                 f"Only the writer host ({writer or 'unset'}) syncs; it is not this machine. "
-                "Run fo sync there, or make this machine the writer with "
-                f"fo config set hosts.writer {platform.node()}."
+                "Run fo sync there."
             )
+            if hostname:
+                result["note"] += " Or make this machine the writer with:\n" + fo(
+                    "config", "set", "hosts.writer", hostname, root=root
+                )
     elif result["doctor"]:
         state = "stale"
         steps = [

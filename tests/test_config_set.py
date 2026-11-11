@@ -2,6 +2,7 @@ import json
 import threading
 import time
 import tomllib
+from zoneinfo import available_timezones
 
 import pytest
 from typer.testing import CliRunner
@@ -19,7 +20,8 @@ def cli(root, *args):
 
 
 @pytest.fixture
-def office(tmp_path):
+def office(tmp_path, monkeypatch):
+    monkeypatch.setattr("platform.node", lambda: "example-host")
     root = tmp_path / "office"
     initialize(root)
     return root
@@ -261,5 +263,26 @@ def test_writer_and_timezone_are_settable(office, key, value):
 def test_invalid_writer_and_timezone_are_refused(office, key, value):
     before = (office / "office.toml").read_bytes()
     code, data = cli(office, "config", "set", key, value)
+    assert (code, data["reason"]) == (1, "invalid_value")
+    assert (office / "office.toml").read_bytes() == before
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "localtime",
+        "posixrules",
+        "posix/UTC",
+        "right/UTC",
+        "utc",
+        "europe/london",
+        "America/new_york",
+    ],
+)
+def test_timezone_requires_a_listed_key(office, value):
+    if value in available_timezones():
+        pytest.skip("This system lists the key as an available timezone.")
+    before = (office / "office.toml").read_bytes()
+    code, data = cli(office, "config", "set", "office.timezone", value)
     assert (code, data["reason"]) == (1, "invalid_value")
     assert (office / "office.toml").read_bytes() == before

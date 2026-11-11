@@ -163,7 +163,7 @@ def diagnose(root):
                         "sync.unmapped." + provider,
                         "warn",
                         f"{log['unmapped_accounts']} account(s) skipped; "
-                        "update the account registry.",
+                        f"run `fo auth {provider}` to register the new accounts.",
                     )
                 )
             if log.get("provider_errors"):

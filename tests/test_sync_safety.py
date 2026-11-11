@@ -11,7 +11,8 @@ from tests.test_store import snapshot
 
 
 @pytest.fixture
-def office(tmp_path):
+def office(tmp_path, monkeypatch):
+    monkeypatch.setattr("platform.node", lambda: "example-host")
     root = tmp_path / "office"
     initialize(root)
     return root
@@ -157,7 +158,7 @@ def test_simplefin_unmapped_accounts_do_not_block_sync(office, monkeypatch, ambi
     )
     if ambiguous:
         assert result["status"] == "failed"
-        assert result["reason"] == "unmapped_account"
+        assert result["reason"] == "ambiguous_account"
         assert project(office)["balances"] == []
     else:
         assert result["status"] == "complete"
