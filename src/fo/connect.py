@@ -1,8 +1,8 @@
 """fo connect <provider>: store or remove an API key after one validating call.
 
-Keys arrive on stdin, never as arguments, and are written to secrets/<provider>.json at
-0600 inside the 0700 secrets directory. EDGAR takes a contact string for office.toml
-instead of a key. Nothing here prints a key or a provider's error text.
+Keys arrive on stdin, never as arguments, and are written to <provider>.json at
+0600 inside the per-machine credentials folder outside the office. EDGAR takes a
+contact string for office.toml instead of a key. Nothing here prints a key or a provider's error text.
 """
 
 import copy
@@ -11,7 +11,7 @@ import re
 import tomllib
 
 from fo.auth import save_keys, save_secret_json
-from fo.config import read_config, read_secrets
+from fo.config import credentials_dir, ensure_credentials, read_config, read_secrets
 from fo.errors import OfficeError
 from fo.lock import office_lock
 from fo.office import atomic_write, contained
@@ -104,6 +104,7 @@ def store(root, provider, raw_key):
         raise OfficeError("invalid_query", "EDGAR takes --user-agent, not a key.")
     key = clean_key(raw_key)
     VALIDATE[provider](key)
+    ensure_credentials(root)
     with office_lock(root):
         save_secret_json(root, provider, {"api_key": key})
     return {"provider": provider, "connected": True}
@@ -111,12 +112,13 @@ def store(root, provider, raw_key):
 
 def remove(root, provider):
     provider_name(provider)
+    ensure_credentials(root)
     if provider == "edgar":
         with office_lock(root):
             set_edgar(root, None)
         return {"provider": provider, "connected": False}
     with office_lock(root):
-        path = contained(root, f"secrets/{provider}.json")
+        path = credentials_dir(root) / f"{provider}.json"
         path.unlink(missing_ok=True)
         keys = read_secrets(root)
         if provider in keys:

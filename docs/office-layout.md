@@ -7,6 +7,26 @@ and reviews; correction retirement appends an event instead of deleting history.
 Reports retain their original text. `store.sqlite` is a disposable projection;
 `cache/cache.sqlite` holds expendable market responses and daily request budgets.
 
+## Local credentials
+
+The office may live in iCloud Drive or another synced folder. `office.toml`
+contains a random `[office].id`, created by init or on first credential access
+for older offices. It is shared across machines; credentials are not.
+
+Credentials live outside the office in
+`~/Library/Application Support/FamilyOffice/credentials/<office-id>/` on macOS,
+or `${XDG_DATA_HOME:-~/.local/share}/family-office/credentials/<office-id>/` on
+other systems. `FO_CREDENTIALS_HOME` overrides the base directory. The base and
+office credential directories are 0700; `keys.toml`, `<provider>.json`,
+`schwab-token.json`, and `devices.json` are 0600. Connect each machine separately.
+This change uses files; macOS Keychain is possible future hardening.
+
+Legacy `secrets/` files migrate on `fo doctor --fix`, `fo serve`, or a credential
+command; read-only commands never migrate or write `office.toml`. Identical destination copies
+allow removal of the office copy; differing copies remain for manual resolution
+and `fo doctor` flags them. The empty legacy directory is removed. The office
+still ignores and blocks `secrets/` in Git for defense in depth.
+
 ## Account roles
 
 Each entry in `profile/accounts.json` may carry a `role`: `investment`, `cash`,
@@ -67,8 +87,8 @@ at once; archive the prior definitions during the approved cutover.
 ## A second machine or cloud task
 
 The default office has no remote. If the user chooses a private GitHub remote,
-the agent configures a repository-scoped deploy key under ignored `secrets/`
-and a local `core.sshCommand`. Run a full Git history scan before the first push;
+the agent configures a repository-scoped deploy key in the per-machine credentials
+folder outside the office and a local `core.sshCommand`. Run a full Git history scan before the first push;
 `fo commit` requires gitleaks for publication and scans again after rebasing.
 Do not disable the scanner when it blocks a push. No force-push is automated.
 

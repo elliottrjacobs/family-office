@@ -54,6 +54,8 @@ def run_office(explicit: Path | None, args: list[str]) -> Path | None:
     # Click drops a "--" separator before dispatch, so the check drops it too; otherwise
     # `fo -- sync` would hide the command word from the comparison below.
     words = [arg for arg in args if arg != "--"]
+    if words[:1] == ["doctor"] and "--fix" in words:
+        raise OfficeError("serve_run_restricted", "Advisor runs cannot run fo doctor --fix.")
     # The groups with restricted subcommands take no options of their own, so the
     # subcommand is the first word after the group that is not an option. Matching only
     # that word lets `fo journal add ... --action close` through.
@@ -101,12 +103,12 @@ def contained(root: Path, relative: str) -> Path:
     return target
 
 
-def atomic_write(path: Path, text: str, mode: int = 0o644) -> None:
+def atomic_write(path: Path, text: str | bytes, mode: int = 0o644) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, name = tempfile.mkstemp(prefix=".fo-", dir=path.parent)
     try:
         os.fchmod(fd, mode)
-        with os.fdopen(fd, "w") as stream:
+        with os.fdopen(fd, "wb" if isinstance(text, bytes) else "w") as stream:
             stream.write(text)
             stream.flush()
             os.fsync(stream.fileno())

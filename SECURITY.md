@@ -26,7 +26,7 @@ Exposures the Mac and phone apps add, each described in full below:
 | Exposure | Where it is described |
 |---|---|
 | Web search and fetch for runs at context level `none` | [Advisor runs](#advisor-runs), "Web access at context level `none`" |
-| Research provider keys in `secrets/<provider>.json` | [Third parties](#third-parties), "Research provider keys" |
+| Research provider keys in the per-machine credentials folder | [Third parties](#third-parties), "Research provider keys" |
 | Device tokens held by a paired phone, used over the tailnet | [Device tokens](#device-tokens) |
 | Codex read confinement is command-based, so the engine ships disabled | [Advisor runs](#advisor-runs), "Codex engine" |
 
@@ -58,8 +58,8 @@ the token and a same-origin `Origin`, and none exist with `--read-only`.
 
 A paired phone holds a device token: 32 random bytes shown once, in the pairing
 response, and stored only as a SHA-256 hash with its name, creation time, and
-last-seen time in the office's `secrets/devices.json` at 0600 inside the 0700
-`secrets/` directory. Pairing codes are eight characters, held only in memory,
+last-seen time in the per-machine credentials folder's `devices.json` at 0600 inside a 0700
+directory outside the office. Pairing codes are eight characters, held only in memory,
 single use, valid for five minutes, one at a time, and dropped after ten wrong
 attempts. A code is issued only over a loopback `Host` with the launch cookie,
 and redeemed only over the tailnet name with a Tailscale identity that passes
@@ -180,8 +180,8 @@ their fixed provider hosts.
 | Fetched websites | A GET request with a family-office User-Agent for each direct fetch |
 | GitHub | Public code; tracked private office files only when its remote is configured |
 
-Research provider keys live in `secrets/<provider>.json` at 0600, written by
-`fo connect` only after one validating call; advisor runs cannot run `fo connect`.
+Research provider keys live in `<provider>.json` in the per-machine credentials
+folder at 0600, written by `fo connect` only after one validating call; advisor runs cannot run `fo connect`.
 `fo research fetch` refuses URLs with credentials, non-HTTP schemes, localhost,
 `.ts.net`, and hosts resolving to loopback, link-local, private, CGNAT, or ULA
 addresses, rechecking every redirect, so a run cannot reach `fo serve` or the
@@ -205,3 +205,25 @@ Read-only mode avoids providers, cache writes, and index writes. It can still
 read the tracked office facts. Source text is scrubbed for credential URLs and
 long account-number-like strings, but this is not a general anonymizer. Review
 any report before sharing it outside the private office.
+
+## Credential storage and synced offices
+
+The office may live in iCloud Drive or another synced folder. Credentials live
+outside it, per machine, under `~/Library/Application Support/FamilyOffice/credentials`
+on macOS or `${XDG_DATA_HOME:-~/.local/share}/family-office/credentials` elsewhere.
+`FO_CREDENTIALS_HOME` overrides that base. A random `[office].id` in `office.toml`
+selects a 0700 subdirectory; credential files are 0600. The id is safe to sync;
+each machine must connect separately. This uses files, not macOS Keychain;
+Keychain integration remains possible future hardening.
+
+On `fo init`, `fo setup`, `fo doctor --fix`, writable `fo serve`, or a
+credential-writing command, fo-managed legacy office `secrets/` files move to
+that folder; reads never migrate. An existing destination wins: identical office
+copies are removed; differing copies
+stay in both locations for manual resolution. `fo doctor` flags office leftovers
+and local credential permissions. Keep `secrets/` ignored and blocked by the
+pre-commit hook as defense for older offices.
+
+Claude's guard denies direct reads outside the office. Codex's command-based
+read confinement does not protect the external credentials directory any more
+than it protected `secrets/`. Its engine remains disabled by default.
