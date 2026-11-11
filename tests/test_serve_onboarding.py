@@ -131,9 +131,7 @@ def test_unmapped_accounts_suggest_auth_to_register_them(tmp_path, provider):
     result = derive(Locator(root))
     item = next(item for item in result["doctor"] if item["name"] == f"sync.unmapped.{provider}")
     assert item["status"] == "warn"
-    assert item["reason"] == (
-        f"2 account(s) skipped; run `fo auth {provider}` to register the new accounts."
-    )
+    assert item["reason"] == (f"2 account(s) skipped; run `fo auth {provider}`, then `fo sync`.")
     assert item["command"] == f"fo auth {provider} --office {shlex.quote(str(root))}"
     assert item["hint"] is None
     assert item["command"] in commands(result)

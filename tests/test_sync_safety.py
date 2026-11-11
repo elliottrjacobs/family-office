@@ -1,7 +1,9 @@
 import json
 
 import pytest
+from typer.testing import CliRunner
 
+from fo.cli import app
 from fo.errors import OfficeError
 from fo.init import initialize
 from fo.office import git
@@ -173,3 +175,128 @@ def test_simplefin_unmapped_accounts_do_not_block_sync(office, monkeypatch, ambi
         assert synchronize(office, provider="simplefin")[0]["unmapped_accounts"] == 0
         assert not any(c["name"] == "sync.unmapped.simplefin" for c in diagnose(office))
     assert "PRIVATE-UNMAPPED" not in json.dumps(result)
+
+
+@pytest.mark.parametrize("provider", ["simplefin", "schwab"])
+@pytest.mark.parametrize("returned_accounts", [False, True])
+@pytest.mark.parametrize("dry_run", [False, True])
+def test_no_mapped_accounts_fail_without_completing_or_committing(
+    office, monkeypatch, provider, returned_accounts, dry_run
+):
+    import httpx
+
+    from fo.auth import save_keys
+    from fo.doctor import diagnose
+    from fo.providers.schwab import Schwab
+    from fo.providers.simplefin import SimpleFIN
+    from fo.serve.onboarding import derive
+    from fo.serve.server import Locator
+    from fo.store.jsonl import read_rows
+
+    registry = [
+        {
+            "id": "a",
+            "provider": provider,
+            "provider_ref": "bridge-a",
+            "last4": "1234",
+            "role": "cash",
+        }
+    ]
+    (office / "profile/accounts.json").write_text(json.dumps({"accounts": registry}))
+    save_keys(office, {provider: {"access_url": "https://u:p@bridge.example/base"}})
+    if provider == "simplefin":
+        body = {"accounts": [{"id": "PRIVATE-UNMAPPED"}] if returned_accounts else []}
+        original = SimpleFIN.__init__
+
+        def initialize_adapter(self, access_url, timezone):
+            original(
+                self,
+                access_url,
+                timezone=timezone,
+                transport=httpx.MockTransport(lambda req: httpx.Response(200, json=body)),
+            )
+
+        monkeypatch.setattr(SimpleFIN, "__init__", initialize_adapter)
+    else:
+        body = [{"securitiesAccount": {"accountNumber": "99990000"}}] if returned_accounts else []
+
+        class Client:
+            def get_accounts(self, fields=None):
+                return httpx.Response(
+                    200, json=body, request=httpx.Request("GET", "https://api.example/accounts")
+                )
+
+        original = Schwab.__init__
+
+        def initialize_adapter(self, root, timezone):
+            original(self, root, client=Client(), timezone=timezone)
+
+        monkeypatch.setattr(Schwab, "__init__", initialize_adapter)
+
+    commits = []
+    monkeypatch.setattr("fo.commits.commit_office", lambda *args, **kwargs: commits.append(True))
+    args = ["sync", "--provider", provider, "--commit", "--json", "--office", str(office)]
+    if dry_run:
+        args.append("--dry-run")
+    response = CliRunner().invoke(app, args)
+    result = json.loads(response.output)[0]
+    assert response.exit_code == (1 if returned_accounts else 0)
+    assert result["status"] == ("failed" if returned_accounts else "complete")
+    assert commits == ([True] if not returned_accounts and not dry_run else [])
+    logs = read_rows(office, "data/sync_log.jsonl")
+    log = {k: v for k, v in result.items() if k != "dry_run"}
+    assert logs == ([] if dry_run else [log])
+    if returned_accounts:
+        assert result["reason"] == "no_mapped_accounts"
+        assert f"fo auth {provider}" in result["message"] and "then `fo sync`" in result["message"]
+        assert "PRIVATE-UNMAPPED" not in response.output and "99990000" not in response.output
+        assert project(office)["providers"] == {}
+        checks = {c["name"]: c for c in diagnose(office)}
+        assert checks["sync.age"]["status"] == "warn"
+        assert f"sync.age.{provider}" not in checks
+        onboarding = derive(Locator(office))
+        assert onboarding["last_sync"] is None
+        assert not next(c["done"] for c in onboarding["checklist"] if c["id"] == "first_sync")
+    else:
+        assert result["account_ids"] == []
+
+
+@pytest.mark.parametrize("writer", [False, True])
+def test_sync_if_writer_skips_without_writes_or_syncs(office, monkeypatch, writer):
+    from fo.config import set_config
+    from fo.store.jsonl import read_rows
+
+    (office / "profile/accounts.json").write_text(
+        json.dumps({"accounts": [{"id": "a", "provider": "csv", "last4": "", "role": "cash"}]})
+    )
+    (office / "imports/monarch.csv").write_text(
+        "Date,Merchant,Category,Account,Original Statement,Amount\n2026-08-01,Shop,Shopping,a,Shop,-10\n"
+    )
+    if not writer:
+        set_config(office, "hosts.writer", "example-mac.local")
+    commits = []
+    monkeypatch.setattr("fo.commits.commit_office", lambda *args, **kwargs: commits.append(True))
+    monkeypatch.setattr(
+        "fo.operations.notification", lambda *args: pytest.fail("Unexpected notification")
+    )
+    before = {p: p.read_bytes() for p in office.rglob("*") if p.is_file()}
+    args = ["sync", "--commit", "--if-writer", "--json", "--office", str(office)]
+    response = CliRunner().invoke(app, args)
+    assert response.exit_code == 0, response.output
+    results = json.loads(response.output)
+    if writer:
+        assert results[0]["status"] == "complete"
+        assert results[0]["transaction_rows"] == 1
+        assert read_rows(office, "data/sync_log.jsonl") == [
+            {k: v for k, v in results[0].items() if k != "dry_run"}
+        ]
+        assert commits == [True]
+    else:
+        assert results[0]["status"] == "skipped"
+        assert results[0]["reason"] == "not_writer"
+        assert {p: p.read_bytes() for p in office.rglob("*") if p.is_file()} == before
+        assert read_rows(office, "data/sync_log.jsonl") == []
+        assert commits == []
+        response = CliRunner().invoke(app, [a for a in args if a != "--if-writer"])
+        assert response.exit_code == 1
+        assert json.loads(response.output)["reason"] == "not_writer"

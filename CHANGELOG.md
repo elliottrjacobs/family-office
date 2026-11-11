@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- A provider sync with returned accounts but no registered matches now fails with
+  `no_mapped_accounts`, directs users to authenticate and sync again, and does not
+  advance sync freshness, finish onboarding's first sync, or commit.
+- Scheduling always includes `sync --commit --if-writer`; non-writer hosts skip
+  cleanly. Changing `hosts.writer` reminds users to schedule the new host.
 - Sync skips unmapped provider accounts and reports how many were skipped;
   `fo doctor` directs users to `fo auth <provider>` to register them.
   `fo config set` now accepts `hosts.writer` and `office.timezone`.

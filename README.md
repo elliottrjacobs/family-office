@@ -338,6 +338,10 @@ this list with `invalid_key`, or a value of the wrong type with `invalid_value`:
 `providers.edgar.user_agent`. `fo config get KEY` prints one of them as JSON.
 Advisor runs cannot change settings.
 
+After changing `hosts.writer`, run `fo schedule install` on the new writer if it
+has not been scheduled there. Scheduled syncs on the old host skip once their
+job uses `--if-writer`; manual `fo sync` still requires the writer host.
+
 ## Storage and migration
 
 The public repository contains code and skills. The private office contains
@@ -351,8 +355,11 @@ not run `fo migrate-v1`. Keep your office folder outside this public checkout.
 `fo migrate-v1` is an optional compatibility utility only for someone who already
 has data in the supported legacy layout. It is not part of normal onboarding.
 
-Scheduling prepares four launchd definitions without activating them. The agent
-loads them after runtime verification and cutover approval. See
+`fo schedule install` prepares four launchd definitions on every host without
+activating them, including a 02:00 `fo sync --commit --if-writer` job. That sync
+skips cleanly on hosts other than `hosts.writer`, without writing a sync log.
+Regenerate and reload existing definitions to pick up `--if-writer`. The agent
+loads the jobs after runtime verification and cutover approval. See
 [office layout and operations](docs/office-layout.md) and the
 [system explainer](docs/explainers/family-office-system.html).
 

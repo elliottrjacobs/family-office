@@ -92,6 +92,7 @@ def test_positions_filters_through_compute(office):
 RESTRICTED = [
     ["--json", "sync"],
     ["sync", "--provider", "csv", "--json"],
+    ["sync", "--commit", "--if-writer", "--json"],
     ["sync", "--dry-run", "status", "--json"],
     ["--read-only", "commit", "--json"],
     ["reindex", "--json"],

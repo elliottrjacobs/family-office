@@ -55,9 +55,8 @@ def schedule(root):
         "doctor": (["doctor", "--notify"], {"Hour": 7, "Minute": 30}),
         "review": (["review", "--notify"], {"Weekday": 0, "Hour": 8, "Minute": 0}),
         "index": (["reports", "index"], {"Hour": 3, "Minute": 0}),
+        "sync": (["sync", "--commit", "--if-writer"], {"Hour": 2, "Minute": 0}),
     }
-    if read_config(root).get("hosts", {}).get("writer") == platform.node():
-        jobs["sync"] = (["sync", "--commit"], {"Hour": 2, "Minute": 0})
     created = []
     with office_lock(root):
         contained(root, "cache/logs").mkdir(parents=True, exist_ok=True)

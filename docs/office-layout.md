@@ -80,11 +80,20 @@ source, rotate its credentials, or unload its jobs as a side effect of migration
 ## Scheduled operations
 
 `fo schedule install` prepares launchd definitions in `launchd/`. It returns
-argument arrays for loading them. Only the configured writer gets the 02:00 sync
-job. Doctor runs at 07:30, review Sunday at 08:00, and report indexing at 03:00.
+argument arrays for loading them. Every host gets the 02:00
+`sync --commit --if-writer` job. It checks `hosts.writer` each time and exits
+successfully on other hosts without syncing, writing a sync log, or notifying.
+Manual `fo sync` without `--if-writer` still refuses a non-writer host.
+Doctor runs at 07:30, review Sunday at 08:00, and report indexing at 03:00.
 Sync also rebuilds the index before it completes. All four jobs invoke `fo`,
 never a model host. Notifications contain generic status text rather than
 financial values. Logs remain in ignored `cache/logs/`.
+
+When moving the writer with `fo config set hosts.writer example-mac.local`, run
+`fo schedule install` on that machine if it has not been scheduled there, then
+load the returned jobs as described below. The old host's sync job now skips.
+For existing installations, regenerate and reload the definitions to pick up
+`--if-writer` before moving the writer.
 
 The agent validates each plist with `plutil -lint`, verifies the pinned office
 runtime, loads the jobs only after cutover approval, and checks `launchctl list`

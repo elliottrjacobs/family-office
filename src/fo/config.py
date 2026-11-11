@@ -385,8 +385,17 @@ def set_config(root: Path, key: str, text: str) -> dict:
 
     value = config_value(key, text)
     with office_lock(root, wait=LOCK_WAIT):
+        writer_changed = (
+            key == "hosts.writer" and read_config(root).get("hosts", {}).get("writer") != value
+        )
         _write_config(root, key, value)
-    return {"key": key, "value": value}
+    result = {"key": key, "value": value}
+    if writer_changed:
+        result["note"] = (
+            f"Run `fo schedule install` on {value} if it has not been scheduled there. "
+            "The old host's sync job will now skip (with --if-writer)."
+        )
+    return result
 
 
 def _write_config(root: Path, key: str, value):

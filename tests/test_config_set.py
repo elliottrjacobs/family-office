@@ -237,13 +237,21 @@ def test_run_cap_keys_are_settable(office):
 @pytest.mark.parametrize(
     "key,value",
     [
-        ("hosts.writer", "new-host"),
+        ("hosts.writer", "example-mac.local"),
         ("office.timezone", "Europe/London"),
         ("office.timezone", "UTC"),
     ],
 )
 def test_writer_and_timezone_are_settable(office, key, value):
     code, data = cli(office, "config", "set", key, value)
+    assert code == 0
+    assert data["key"] == key and data["value"] == value
+    if key == "hosts.writer":
+        assert data["note"] == (
+            f"Run `fo schedule install` on {value} if it has not been scheduled there. "
+            "The old host's sync job will now skip (with --if-writer)."
+        )
+        code, data = cli(office, "config", "set", key, value)
     assert (code, data) == (0, {"key": key, "value": value})
     table, name = key.split(".")
     assert read_config(office)[table][name] == value

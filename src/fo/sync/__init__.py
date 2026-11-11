@@ -27,7 +27,9 @@ def canonical(value):
     return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
 
-def synchronize(root, provider=None, dry_run=False, full=False, commit=False, before=None):
+def synchronize(
+    root, provider=None, dry_run=False, full=False, commit=False, before=None, if_writer=False
+):
     import platform
 
     from fo.config import read_config, read_secrets
@@ -38,6 +40,14 @@ def synchronize(root, provider=None, dry_run=False, full=False, commit=False, be
 
     config = read_config(root)
     if platform.node() != config.get("hosts", {}).get("writer"):
+        if if_writer:
+            return [
+                {
+                    "status": "skipped",
+                    "reason": "not_writer",
+                    "message": "Skipped: this host is not the writer.",
+                }
+            ]
         raise OfficeError("not_writer", "Only the configured writer host may sync account data.")
     if provider and provider not in {"schwab", "simplefin", "csv"}:
         raise OfficeError("unknown_provider", "Use schwab, simplefin, or csv.")
@@ -98,12 +108,15 @@ def synchronize(root, provider=None, dry_run=False, full=False, commit=False, be
                     if isinstance(exc, OfficeError)
                     else "invalid_provider_state",
                 }
+                if isinstance(exc, OfficeError):
+                    failure["message"] = exc.message
                 if not dry_run:
                     append(root, "data/sync_log.jsonl", failure)
                 results.append(failure)
         if not dry_run:
             reindex(root, locked=True)
-            if commit:
+            # A run where no provider completed has no account data worth committing.
+            if commit and any(r["status"] == "complete" for r in results):
                 from fo.commits import commit_office
 
                 commit_office(root, include_data=True)
@@ -132,6 +145,11 @@ def ingest(
                 provider_errors,
                 unmapped_accounts,
             )
+    if unmapped_accounts > 0 and not accounts:
+        raise OfficeError(
+            "no_mapped_accounts",
+            f"No returned accounts are registered; run `fo auth {provider}` to register the accounts, then `fo sync`.",
+        )
     state = project(root)
     from fo.config import read_config
 

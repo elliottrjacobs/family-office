@@ -336,6 +336,9 @@ def sync_command(
     full: bool = typer.Option(False),
     commit: bool = typer.Option(False),
     before: str | None = typer.Option(None),
+    if_writer: bool = typer.Option(
+        False, "--if-writer", help="Skip unless this host is the writer."
+    ),
 ):
     if ctx.invoked_subcommand:
         return
@@ -343,10 +346,10 @@ def sync_command(
 
     def execute():
         writable(ctx)
-        return synchronize(root(ctx), provider, dry_run, full, commit, before)
+        return synchronize(root(ctx), provider, dry_run, full, commit, before, if_writer=if_writer)
 
     results = run(ctx, execute)
-    if any(r["status"] != "complete" for r in results):
+    if any(r["status"] not in {"complete", "skipped"} for r in results):
         raise typer.Exit(1)
 
 
