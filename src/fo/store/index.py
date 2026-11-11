@@ -64,9 +64,15 @@ def project(root, as_of=None):
     return result
 
 
-def fingerprint(root):
+def fingerprint(root, directories=("data",)):
+    """A hash of the source files under directories.
+
+    read_state() uses only the state table, which project() builds from data/ alone, so
+    the index is keyed on data/. Its categories, reports and notebook tables are as of the
+    last reindex. The serve response cache passes every source folder.
+    """
     digest = hashlib.sha256()
-    for directory in ("data", "notebook", "profile", "reports"):
+    for directory in directories:
         for path in sorted(contained(root, directory).rglob("*")):
             if path.is_symlink():
                 raise OfficeError("unsafe_path", "A source file is a symlink.")

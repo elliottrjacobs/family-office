@@ -158,8 +158,10 @@ def metric_observations(root, symbol, metric, decision=None):
             state = context(root, True)
             registry = {a["id"]: a for a in load(root, "accounts")["accounts"]}
             cash = cash_holdings(state, registry)
+            rules = load(root, "categories")["rules"]
+            transactions = categorized(root, state, rules)
             first_by_account = {}
-            for tx in categorized(root, state):
+            for tx in transactions:
                 day = tx.get("posted_date") or tx.get("transacted_at")
                 if (
                     not day
@@ -185,7 +187,16 @@ def metric_observations(root, symbol, metric, decision=None):
                 first = date(year, month + 1, 1)
                 if any(day > first for day in first_by_account.values()):
                     return []
-                spending.append(spend(root, first.strftime("%Y-%m"), read_only=True)["spend"])
+                spending.append(
+                    spend(
+                        root,
+                        first.strftime("%Y-%m"),
+                        read_only=True,
+                        state=state,
+                        rows=transactions,
+                        rules=rules,
+                    )["spend"]
+                )
             outflow = total(spending)
             if cash is None or outflow <= 0:
                 return []

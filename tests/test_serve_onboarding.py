@@ -356,7 +356,7 @@ def test_onboarding_falls_back_when_cache_fingerprinting_fails(tmp_path, monkeyp
     expected = derive(Locator(root))
     assert expected["state"] == "ready"
 
-    def fail(root):
+    def fail(*args):
         raise error
 
     with serving(root, tmp_path) as (app, client):
