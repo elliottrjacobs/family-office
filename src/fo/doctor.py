@@ -1,9 +1,12 @@
 import os
 from datetime import UTC, datetime
 
+from fo.commits import changes_outside, git_status
 from fo.config import credentials_dir, credentials_read_denied, load_json, read_config
 from fo.errors import OfficeError
+from fo.office import contained, git
 from fo.store.authored import PROFILE_FILES, load
+from fo.sync import unmapped_hint
 
 
 def check(name, status, reason):
@@ -12,6 +15,45 @@ def check(name, status, reason):
 
 def diagnose(root):
     checks = []
+    if (root / ".git").exists():
+        try:
+            count = len(changes_outside(git_status(root), ("notebook", "reports", "data")))
+            checks.append(
+                check(
+                    "office.uncommitted",
+                    "warn" if count else "pass",
+                    f"{count} uncommitted change(s) outside notebook/, reports/ and data/ "
+                    "block fo commit and the nightly sync; commit or resolve them."
+                    if count
+                    else "No uncommitted changes outside notebook/, reports/ and data/.",
+                )
+            )
+        except OfficeError as exc:
+            checks.append(check("office.uncommitted", "warn", exc.message))
+    try:
+        ignored = "launchd/" in contained(root, ".gitignore").read_text().splitlines()
+    except (OfficeError, OSError):
+        ignored = False
+    try:
+        recorded = (
+            git(
+                root, "diff", "--quiet", "HEAD", "--", ".gitignore", "launchd", check=False
+            ).returncode
+            == 0
+        )
+        tracked = bool(git(root, "ls-files", "--", "launchd").stdout)
+    except OfficeError:
+        recorded, tracked = False, False
+    ignored = ignored and recorded and not tracked
+    checks.append(
+        check(
+            "office.ignore",
+            "pass" if ignored else "warn",
+            "Machine-specific launchd files are ignored."
+            if ignored
+            else "Run fo doctor --fix to record .gitignore and stop tracking launchd/ files.",
+        )
+    )
     config = {}
     try:
         config = read_config(root)
@@ -162,8 +204,7 @@ def diagnose(root):
                     check(
                         "sync.unmapped." + provider,
                         "warn",
-                        f"{log['unmapped_accounts']} account(s) skipped; "
-                        f"run `fo auth {provider}`, then `fo sync`.",
+                        unmapped_hint(provider, f"{log['unmapped_accounts']} returned"),
                     )
                 )
             if log.get("provider_errors"):
@@ -187,8 +228,20 @@ def diagnose(root):
                     check(
                         unmapped,
                         "warn",
-                        f"No returned accounts are registered; run `fo auth {provider}`, "
-                        "then `fo sync`.",
+                        unmapped_hint(provider, "No returned"),
+                    )
+                )
+            errors = "sync.errors." + provider
+            if row.get("reason") == "institution_errors" and not any(
+                c["name"] == errors for c in checks
+            ):
+                checks.append(
+                    check(
+                        errors,
+                        "warn",
+                        f"{row.get('provider_errors', 0)} institution connection(s) reported "
+                        "errors and no registered account was returned; repair them at the "
+                        "provider, then run `fo sync`.",
                     )
                 )
         if state["stale_accounts"]:

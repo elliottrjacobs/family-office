@@ -7,6 +7,8 @@ from fo.accounts import register
 from fo.auth import save_keys
 from fo.errors import OfficeError
 from fo.init import initialize
+from fo.lock import office_lock
+from fo.office import git
 from fo.providers.simplefin import SimpleFIN
 from fo.setup import setup
 
@@ -39,11 +41,14 @@ def test_discovery_and_registration_preserve_user_metadata(tmp_path):
         ),
     )
     discovered = client.discover()
-    ids = register(root, "simplefin", discovered)
+    with office_lock(root):
+        ids = register(root, "simplefin", discovered)
     assert ids == ["my-checking", "simplefin-1"]
-    assert register(root, "simplefin", list(reversed(discovered))) == list(reversed(ids))
+    with office_lock(root):
+        assert register(root, "simplefin", list(reversed(discovered))) == list(reversed(ids))
     assert json.loads(registry.read_text())["accounts"][0]["owner"] == "Household"
     assert "SECRET" not in registry.read_text()
+    assert git(root, "status", "--porcelain").stdout == ""
 
 
 def test_ambiguous_schwab_registration_is_atomic(tmp_path):
@@ -51,7 +56,7 @@ def test_ambiguous_schwab_registration_is_atomic(tmp_path):
     initialize(root)
     registry = root / "profile/accounts.json"
     before = registry.read_bytes()
-    with pytest.raises(OfficeError, match="ambiguous"):
+    with office_lock(root), pytest.raises(OfficeError, match="ambiguous"):
         register(root, "schwab", [{"last4": "1234"}, {"last4": "1234"}])
     assert registry.read_bytes() == before
 
@@ -80,6 +85,7 @@ def test_setup_reuses_connection_and_runs_real_sync_pipeline(tmp_path, monkeypat
     assert second["sync"][0]["unchanged_since"]
     assert len(json.loads((root / "profile/accounts.json").read_text())["accounts"]) == 1
     assert "SECRET" not in json.dumps(second)
+    assert git(root, "status", "--porcelain", "--", "profile/accounts.json").stdout == ""
 
 
 def test_offline_setup_never_authenticates(tmp_path, monkeypatch):

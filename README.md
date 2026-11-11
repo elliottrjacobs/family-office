@@ -46,6 +46,10 @@ After authorization, supported providers return account identifiers automaticall
 The CLI creates the local registry and keeps Schwab account hashes in local
 credentials, so you normally do not need to look up IDs. Ambiguous matches stop for resolution;
 you may still need to identify account owners or clarify account labels.
+If a sync returns no registered account, `fo doctor` and onboarding show the repair
+before retrying. Institution errors require repairing the connection at the provider.
+Without institution errors, register the returned accounts with `fo auth <provider>`.
+For SimpleFIN, get a new setup token first, then run `fo auth simplefin`.
 The office may live in iCloud Drive or another synced folder. Credentials stay in
 an outside, per-machine folder keyed by `[office].id` in `office.toml`: on macOS,
 `~/Library/Application Support/FamilyOffice/credentials/<office-id>/`; elsewhere,
@@ -337,6 +341,8 @@ this list with `invalid_key`, or a value of the wrong type with `invalid_value`:
 `firecrawl`, and `gemini`, `providers.gemini.max_tasks_per_day`, and
 `providers.edgar.user_agent`. `fo config get KEY` prints one of them as JSON.
 Advisor runs cannot change settings.
+Changed settings are committed locally in `office.toml`. Unrelated dirty or staged
+files stay outside that commit. Credential repairs also record their settings changes.
 
 After changing `hosts.writer`, run `fo schedule install` on the new writer if it
 has not been scheduled there. Scheduled syncs on the old host skip once their
@@ -358,6 +364,9 @@ has data in the supported legacy layout. It is not part of normal onboarding.
 `fo schedule install` prepares four launchd definitions on every host without
 activating them, including a 02:00 `fo sync --commit --if-writer` job. That sync
 skips cleanly on hosts other than `hosts.writer`, without writing a sync log.
+The machine-specific files in `launchd/` are ignored by Git. For an older office,
+`fo doctor --fix` commits the ignore rule and untracks old plists, keeping local files.
+It also retries local commits of managed settings after an earlier failure.
 Regenerate and reload existing definitions to pick up `--if-writer`. The agent
 loads the jobs after runtime verification and cutover approval. See
 [office layout and operations](docs/office-layout.md) and the

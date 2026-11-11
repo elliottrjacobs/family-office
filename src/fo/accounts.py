@@ -1,11 +1,13 @@
 """Register provider-discovered identities without copying private identifiers."""
 
+from fo.commits import record
 from fo.errors import OfficeError
 from fo.office import contained, write_json
 from fo.store.authored import load
 
 
 def register(root, provider, discovered):
+    """Persist discovered identities and record them while the caller holds office_lock."""
     if not discovered:
         raise OfficeError("no_accounts", "The provider returned no accounts to connect.")
     registry = load(root, "accounts")
@@ -33,4 +35,5 @@ def register(root, provider, discovered):
         rows.append(entry)
         assigned.append(entry["id"])
     write_json(contained(root, "profile/accounts.json"), registry)
+    record(root, ["profile/accounts.json"], f"Register {provider} accounts")
     return assigned

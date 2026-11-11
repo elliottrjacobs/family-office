@@ -250,6 +250,8 @@ def test_all_skills_start_and_verified_report_cycle(tmp_path):
 @pytest.mark.parametrize("writer", [False, True])
 def test_schedule_and_notification_arguments(tmp_path, monkeypatch, writer):
     import fo.operations as ops
+    from fo.commits import commit_office
+    from fo.office import git
 
     root = tmp_path / "office"
     monkeypatch.setattr("platform.node", lambda: "example-mac.local")
@@ -265,6 +267,10 @@ def test_schedule_and_notification_arguments(tmp_path, monkeypatch, writer):
         if body["Label"] == "local.family-office.sync":
             assert body["ProgramArguments"][3:6] == ["sync", "--commit", "--if-writer"]
             assert body["StartCalendarInterval"] == {"Hour": 2, "Minute": 0}
+    (root / "notebook/corrections.md").write_text("# Standing corrections\n\nSynthetic note.\n")
+    assert commit_office(root) == {"committed": True, "pushed": False}
+    assert git(root, "status", "--porcelain").stdout == ""
+    assert git(root, "ls-files", "--", "launchd").stdout == ""
     calls = []
     monkeypatch.setattr(ops.platform, "system", lambda: "Darwin")
 
