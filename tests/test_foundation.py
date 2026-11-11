@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from fo.config import credentials_dir, ensure_credentials
+from fo.office import git
 
 
 def fo(*args, cwd=None):
@@ -38,6 +39,38 @@ def test_init_doctor_idempotent_and_discovery(tmp_path):
         ).stdout
         == ""
     )
+
+
+@pytest.mark.parametrize("missing_file", [False, True])
+def test_doctor_repairs_and_records_launchd_ignore(tmp_path, missing_file):
+    from fo.init import initialize
+    from fo.serve.onboarding import derive
+    from fo.serve.server import Locator
+
+    root = tmp_path / "office"
+    initialize(root)
+    path = root / ".gitignore"
+    original = path.read_text().replace("launchd/\n", "").rstrip("\n")
+    if missing_file:
+        path.unlink()
+    else:
+        path.write_text(original)
+    result = fo("doctor", "--office", root, "--json")
+    checks = {c["name"]: c for c in json.loads(result.stdout)}
+    assert checks["office.ignore"]["status"] == "warn"
+    item = next(c for c in derive(Locator(root))["doctor"] if c["name"] == "office.ignore")
+    assert "fo doctor --fix" in item["command"]
+    result = fo("doctor", "--fix", "--office", root, "--json")
+    assert result.returncode == 0, result.stdout + result.stderr
+    checks = {c["name"]: c for c in json.loads(result.stdout)}
+    assert checks["office.ignore"]["status"] == "pass"
+    assert path.read_text() == ("" if missing_file else original + "\n") + "launchd/\n"
+    assert git(root, "status", "--porcelain", "--", ".gitignore").stdout == ""
+    if not missing_file:
+        assert git(root, "status", "--porcelain").stdout == ""
+    head = git(root, "rev-parse", "HEAD").stdout
+    assert fo("doctor", "--fix", "--office", root, "--json").returncode == 0
+    assert git(root, "rev-parse", "HEAD").stdout == head
 
 
 def test_public_repo_cannot_be_an_office(tmp_path):
@@ -131,6 +164,7 @@ def test_credentials_migrate_once_outside_office(tmp_path):
         (legacy / name).write_bytes(value)
         (legacy / name).chmod(0o600)
     directory = ensure_credentials(root)
+    assert git(root, "status", "--porcelain").stdout == ""
     assert directory.parent == tmp_path / "credentials"
     assert directory.name == read_config(root)["office"]["id"]
     assert not directory.is_relative_to(root)
@@ -455,6 +489,7 @@ def test_existing_office_credential_read_denies_are_checked_and_repaired(
     assert not legacy.exists()
     check = next(c for c in diagnose(root) if c["name"] == "credentials.agent_reads")
     assert check["status"] == "pass"
+    assert git(root, "status", "--porcelain").stdout == ""
     before = path.read_bytes(), path.stat().st_mtime_ns
     ensure_credentials(root)
     assert (path.read_bytes(), path.stat().st_mtime_ns) == before

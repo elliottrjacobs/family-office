@@ -248,7 +248,10 @@ def test_no_mapped_accounts_fail_without_completing(
     assert logs == ([] if dry_run else [log])
     if returned_accounts:
         assert result["reason"] == "no_mapped_accounts"
+        assert result["unmapped_accounts"] == 1
         assert f"fo auth {provider}" in result["message"] and "then `fo sync`" in result["message"]
+        if provider == "simplefin":
+            assert "new SimpleFIN setup token" in result["message"]
         assert "PRIVATE-UNMAPPED" not in response.output and "99990000" not in response.output
         assert project(office)["providers"] == {}
         checks = {c["name"]: c for c in diagnose(office)}
@@ -257,11 +260,117 @@ def test_no_mapped_accounts_fail_without_completing(
         if not dry_run:
             assert checks[f"sync.unmapped.{provider}"]["status"] == "warn"
             assert f"fo auth {provider}" in checks[f"sync.unmapped.{provider}"]["reason"]
+            if provider == "simplefin":
+                assert "new SimpleFIN setup token" in checks[f"sync.unmapped.{provider}"]["reason"]
         onboarding = derive(Locator(office))
         assert onboarding["last_sync"] is None
         assert not next(c["done"] for c in onboarding["checklist"] if c["id"] == "first_sync")
+        if not dry_run:
+            assert onboarding["steps"][0]["command"].startswith(f"fo auth {provider} ")
+            assert onboarding["steps"][-1]["command"].startswith("fo sync ")
     else:
         assert result["account_ids"] == []
+
+
+@pytest.mark.parametrize("dry_run", [False, True])
+@pytest.mark.parametrize("mapped", [False, True])
+def test_simplefin_institution_errors_keep_counts_and_point_to_provider(
+    office, monkeypatch, dry_run, mapped
+):
+    import httpx
+
+    from fo.auth import save_keys
+    from fo.doctor import diagnose
+    from fo.providers.simplefin import SimpleFIN
+    from fo.serve.onboarding import derive
+    from fo.serve.server import Locator
+    from fo.store.jsonl import read_rows
+
+    registry = [
+        {
+            "id": "a",
+            "provider": "simplefin",
+            "provider_ref": "bridge-a",
+            "last4": "",
+            "role": "cash",
+        }
+    ]
+    (office / "profile/accounts.json").write_text(json.dumps({"accounts": registry}))
+    save_keys(office, {"simplefin": {"access_url": "https://u:p@bridge.example/base"}})
+    body = {
+        "accounts": [{"id": "PRIVATE-UNMAPPED"}],
+        "errors": ["PRIVATE-INSTITUTION-ERROR"],
+    }
+    if mapped:
+        body["accounts"].append({"id": "bridge-a", "balance": "15.20", "balance-date": 1789200000})
+    original = SimpleFIN.__init__
+
+    def initialize_adapter(self, access_url, timezone):
+        original(
+            self,
+            access_url,
+            timezone=timezone,
+            transport=httpx.MockTransport(lambda req: httpx.Response(200, json=body)),
+        )
+
+    monkeypatch.setattr(SimpleFIN, "__init__", initialize_adapter)
+    result = synchronize(office, provider="simplefin", dry_run=dry_run)[0]
+    assert result["status"] == ("complete" if mapped else "failed")
+    assert result["provider_errors"] == 1
+    assert result["unmapped_accounts"] == 1
+    if not mapped:
+        assert result["reason"] == "institution_errors"
+        assert "repair them at the provider" in result["message"]
+        assert "fo auth" not in result["message"]
+        assert project(office)["providers"] == {}
+    logs = read_rows(office, "data/sync_log.jsonl")
+    assert logs == ([] if dry_run else [{k: v for k, v in result.items() if k != "dry_run"}])
+    if not dry_run:
+        checks = [c for c in diagnose(office) if c["name"] == "sync.errors.simplefin"]
+        assert len(checks) == 1 and checks[0]["status"] == "warn"
+        if not mapped:
+            onboarding = derive(Locator(office))
+            assert onboarding["state"] == "never_synced"
+            assert len(onboarding["steps"]) == 1
+            assert onboarding["steps"][0]["command"].startswith("fo sync ")
+            assert "Repair the institution connection" in onboarding["steps"][0]["purpose"]
+            assert "fo auth" not in json.dumps(onboarding["steps"])
+        body["errors"] = []
+        body["accounts"] = [{"id": "bridge-a", "balance": "15.20", "balance-date": 1789200000}]
+        assert synchronize(office, provider="simplefin")[0]["status"] == "complete"
+        assert not any(c["name"] == "sync.errors.simplefin" for c in diagnose(office))
+    assert "PRIVATE-UNMAPPED" not in json.dumps(result)
+    assert "PRIVATE-INSTITUTION-ERROR" not in json.dumps(result) + json.dumps(logs)
+
+
+def test_empty_ingest_with_institution_errors_does_not_complete(office):
+    from fo.store.jsonl import read_rows
+
+    with pytest.raises(OfficeError) as error:
+        ingest(office, "simplefin", [], provider_errors=2)
+    assert error.value.reason == "institution_errors"
+    assert read_rows(office, "data/sync_log.jsonl") == []
+
+
+def test_record_includes_a_new_managed_file_and_skips_unchanged_files(office):
+    from fo.commits import record
+
+    path = office / ".claude/local.json"
+    path.write_text("{}\n")
+    record(office, [".claude/local.json"], "Record synthetic settings")
+    assert git(office, "show", "HEAD:.claude/local.json").stdout == "{}\n"
+    assert git(office, "status", "--porcelain").stdout == ""
+    head = git(office, "rev-parse", "HEAD").stdout
+    record(office, [".claude/local.json"], "No changes")
+    assert git(office, "rev-parse", "HEAD").stdout == head
+
+
+def test_record_without_a_repository_does_not_create_one(tmp_path):
+    from fo.commits import record
+
+    (tmp_path / "office.toml").write_text('[office]\nid = "fixture"\n')
+    record(tmp_path, ["office.toml"], "Record synthetic settings")
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["office.toml"]
 
 
 @pytest.mark.parametrize("writer", [False, True])

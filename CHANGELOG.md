@@ -2,8 +2,16 @@
 
 ## Unreleased
 
-- A provider sync that returns accounts but matches none in the registry now fails
-  with `no_mapped_accounts`. It does not count as a completed sync for freshness or
+- Failed syncs retain institution error and unmapped account counts without error
+  text. Institution failures point to provider repairs. SimpleFIN registration
+  requires a new setup token. First-sync onboarding shows the repair before retrying.
+- Offices ignore machine-specific `launchd/` files. `fo doctor --fix` adds the rule
+  for existing offices. Settings changes and credential repairs create local commits
+  of only the files they changed, so scheduled sync commits can continue.
+  Office commits also handle an empty reports folder.
+- A provider sync that returns accounts but matches none in the registry and has
+  no institution errors now fails with `no_mapped_accounts`.
+  It does not count as a completed sync for freshness or
   onboarding, and `fo doctor` shows `sync.unmapped.<provider>` with the fix:
   `fo auth <provider>`, then `fo sync`.
 - Scheduling always includes `sync --commit --if-writer`; non-writer hosts skip

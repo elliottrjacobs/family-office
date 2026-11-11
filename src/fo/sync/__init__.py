@@ -66,6 +66,7 @@ def synchronize(
     results = []
     with office_lock(root):
         for name in providers:
+            adapter = None
             try:
                 accounts = [a for a in registry if a["provider"] == name]
                 if name == "csv":
@@ -110,6 +111,13 @@ def synchronize(
                 }
                 if isinstance(exc, OfficeError):
                     failure["message"] = exc.message
+                for field, attribute in (
+                    ("provider_errors", "error_count"),
+                    ("unmapped_accounts", "unmapped_accounts"),
+                ):
+                    count = getattr(adapter, attribute, 0)
+                    if count:
+                        failure[field] = count
                 if not dry_run:
                     append(root, "data/sync_log.jsonl", failure)
                 results.append(failure)
@@ -120,6 +128,15 @@ def synchronize(
 
                 commit_office(root, include_data=True)
     return results
+
+
+def unmapped_hint(provider, subject):
+    registration = (
+        "get a new SimpleFIN setup token and run `fo auth simplefin`"
+        if provider == "simplefin"
+        else f"run `fo auth {provider}`"
+    )
+    return f"{subject} accounts are not registered; {registration}, then `fo sync`."
 
 
 def ingest(
@@ -144,11 +161,14 @@ def ingest(
                 provider_errors,
                 unmapped_accounts,
             )
-    if unmapped_accounts > 0 and not accounts:
+    if not accounts and provider_errors > 0:
         raise OfficeError(
-            "no_mapped_accounts",
-            f"No returned accounts are registered; run `fo auth {provider}` to register the accounts, then `fo sync`.",
+            "institution_errors",
+            f"{provider_errors} institution connection(s) reported errors and no registered "
+            "account was returned; repair them at the provider, then run `fo sync`.",
         )
+    if unmapped_accounts > 0 and not accounts:
+        raise OfficeError("no_mapped_accounts", unmapped_hint(provider, "No returned"))
     state = project(root)
     from fo.config import read_config
 

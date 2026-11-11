@@ -12,6 +12,7 @@ from fo.config import config_value, get_config, read_config, set_config
 from fo.errors import OfficeError
 from fo.init import initialize
 from fo.lock import office_lock
+from fo.office import git
 
 
 def cli(root, *args):
@@ -255,6 +256,28 @@ def test_writer_and_timezone_are_settable(office, key, value):
     assert (code, data) == (0, {"key": key, "value": value})
     table, name = key.split(".")
     assert read_config(office)[table][name] == value
+
+
+@pytest.mark.parametrize("staged", [False, True])
+def test_config_set_records_only_its_file(office, staged):
+    unrelated = office / "profile/household.md"
+    before = git(office, "show", "HEAD:profile/household.md").stdout
+    unrelated.write_text("Unrelated household edit\n")
+    if staged:
+        git(office, "add", "--", "profile/household.md")
+    code, data = cli(office, "config", "set", "hosts.writer", "x")
+    assert code == 0, data
+    assert git(office, "show", "--format=", "--name-only", "HEAD").stdout.splitlines() == [
+        "office.toml"
+    ]
+    assert git(office, "show", "HEAD:profile/household.md").stdout == before
+    assert git(office, "status", "--porcelain", "--", "office.toml").stdout == ""
+    assert git(office, "status", "--porcelain", "--", "profile/household.md").stdout.startswith(
+        "M " if staged else " M"
+    )
+    head = git(office, "rev-parse", "HEAD").stdout
+    assert cli(office, "config", "set", "hosts.writer", "x")[0] == 0
+    assert git(office, "rev-parse", "HEAD").stdout == head
 
 
 @pytest.mark.parametrize(

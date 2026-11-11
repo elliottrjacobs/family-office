@@ -3,7 +3,9 @@ from datetime import UTC, datetime
 
 from fo.config import credentials_dir, credentials_read_denied, load_json, read_config
 from fo.errors import OfficeError
+from fo.office import contained
 from fo.store.authored import PROFILE_FILES, load
+from fo.sync import unmapped_hint
 
 
 def check(name, status, reason):
@@ -12,6 +14,19 @@ def check(name, status, reason):
 
 def diagnose(root):
     checks = []
+    try:
+        ignored = "launchd/" in contained(root, ".gitignore").read_text().splitlines()
+    except (OfficeError, OSError):
+        ignored = False
+    checks.append(
+        check(
+            "office.ignore",
+            "pass" if ignored else "warn",
+            "Machine-specific launchd files are ignored."
+            if ignored
+            else "Add launchd/ to .gitignore with fo doctor --fix.",
+        )
+    )
     config = {}
     try:
         config = read_config(root)
@@ -162,8 +177,7 @@ def diagnose(root):
                     check(
                         "sync.unmapped." + provider,
                         "warn",
-                        f"{log['unmapped_accounts']} account(s) skipped; "
-                        f"run `fo auth {provider}`, then `fo sync`.",
+                        unmapped_hint(provider, f"{log['unmapped_accounts']} returned"),
                     )
                 )
             if log.get("provider_errors"):
@@ -187,8 +201,20 @@ def diagnose(root):
                     check(
                         unmapped,
                         "warn",
-                        f"No returned accounts are registered; run `fo auth {provider}`, "
-                        "then `fo sync`.",
+                        unmapped_hint(provider, "No returned"),
+                    )
+                )
+            errors = "sync.errors." + provider
+            if row.get("reason") == "institution_errors" and not any(
+                c["name"] == errors for c in checks
+            ):
+                checks.append(
+                    check(
+                        errors,
+                        "warn",
+                        f"{row.get('provider_errors', 0)} institution connection(s) reported "
+                        "errors and no registered account was returned; repair them at the "
+                        "provider, then run `fo sync`.",
                     )
                 )
         if state["stale_accounts"]:

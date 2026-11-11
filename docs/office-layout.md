@@ -26,6 +26,8 @@ command; read-only commands never migrate or write `office.toml`. Identical dest
 allow removal of the office copy; differing copies remain for manual resolution
 and `fo doctor` flags them. The empty legacy directory is removed. The office
 still ignores and blocks `secrets/` in Git for defense in depth.
+Credential repairs commit changes to `office.toml` and `.claude/settings.json`
+locally. Only files changed by the repair are included.
 
 ## Account roles
 
@@ -79,8 +81,10 @@ source, rotate its credentials, or unload its jobs as a side effect of migration
 
 ## Scheduled operations
 
-`fo schedule install` prepares launchd definitions in `launchd/`. It returns
-argument arrays for loading them. Every host gets the 02:00
+`fo schedule install` prepares launchd definitions in `launchd/` and returns
+argument arrays for loading them. The files contain machine-specific absolute
+paths and are ignored by Git. `fo doctor` warns if the ignore rule is missing.
+`fo doctor --fix` adds and commits it locally. Every host gets the 02:00
 `sync --commit --if-writer` job. It checks `hosts.writer` each time and exits
 successfully on other hosts without syncing, writing a sync log, or notifying.
 Manual `fo sync` without `--if-writer` still refuses a non-writer host.
@@ -92,6 +96,9 @@ financial values. Logs remain in ignored `cache/logs/`.
 When moving the writer with `fo config set hosts.writer example-mac.local`, run
 `fo schedule install` on that machine if it has not been scheduled there, then
 load the returned jobs as described below. The old host's sync job now skips.
+`fo config set` commits its `office.toml` change locally without committing other
+dirty or staged files. These managed writes keep `fo commit` and nightly syncs
+from being blocked by their own settings changes.
 For existing installations, regenerate and reload the definitions to pick up
 `--if-writer` before moving the writer.
 

@@ -87,12 +87,16 @@ def credentials_dir(root: Path) -> Path:
 
 def ensure_credentials(root: Path) -> Path:
     """Create the identity and local directory, then migrate legacy secrets."""
+    from fo.commits import record
     from fo.lock import office_lock
     from fo.office import atomic_write
 
     # Check the agent read-deny first, so a bad settings file stops migration before the id.
+    changed = []
     try:
-        credentials_read_denied(root, fix=True)
+        if not credentials_read_denied(root):
+            credentials_read_denied(root, fix=True)
+            changed.append(".claude/settings.json")
     except OSError as exc:
         raise OfficeError(
             "invalid_config", "The office .claude/settings.json could not be updated."
@@ -101,6 +105,10 @@ def ensure_credentials(root: Path) -> Path:
         with office_lock(root, wait=LOCK_WAIT):
             if read_config(root).get("office", {}).get("id") is None:
                 _write_config(root, "office.id", uuid.uuid4().hex)
+                changed.append("office.toml")
+            record(root, changed, "Record credential settings")
+    else:
+        record(root, changed, "Record credential settings")
     directory = credentials_dir(root)
     try:
         directory.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -381,6 +389,7 @@ def set_config(root: Path, key: str, text: str) -> dict:
     cannot change safely, such as an inline table or dotted keys for the same table, is
     refused rather than rewritten.
     """
+    from fo.commits import record
     from fo.lock import office_lock
 
     value = config_value(key, text)
@@ -388,7 +397,8 @@ def set_config(root: Path, key: str, text: str) -> dict:
         writer_changed = (
             key == "hosts.writer" and read_config(root).get("hosts", {}).get("writer") != value
         )
-        _write_config(root, key, value)
+        if _write_config(root, key, value):
+            record(root, ["office.toml"], f"Set {key}")
     result = {"key": key, "value": value}
     if writer_changed:
         result["note"] = (
@@ -424,6 +434,8 @@ def _write_config(root: Path, key: str, value):
         )
     if updated != original:
         atomic_write(path, updated, mode)
+        return True
+    return False
 
 
 def get_config(root: Path, key: str) -> dict:

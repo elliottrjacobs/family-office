@@ -9,6 +9,29 @@ from fo.office import git
 HIDDEN = "Hidden files or folders under reports/ cannot be committed."
 
 
+def record(root, paths, message):
+    if not paths or not (root / ".git").exists():
+        return
+    changed = git(root, "diff", "--quiet", "HEAD", "--", *paths, check=False).returncode != 0
+    untracked = git(root, "ls-files", "--others", "--exclude-standard", "--", *paths).stdout
+    if not changed and not untracked:
+        return
+    git(root, "add", "--", *paths)
+    git(
+        root,
+        "-c",
+        "user.name=Family Office",
+        "-c",
+        "user.email=office@localhost",
+        "commit",
+        "--only",
+        "-qm",
+        message,
+        "--",
+        *paths,
+    )
+
+
 def scan_history(root):
     scanner = shutil.which("gitleaks")
     if scanner is None:
@@ -57,6 +80,8 @@ def commit_office(root, include_data=False):
     git(root, "add", "--", *paths)
     changed = git(root, "diff", "--cached", "--quiet", check=False).returncode != 0
     if changed:
+        # The status check above admits only allowed paths, so the index holds nothing else.
+        # A pathspec would fail on an allowed folder that exists but is empty.
         git(
             root,
             "-c",
@@ -66,8 +91,6 @@ def commit_office(root, include_data=False):
             "commit",
             "-qm",
             "Record office updates",
-            "--",
-            *paths,
         )
     remote = read_config(root).get("hosts", {}).get("remote")
     if remote:
