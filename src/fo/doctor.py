@@ -1,7 +1,7 @@
 import os
 from datetime import UTC, datetime
 
-from fo.config import credentials_dir, load_json, read_config
+from fo.config import credentials_dir, credentials_read_denied, load_json, read_config
 from fo.errors import OfficeError
 from fo.store.authored import PROFILE_FILES, load
 
@@ -42,8 +42,12 @@ def diagnose(root):
     secret_dir = None
     try:
         secret_dir = credentials_dir(root)
-        directories = [secret_dir]
-        if not os.environ.get("FO_CREDENTIALS_HOME"):
+        try:
+            secret_dir.stat()
+            directories = [secret_dir]
+        except FileNotFoundError:
+            directories = []
+        if directories and not os.environ.get("FO_CREDENTIALS_HOME"):
             directories.append(secret_dir.parent)
         bad = any(p.stat().st_mode & 0o777 != 0o700 for p in directories)
         for path in secret_dir.rglob("*"):
@@ -66,18 +70,38 @@ def diagnose(root):
                 else "Local credentials are unavailable.",
             )
         )
+    try:
+        denied = credentials_read_denied(root)
+        checks.append(
+            check(
+                "credentials.agent_reads",
+                "pass" if denied else "fail",
+                "Credential read deny rules valid."
+                if denied
+                else "Claude settings lack credential read deny rules. Run fo doctor --fix.",
+            )
+        )
+    except (OfficeError, OSError):
+        checks.append(
+            check("credentials.agent_reads", "fail", "Claude permission settings are unavailable.")
+        )
     legacy = root / "secrets"
-    leftover = legacy.is_symlink() or (
-        legacy.exists() and any(p.is_file() or p.is_symlink() for p in legacy.rglob("*"))
+    remaining = (
+        ["secrets/ (symlink)"]
+        if legacy.is_symlink()
+        else sorted(
+            str(p.relative_to(root)) for p in legacy.rglob("*") if p.is_file() or p.is_symlink()
+        )
     )
     checks.append(
         check(
             "secrets.in_office",
-            "fail" if leftover else "pass",
+            "fail" if remaining else "pass",
             "Credentials remain in office secrets/. Run fo doctor --fix to migrate them; "
             "download any .icloud placeholders first, "
-            "or move them outside the office; resolve differing copies manually."
-            if leftover
+            "or move them outside the office; resolve differing copies manually. Remaining: "
+            + ", ".join(remaining)
+            if remaining
             else "No credentials in the office folder.",
         )
     )

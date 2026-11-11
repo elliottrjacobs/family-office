@@ -60,7 +60,7 @@ def fix(root, name):
         return fo("sync", root=root), None
     if name == "providers":
         return fo("auth", "simplefin", root=root), "Or connect Schwab with fo auth schwab."
-    if name in {"credentials.perms", "secrets.in_office"}:
+    if name in {"credentials.perms", "credentials.agent_reads", "secrets.in_office"}:
         return fo("doctor", "--fix", root=root), "Download any .icloud placeholders first."
     if name.startswith("profile.") or name == "accounts.roles":
         return None, ONBOARD

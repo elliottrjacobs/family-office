@@ -11,6 +11,40 @@ from pathlib import Path
 from fo.errors import OfficeError
 from fo.office import contained
 
+CREDENTIAL_READ_DENIES = (
+    "Read(~/Library/Application Support/FamilyOffice/credentials/**)",
+    "Read(~/.local/share/family-office/credentials/**)",
+)
+MANAGED_CREDENTIAL_FILES = {
+    "keys.toml",
+    "alphavantage.json",
+    "fred.json",
+    "exa.json",
+    "firecrawl.json",
+    "gemini.json",
+    "schwab-token.json",
+    "devices.json",
+}
+
+
+def credentials_read_denied(root: Path, *, fix: bool = False) -> bool:
+    """Check or add credential read denies in an existing Claude settings file."""
+    from fo.office import write_json
+
+    path = contained(root, ".claude/settings.json")
+    if not path.exists():
+        return True
+    settings = load_json(path)
+    permissions = settings.get("permissions", {}) if isinstance(settings, dict) else None
+    deny = permissions.get("deny", []) if isinstance(permissions, dict) else None
+    if not isinstance(deny, list) or not all(isinstance(rule, str) for rule in deny):
+        raise OfficeError("invalid_config", "Claude permission settings are malformed.")
+    missing = [rule for rule in CREDENTIAL_READ_DENIES if rule not in deny]
+    if missing and fix:
+        settings.setdefault("permissions", {}).setdefault("deny", []).extend(missing)
+        write_json(path, settings, path.stat().st_mode & 0o777)
+    return not missing or fix
+
 
 def read_config(root: Path) -> dict:
     try:
@@ -59,13 +93,18 @@ def ensure_credentials(root: Path) -> Path:
                 _write_config(root, "office.id", uuid.uuid4().hex)
     directory = credentials_dir(root)
     try:
+        credentials_read_denied(root, fix=True)
         directory.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         directory.mkdir(mode=0o700, exist_ok=True)
         directory.chmod(0o700)
         legacy = root / "secrets"
         if legacy.is_dir():
             for source in legacy.iterdir():
-                if source.name.endswith(".icloud") or source.is_symlink() or not source.is_file():
+                if (
+                    source.name not in MANAGED_CREDENTIAL_FILES
+                    or source.is_symlink()
+                    or not source.is_file()
+                ):
                     continue
                 destination = directory / source.name
                 if destination.is_symlink():

@@ -4,7 +4,7 @@ import uuid
 from pathlib import Path
 
 from fo import __version__
-from fo.config import ensure_credentials
+from fo.config import CREDENTIAL_READ_DENIES, ensure_credentials
 from fo.errors import OfficeError
 from fo.office import atomic_write, git, write_json
 
@@ -154,8 +154,7 @@ family-office = {git = "https://github.com/elliottrjacobs/family-office.git", ta
                 "allow": ["Bash(uv run fo *)", "Bash(fo *)", "Read", "Edit(reports/**)"],
                 "deny": [
                     "Read(secrets/**)",
-                    "Read(~/Library/Application Support/FamilyOffice/credentials/**)",
-                    "Read(~/.local/share/family-office/credentials/**)",
+                    *CREDENTIAL_READ_DENIES,
                     "Edit(data/**)",
                     "Edit(notebook/**)",
                     "Bash(python *)",

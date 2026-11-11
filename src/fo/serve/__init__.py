@@ -69,7 +69,10 @@ def prepare(office=None, port=None, host=None, remote=False, read_only=False, ap
     if root is not None and not read_only:
         from fo.config import ensure_credentials
 
-        ensure_credentials(root)
+        try:
+            ensure_credentials(root)
+        except OfficeError:
+            pass  # Start so the app can show doctor's repair command.
     config = settings(root)
     port = port if port is not None else config.get("port", DEFAULT_PORT)
     # Port 0 asks the system for any free port.

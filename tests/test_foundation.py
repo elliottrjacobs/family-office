@@ -160,18 +160,58 @@ def test_credential_conflicts_stay_and_doctor_flags_office_copy(tmp_path):
     directory = credentials_dir(root)
     legacy = root / "secrets"
     legacy.mkdir(mode=0o700)
-    for name in ("same.json", "different.json"):
+    for name in ("fred.json", "exa.json"):
         (directory / name).write_text("local")
         (directory / name).chmod(0o600)
-    (legacy / "same.json").write_text("local")
-    (legacy / "different.json").write_text("office")
+    (legacy / "fred.json").write_text("local")
+    (legacy / "exa.json").write_text("office")
     assert ensure_credentials(root) == directory
-    assert not (legacy / "same.json").exists()
-    assert (legacy / "different.json").read_text() == "office"
-    assert (directory / "different.json").read_text() == "local"
+    assert not (legacy / "fred.json").exists()
+    assert (legacy / "exa.json").read_text() == "office"
+    assert (directory / "exa.json").read_text() == "local"
     checks = {c["name"]: c for c in diagnose(root)}
     assert checks["secrets.in_office"]["status"] == "fail"
     assert checks["credentials.perms"]["status"] == "pass"
+
+
+def test_migration_only_moves_managed_credentials_and_names_leftovers(tmp_path):
+    from fo.doctor import diagnose
+    from fo.init import initialize
+
+    root = tmp_path / "office"
+    initialize(root)
+    legacy = root / "secrets"
+    legacy.mkdir()
+    managed = (
+        "keys.toml",
+        "alphavantage.json",
+        "fred.json",
+        "exa.json",
+        "firecrawl.json",
+        "gemini.json",
+        "schwab-token.json",
+        "devices.json",
+    )
+    remaining = ("notes.txt", "other-provider.json", "edgar.json", ".keys.toml.icloud")
+    for name in (*managed, *remaining):
+        (legacy / name).write_bytes(b"synthetic fixture\n")
+    before = {
+        name: ((legacy / name).read_bytes(), (legacy / name).stat().st_mtime_ns)
+        for name in remaining
+    }
+    directory = ensure_credentials(root)
+    assert sorted(p.name for p in directory.iterdir()) == sorted(managed)
+    for name in managed:
+        assert (directory / name).read_bytes() == b"synthetic fixture\n"
+        assert (directory / name).stat().st_mode & 0o777 == 0o600
+    assert sorted(p.name for p in legacy.iterdir()) == sorted(remaining)
+    for name in remaining:
+        assert ((legacy / name).read_bytes(), (legacy / name).stat().st_mtime_ns) == before[name]
+    check = next(c for c in diagnose(root) if c["name"] == "secrets.in_office")
+    assert check["status"] == "fail"
+    for name in remaining:
+        assert f"secrets/{name}" in check["reason"]
+    assert "synthetic fixture" not in check["reason"]
 
 
 @pytest.mark.parametrize(
@@ -320,6 +360,22 @@ def test_credentials_read_does_not_create_directory_and_devices_are_empty(tmp_pa
     assert directory.stat().st_mode & 0o777 == 0o700
 
 
+@pytest.mark.parametrize("missing_base", [False, True])
+def test_doctor_accepts_missing_local_credentials_without_creating_them(tmp_path, missing_base):
+    from fo.doctor import diagnose
+    from fo.init import initialize
+
+    root = tmp_path / "office"
+    initialize(root)
+    directory = credentials_dir(root)
+    directory.rmdir()
+    if missing_base:
+        directory.parent.rmdir()
+    check = next(c for c in diagnose(root) if c["name"] == "credentials.perms")
+    assert check["status"] == "pass"
+    assert not directory.exists()
+
+
 def test_doctor_fix_preserves_override_base_permissions(tmp_path):
     from fo.init import initialize
 
@@ -343,6 +399,84 @@ def test_init_denies_agent_reads_of_machine_credentials(tmp_path):
     assert "Read(secrets/**)" in deny
     assert "Read(~/Library/Application Support/FamilyOffice/credentials/**)" in deny
     assert "Read(~/.local/share/family-office/credentials/**)" in deny
+
+
+@pytest.mark.parametrize("repair", ["migration", "doctor"])
+@pytest.mark.parametrize(
+    "permissions",
+    [
+        {"allow": ["Read"], "deny": ["Read(secrets/**)"]},
+        {"allow": ["Read"]},
+        None,
+    ],
+)
+def test_existing_office_credential_read_denies_are_checked_and_repaired(
+    tmp_path, repair, permissions
+):
+    from fo.doctor import diagnose
+    from fo.init import initialize
+    from fo.serve.onboarding import derive
+    from fo.serve.server import Locator
+
+    root = tmp_path / "office"
+    initialize(root)
+    legacy = root / "secrets"
+    legacy.mkdir()
+    (legacy / "keys.toml").write_text('[fred]\napi_key = "synthetic"\n')
+    settings = {"env": {"EXAMPLE": "kept"}}
+    if permissions is not None:
+        settings["permissions"] = permissions
+    settings["model"] = "sonnet"
+    path = root / ".claude/settings.json"
+    path.write_text(json.dumps(settings, indent=4) + "\n")
+    path.chmod(0o640)
+    before = path.read_bytes(), path.stat().st_mtime_ns
+    check = next(c for c in diagnose(root) if c["name"] == "credentials.agent_reads")
+    assert check["status"] == "fail"
+    assert "fo doctor --fix" in check["reason"]
+    item = next(c for c in derive(Locator(root))["doctor"] if c["name"] == check["name"])
+    assert "doctor --fix" in item["command"]
+    assert (path.read_bytes(), path.stat().st_mtime_ns) == before
+    if repair == "migration":
+        ensure_credentials(root)
+    else:
+        result = fo("doctor", "--fix", "--office", root, "--json")
+        assert result.returncode == 0, result.stdout + result.stderr
+    updated = json.loads(path.read_text())
+    assert list(updated) == list(settings) + ([] if permissions is not None else ["permissions"])
+    expected_permissions = {**(permissions or {})}
+    expected_permissions["deny"] = [
+        *(permissions or {}).get("deny", []),
+        "Read(~/Library/Application Support/FamilyOffice/credentials/**)",
+        "Read(~/.local/share/family-office/credentials/**)",
+    ]
+    assert updated == {**settings, "permissions": expected_permissions}
+    assert path.stat().st_mode & 0o777 == 0o640
+    assert not legacy.exists()
+    check = next(c for c in diagnose(root) if c["name"] == "credentials.agent_reads")
+    assert check["status"] == "pass"
+    before = path.read_bytes(), path.stat().st_mtime_ns
+    ensure_credentials(root)
+    assert (path.read_bytes(), path.stat().st_mtime_ns) == before
+
+
+@pytest.mark.parametrize("repair", ["migration", "doctor"])
+def test_credential_repairs_do_not_create_absent_claude_settings(tmp_path, repair):
+    from fo.doctor import diagnose
+    from fo.init import initialize
+
+    root = tmp_path / "office"
+    initialize(root)
+    path = root / ".claude/settings.json"
+    path.unlink()
+    if repair == "migration":
+        ensure_credentials(root)
+    else:
+        result = fo("doctor", "--fix", "--office", root, "--json")
+        assert result.returncode == 0, result.stdout + result.stderr
+    assert not path.exists()
+    check = next(c for c in diagnose(root) if c["name"] == "credentials.agent_reads")
+    assert check["status"] == "pass"
 
 
 def test_office_id_creation_holds_the_config_write_lock(tmp_path, monkeypatch):
@@ -384,3 +518,32 @@ def test_serve_only_migrates_credentials_when_writable(tmp_path, read_only):
         if server.app.runs is not None:
             server.app.runs.shutdown()
         server.server_close()
+
+
+def test_serve_starts_and_handshakes_when_credentials_are_unavailable(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from fo.init import initialize
+    from fo.serve import handshake, prepare
+    from fo.serve.onboarding import derive
+
+    root = tmp_path / "office"
+    initialize(root)
+    blocked = tmp_path / "blocked"
+    blocked.write_text("synthetic non-directory")
+    monkeypatch.setenv("FO_CREDENTIALS_HOME", str(blocked / "credentials"))
+    monkeypatch.setattr(
+        "fo.serve.server.make_server",
+        lambda app, host, port: SimpleNamespace(app=app, server_address=(host, port)),
+    )
+    server, _ = prepare(root, port=0)
+    try:
+        assert json.loads(handshake(server))["office"] == str(root)
+        check = next(
+            c for c in derive(server.app.locator)["doctor"] if c["name"] == "credentials.perms"
+        )
+        assert check["status"] == "fail"
+        assert "doctor --fix" in check["command"]
+        assert not (root / "secrets").exists()
+    finally:
+        server.app.runs.shutdown()

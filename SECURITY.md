@@ -216,8 +216,10 @@ selects a 0700 subdirectory; credential files are 0600. The id is safe to sync;
 each machine must connect separately. This uses files, not macOS Keychain;
 Keychain integration remains possible future hardening.
 
-On credential access, legacy office `secrets/` files move to that folder. An
-existing destination wins: identical office copies are removed; differing copies
+On `fo init`, `fo setup`, `fo doctor --fix`, writable `fo serve`, or a
+credential-writing command, fo-managed legacy office `secrets/` files move to
+that folder; reads never migrate. An existing destination wins: identical office
+copies are removed; differing copies
 stay in both locations for manual resolution. `fo doctor` flags office leftovers
 and local credential permissions. Keep `secrets/` ignored and blocked by the
 pre-commit hook as defense for older offices.
