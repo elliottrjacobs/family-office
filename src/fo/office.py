@@ -39,7 +39,8 @@ def run_office(explicit: Path | None, args: list[str]) -> Path | None:
 
     args are the command words and options left after the global flags, read before
     dispatch so that flag order cannot move a command past this check. Only `sync status`
-    survives the sync restriction, because it reads the sync log.
+    survives the sync restriction, because it reads the sync log. The hook's command
+    policy also applies here; without that hook the CLI caps and logs research itself.
     """
     marked = os.environ.get(RUN_MARKER)
     if not marked:
@@ -67,6 +68,18 @@ def run_office(explicit: Path | None, args: list[str]) -> Path | None:
                     "providers, sync, commit, schedule, notify, migrate, reindex, retire "
                     "corrections, or settle decisions.",
                 )
+    # Import here: the guard's logging helpers also depend on office path validation.
+    from fo.serve.guard import words_denial
+    from fo.serve.runner import HOOK_FLAG
+
+    try:
+        reason = words_denial(args, record=os.environ.get(HOOK_FLAG) != "1")
+    except (OSError, ValueError) as exc:
+        raise OfficeError(
+            "serve_run_restricted", "The run guard could not check this command."
+        ) from exc
+    if reason:
+        raise OfficeError("serve_run_restricted", reason)
     return office
 
 

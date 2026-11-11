@@ -31,6 +31,9 @@ OUTPUT_LIMIT = 2000
 RUN_FOLDER = "FO_SERVE_RUN_DIR"
 WEB_FLAG = "FO_SERVE_WEB"
 FETCH_CAP = "FO_SERVE_WEB_FETCH_CAP"
+# Claude's PreToolUse hook already caps/logs research; the CLI still validates it.
+# Codex leaves this unset so the CLI owns cap/log accounting for its fo commands.
+HOOK_FLAG = "FO_SERVE_HOOK_ACTIVE"
 WEB_LOG = "web.jsonl"
 
 

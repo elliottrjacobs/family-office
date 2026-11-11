@@ -155,6 +155,7 @@ def test_the_runner_environment_tells_the_hook_about_the_run(office, tmp_path):
     env = runner.environment(office, tmp_path / "run", True, 7)
     assert env["FO_SERVE_RUN_DIR"] == str(tmp_path / "run")
     assert (env["FO_SERVE_WEB"], env["FO_SERVE_WEB_FETCH_CAP"]) == ("1", "7")
+    assert env["FO_SERVE_HOOK_ACTIVE"] == "1"
     assert runner.environment(office)["FO_SERVE_WEB"] == "0"
 
 
