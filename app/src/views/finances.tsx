@@ -76,6 +76,11 @@ function Overview() {
           tone={w && (w.stale_accounts.length || w.stale_providers.length) ? "warning" : undefined}
         />
       </div>
+      {!!w?.non_usd_accounts?.length && (
+        <p className="text-sm text-muted-foreground">
+          {w.non_usd_accounts.length} account(s) are not in USD, so net worth is unknown.
+        </p>
+      )}
       <div className="grid gap-4 lg:grid-cols-[3fr_2fr]">
         <section className="rounded-xl border bg-card p-4 sm:p-5">
           <h2 className="text-base font-semibold">Allocation against policy</h2>

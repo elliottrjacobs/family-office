@@ -261,3 +261,45 @@ def test_schwab_accounts_with_fake_client_maps_hashes_and_hides_failures(tmp_pat
     assert "SECRET" not in str(caught.value)
     with pytest.raises(OfficeError, match="hash mapping"):
         Schwab(root, client=Client()).accounts([{**registry[0], "id": "b"}])
+
+
+@pytest.mark.parametrize("currency", ["EUR", "USD", None, "https://example.invalid/currency"])
+def test_simplefin_currency_is_stored(tmp_path, currency):
+    from fo.store.jsonl import read_rows
+    from fo.sync import ingest
+
+    root = tmp_path / "office"
+    initialize(root)
+    registry = [{"id": "a", "provider": "simplefin", "provider_ref": "bridge-a", "last4": ""}]
+    (root / "profile/accounts.json").write_text(json.dumps({"accounts": registry}))
+    client = SimpleFIN(
+        "https://u:p@bridge.example/base",
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                json={
+                    "accounts": [
+                        {
+                            "id": "bridge-a",
+                            "balance": "15.20",
+                            "balance-date": 1789200000,
+                            "currency": currency,
+                        }
+                    ]
+                },
+            )
+        ),
+    )
+    ingest(root, "simplefin", client.accounts(registry))
+    row = list(read_rows(root, "data/balances.jsonl"))[0]
+    assert row["currency"] == ("XXX" if currency and currency.startswith("https:") else currency)
+
+
+@pytest.mark.parametrize(
+    ("raw", "code"),
+    [(None, None), ("USD", "USD"), (" usd", "USD"), ("eur\n", "EUR"), ("", "XXX"), ("EU", "XXX")],
+)
+def test_simplefin_currency_code_normalizes_iso_codes(raw, code):
+    from fo.providers.simplefin import currency_code
+
+    assert currency_code(raw) == code
