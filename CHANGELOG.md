@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- A provider sync that returns accounts but matches none in the registry now fails
+  with `no_mapped_accounts`. It does not count as a completed sync for freshness or
+  onboarding, and `fo doctor` shows `sync.unmapped.<provider>` with the fix:
+  `fo auth <provider>`, then `fo sync`.
+- Scheduling always includes `sync --commit --if-writer`; non-writer hosts skip
+  cleanly. Changing `hosts.writer` reminds users to schedule the new host.
 - Sync skips unmapped provider accounts and reports how many were skipped;
   `fo doctor` directs users to `fo auth <provider>` to register them.
   `fo config set` now accepts `hosts.writer` and `office.timezone`.

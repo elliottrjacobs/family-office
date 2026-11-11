@@ -132,7 +132,7 @@ def diagnose(root):
     try:
         state = project(root)
         checks.append(check("store.integrity", "pass", "Canonical records are valid."))
-        from fo.store.jsonl import torn
+        from fo.store.jsonl import read_rows, torn
 
         if torn(root):
             checks.append(
@@ -163,7 +163,7 @@ def diagnose(root):
                         "sync.unmapped." + provider,
                         "warn",
                         f"{log['unmapped_accounts']} account(s) skipped; "
-                        f"run `fo auth {provider}` to register the new accounts.",
+                        f"run `fo auth {provider}`, then `fo sync`.",
                     )
                 )
             if log.get("provider_errors"):
@@ -173,6 +173,22 @@ def diagnose(root):
                         "warn",
                         f"{log['provider_errors']} institution connection(s) reported errors; "
                         "repair them at the provider.",
+                    )
+                )
+        latest = {}
+        for row in read_rows(root, "data/sync_log.jsonl"):
+            latest[row["provider"]] = row
+        for provider, row in latest.items():
+            unmapped = "sync.unmapped." + provider
+            if row.get("reason") == "no_mapped_accounts" and not any(
+                c["name"] == unmapped for c in checks
+            ):
+                checks.append(
+                    check(
+                        unmapped,
+                        "warn",
+                        f"No returned accounts are registered; run `fo auth {provider}`, "
+                        "then `fo sync`.",
                     )
                 )
         if state["stale_accounts"]:

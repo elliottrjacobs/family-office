@@ -247,17 +247,24 @@ def test_all_skills_start_and_verified_report_cycle(tmp_path):
         assert verify(root, path)["valid"]
 
 
-def test_schedule_and_notification_arguments(tmp_path, monkeypatch):
+@pytest.mark.parametrize("writer", [False, True])
+def test_schedule_and_notification_arguments(tmp_path, monkeypatch, writer):
     import fo.operations as ops
 
     root = tmp_path / "office"
+    monkeypatch.setattr("platform.node", lambda: "example-mac.local")
     initialize(root)
+    if not writer:
+        monkeypatch.setattr("platform.node", lambda: "machine.your-tailnet.ts.net")
     result = schedule(root)
     assert len(result["jobs"]) == 4
     for job in result["jobs"]:
         body = plistlib.loads(Path(job["path"]).read_bytes())
         assert body["ProgramArguments"][1:3] == ["run", "fo"]
         assert "codex" not in body["ProgramArguments"]
+        if body["Label"] == "local.family-office.sync":
+            assert body["ProgramArguments"][3:6] == ["sync", "--commit", "--if-writer"]
+            assert body["StartCalendarInterval"] == {"Hour": 2, "Minute": 0}
     calls = []
     monkeypatch.setattr(ops.platform, "system", lambda: "Darwin")
 
