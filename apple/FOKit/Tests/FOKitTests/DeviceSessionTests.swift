@@ -354,7 +354,7 @@ final class DeviceSessionTests: XCTestCase {
         try await session.pair(payload: payload, name: "Test iPhone")
         let paired = session.state
         let replacement = DeviceCredential(
-            url: URL(string: "https://other-mac.tail0000.ts.net")!,
+            url: URL(string: "https://machine.your-tailnet.ts.net")!,
             deviceId: "dev_0002", name: "Other iPhone", token: "synthetic-other-token")
         try store.delete()
         let deletes = store.deleteCalls
