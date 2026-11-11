@@ -11,6 +11,9 @@ from fo.cli import app
 from fo.init import initialize
 from fo.providers import http
 from fo.providers.text import html_to_markdown
+from fo.serve import guard
+from fo.serve.runner_claude import ClaudeRunner
+from fo.serve.runner_codex import CodexRunner
 
 FIXTURES = Path(__file__).parent / "fixtures/research"
 PUBLIC = "93.184.215.14"
@@ -464,3 +467,77 @@ def test_a_malformed_task_id_is_refused(office, routes):
     table[("POST", GEMINI)] = httpx.Response(200, json={"id": "../../models", "status": "x"})
     code, data = invoke("research", "deep", "ACME", "--office", str(office))
     assert (code, data["reason"]) == (1, "provider_error")
+
+
+@pytest.fixture
+def codex_run(office, tmp_path, monkeypatch):
+    folder = office / "cache/serve/runs/synthetic"
+    folder.mkdir(parents=True)
+    runner = CodexRunner(executable=["codex"], auth_home=tmp_path / "auth")
+    for key, value in runner.environment(office, folder, web=True, web_fetch_cap=1).items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.delenv("FO_SERVE_HOOK_ACTIVE", raising=False)
+    return folder
+
+
+def web_entries(folder):
+    return [json.loads(line) for line in (folder / "web.jsonl").read_text().splitlines()]
+
+
+def test_codex_research_queries_are_logged(office, routes, clock, codex_run):
+    table, _ = routes
+    connect(office, "exa")
+    connect(office, "gemini")
+    table[EXA] = httpx.Response(200, json=fixture("exa-search.json"))
+    gemini_routes(table, ["completed"])
+    query = "ACME earnings 123456789012"
+    assert invoke("research", "search", query)[0] == 0
+    assert invoke("research", "deep", "ACME moat")[0] == 0
+    assert [(entry["kind"], entry["value"]) for entry in web_entries(codex_run)] == [
+        ("search", "ACME earnings …9012"),
+        ("search", "ACME moat"),
+    ]
+
+
+def test_codex_research_fetch_is_checked_logged_and_capped(office, routes, codex_run):
+    table, seen = routes
+    url = f"https://{PUBLIC}/page"
+    table[("GET", url)] = httpx.Response(
+        200, text="<p>Synthetic page</p>", headers={"content-type": "text/html"}
+    )
+    code, data = invoke("research", "fetch", "http://127.0.0.1/")
+    assert (code, data["reason"]) == (1, "serve_run_restricted")
+    assert data["message"].endswith("(loopback_address)") and seen == []
+    assert not (codex_run / "web-fetches").exists()
+    assert not (codex_run / "web.jsonl").exists()
+    assert invoke("research", "fetch", url)[0] == 0
+    code, data = invoke("research", "fetch", url)
+    assert (code, data["reason"]) == (1, "serve_run_restricted")
+    assert data["message"].endswith("(web_fetch_cap)")
+    assert len(seen) == 1 and (codex_run / "web-fetches").read_text() == "1"
+    assert [(entry["kind"], entry["value"]) for entry in web_entries(codex_run)] == [("fetch", url)]
+
+
+def test_codex_research_requires_a_run_log(office, routes, codex_run, monkeypatch):
+    monkeypatch.delenv("FO_SERVE_RUN_DIR")
+    code, data = invoke("research", "search", "ACME")
+    assert (code, data["reason"]) == (1, "serve_run_restricted")
+    assert data["message"].endswith("(web_unlogged)") and routes[1] == []
+
+
+def test_claude_research_is_not_counted_or_logged_twice(office, routes, codex_run, monkeypatch):
+    table, seen = routes
+    url = f"https://{PUBLIC}/page"
+    table[("GET", url)] = httpx.Response(
+        200, text="<p>Synthetic page</p>", headers={"content-type": "text/html"}
+    )
+    runner = ClaudeRunner(executable=["claude"])
+    env = runner.environment(office, codex_run, web=True, web_fetch_cap=1)
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+    command = f"fo research fetch {url}"
+    assert guard.command_denial(command, env) is None
+    assert invoke("research", "fetch", url)[0] == 0
+    assert len(seen) == 1 and (codex_run / "web-fetches").read_text() == "1"
+    assert len(web_entries(codex_run)) == 1
+    assert guard.command_denial(command, env).endswith("(web_fetch_cap)")

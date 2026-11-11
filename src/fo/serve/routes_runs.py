@@ -77,7 +77,7 @@ def launch(handler, params, query):
     deep = body.get("deep", False)
     if not isinstance(deep, bool):
         raise OfficeError("invalid_request", "deep must be true or false.")
-    return handler.app.runs.launch(
+    result = handler.app.runs.launch(
         handler.app.locator.root(),
         text(body, "skill"),
         text(body, "subject"),
@@ -87,6 +87,8 @@ def launch(handler, params, query):
         model=text(body, "model", required=False),
         effort=text(body, "effort", required=False, limit=10),
     )
+    handler.app.cache.forget(("/api/onboarding", ()))
+    return result
 
 
 def listing(handler, params, query):

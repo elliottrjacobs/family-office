@@ -82,7 +82,7 @@ public enum DeviceSessionError: Error, Equatable, Sendable {
     case unreachable(String)
     /// The Mac answered but refused; the phone stays as it was.
     case refused(String)
-    /// The Mac no longer knows this phone (a 401); the credential is gone.
+    /// The Mac no longer knows this phone (a login 401); the credential is gone.
     case unpaired(String)
 
     public var message: String {
@@ -97,8 +97,10 @@ public enum DeviceSessionError: Error, Equatable, Sendable {
 /// device token in the credential store.
 ///
 /// `pair(payload:name:)` redeems the code over the tailnet and stores the token;
-/// `login()` trades the token for the session cookie the web view uses. Any 401 forgets the
-/// token and returns to `unpaired` with the reason, so a revoked phone pairs again cleanly.
+/// `login()` trades the token for the session cookie the web view uses. A cookie 401 from
+/// the web view or a status probe asks the phone to re-login once with the stored token,
+/// until a status probe succeeds or the user retries. Only a 401 from `login()` forgets the
+/// Keychain token and returns to `unpaired` with the reason, so a revoked phone pairs again.
 /// Codes and tokens are never logged or put in an error.
 @MainActor
 @Observable
@@ -128,7 +130,7 @@ public final class DeviceSession {
         "The Mac did not receive a Tailscale identity it accepts. Open Tailscale on this iPhone, "
         + "sign in with an account the Mac's office allows, and scan a new code."
 
-    /// What a 401 means after pairing: the Mac revoked this phone, or never knew it.
+    /// What a login 401 means after pairing: the Mac revoked this phone, or never knew it.
     public nonisolated static let revokedExplanation =
         "This iPhone is no longer paired with the Mac. It may have been revoked in "
         + "Settings > Devices. Pair it again to continue."
@@ -222,8 +224,10 @@ public final class DeviceSession {
         state = .paired(url: url, deviceId: credential.deviceId, name: credential.name)
     }
 
-    /// Trades the stored token for the session cookie and returns the server's version. A 401
-    /// forgets the token and returns to `unpaired`; a transport failure leaves the phone paired.
+    /// Trades the stored token for the session cookie and returns the server's version. Only
+    /// a 401 from this login forgets the Keychain token and returns to `unpaired`; a transport
+    /// failure leaves the phone paired. Cookie 401s from the web view or a status probe ask
+    /// the phone to try this login once with the stored token before waiting for Retry.
     @discardableResult
     public func login() async throws -> String? {
         guard case .paired(let url, _, _) = state else { throw DeviceSessionError.notPaired }
@@ -252,8 +256,9 @@ public final class DeviceSession {
         }
     }
 
-    /// A 401 seen anywhere (the web view, a status probe): forgets the token and returns to
-    /// `unpaired` with `reason`. Returns the matching error for callers that throw it.
+    /// A 401 from the token login (or a missing token): forgets the Keychain token and returns
+    /// to `unpaired` with `reason`. Cookie 401s from the web view or a status probe trigger one
+    /// re-login with the stored token instead. Returns the matching error for callers to throw.
     @discardableResult
     public func unauthorized(reason: String? = nil) -> DeviceSessionError {
         let text = reason ?? Self.revokedExplanation

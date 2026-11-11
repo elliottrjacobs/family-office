@@ -2,7 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from fo.brief import LEVELS, brief
+from fo.brief import LEVELS, brief, start
+from fo.errors import OfficeError
 from tests.offices import synthetic
 from tests.serving import serving
 
@@ -50,3 +51,29 @@ def test_levels_route_serves_the_table(office, tmp_path):
     with serving(office, tmp_path) as (_, client):
         status, data = client.get("/api/levels")
     assert status == 200 and data == LEVELS
+
+
+@pytest.mark.parametrize("level", ["household", "full"])
+def test_web_runs_refuse_household_context_before_reading(tmp_path, monkeypatch, level):
+    monkeypatch.setenv("FO_SERVE_WEB", "1")
+
+    def no_read(*args, **kwargs):
+        pytest.fail("Household context must be refused before reading office files")
+
+    monkeypatch.setattr("fo.brief.notebook.corrections", no_read)
+    monkeypatch.setattr("fo.brief.reports.prior", no_read)
+    with pytest.raises(OfficeError) as caught:
+        brief(tmp_path, level)
+    assert caught.value.reason == "web_level"
+    for resolved in (None, level):
+        with pytest.raises(OfficeError) as caught:
+            start(tmp_path, "tax", "ACME", resolved)
+        assert caught.value.reason == "web_level"
+
+
+def test_web_runs_allow_none_context(tmp_path, monkeypatch):
+    monkeypatch.setenv("FO_SERVE_WEB", "1")
+    assert brief(tmp_path, "none", "ACME", "tax")["level"] == "none"
+    result = start(tmp_path, "tax", "ACME", "none")
+    assert result["brief"]["status"] == "ok"
+    assert result["brief"]["data"]["level"] == "none"
