@@ -1,4 +1,7 @@
-"""Onboarding state, re-derived from the office on disk at every poll.
+"""Onboarding state derived from the office on disk.
+
+The server caches ready responses for up to 25 seconds, invalidating them after
+server-side device changes or advisor launches; setup responses are never cached.
 
 The browser shows status and the exact next command; credentials, provider consent,
 setup, and sync always happen in the terminal. The server never creates an office.
@@ -98,7 +101,7 @@ def paired(root):
 
 
 def checklist(root, connected, registry, complete):
-    """Home's getting-started items, each re-derived from the office on every poll."""
+    """Home's getting-started items, derived when the onboarding response is refreshed."""
     runs = contained(root, RUNS)
     done = {
         "account_connected": bool(connected) or bool(registry),
