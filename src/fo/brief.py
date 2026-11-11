@@ -94,7 +94,7 @@ def brief(root, level="household", subject=None, skill=None, full=False):
             stale_providers=state["stale_providers"],
             holdings=allocation["weights"],
             ips=load(root, "ips"),
-            cash=compute.total(compute.number(r.get("cash")) for r in state["balances"]),
+            cash=compute.total(compute.usd(r, "cash") for r in state["balances"]),
         )
         if subject:
             lots = compute.lots(root, subject, True)["lots"]

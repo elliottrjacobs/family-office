@@ -42,15 +42,20 @@ def account_role(account):
     return "investment" if account.get("provider") == "schwab" else None
 
 
+def usd(row, key):
+    """A balance field, or unknown when the account is not in USD; there is no FX conversion."""
+    return number(row.get(key)) if row.get("currency") in (None, "USD") else None
+
+
 def cash_holdings(state, registry):
     """Cash is the whole balance of cash accounts and the cash field of investment accounts."""
     values = []
     for row in state["balances"]:
         role = account_role(registry.get(row["account_id"], {}))
         if role == "cash":
-            values.append(number(row.get("net_value")))
+            values.append(usd(row, "net_value"))
         elif role == "investment" or (role is None and row.get("cash") is not None):
-            values.append(number(row.get("cash")))
+            values.append(usd(row, "cash"))
     return total(values) if values else None
 
 
@@ -87,7 +92,7 @@ def networth(root, by="account", as_of=None, read_only=False):
     rows = []
     for row in state["balances"]:
         account = registry.get(row["account_id"], {})
-        value = number(row.get("net_value"))
+        value = usd(row, "net_value")
         # Provider net_value is signed and already includes account liabilities.
         rows.append(
             {
@@ -117,6 +122,9 @@ def networth(root, by="account", as_of=None, read_only=False):
         total=total(r["value"] for r in rows) if rows else None,
         groups=[{"name": key, "value": total(values)} for key, values in sorted(groups.items())],
         missing_accounts=missing,
+        non_usd_accounts=sorted(
+            r["account_id"] for r in state["balances"] if r.get("currency") not in (None, "USD")
+        ),
     )
 
 
@@ -127,7 +135,7 @@ def allocation(root, read_only=False):
     investable, excluded, unknown_roles = [], [], []
     for row in state["balances"]:
         role = account_role(registry.get(row["account_id"], {}))
-        value = number(row.get("net_value"))
+        value = usd(row, "net_value")
         if role is None:
             unknown_roles.append(row["account_id"])
         if role in {"investment", "cash"} or (role is None and (value is None or value >= 0)):
@@ -324,7 +332,7 @@ def cashflow(root, months=3, read_only=False):
 
 def goals(root, read_only=False):
     state = context(root, read_only)
-    balances = {r["account_id"]: number(r.get("net_value")) for r in state["balances"]}
+    balances = {r["account_id"]: usd(r, "net_value") for r in state["balances"]}
     rows = []
     for goal in load(root, "goals")["goals"]:
         current = (

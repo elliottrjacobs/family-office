@@ -220,6 +220,11 @@ export function Home() {
           tone={policy.data?.bands.some((b) => b.outside_band) ? "warning" : undefined}
         />
       </div>
+      {!!worth.data?.non_usd_accounts?.length && (
+        <p className="text-sm text-muted-foreground">
+          {worth.data.non_usd_accounts.length} account(s) are not in USD, so net worth is unknown.
+        </p>
+      )}
       {worth.error && <div className="mt-3"><ErrorNotice error={worth.error} retry={worth.reload} /></div>}
 
       <SectionTitle>Needs you</SectionTitle>

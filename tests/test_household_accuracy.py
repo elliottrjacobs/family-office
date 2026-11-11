@@ -381,3 +381,49 @@ def test_cashflow_reuses_state_and_categories(office, monkeypatch):
         for key in ("month", "income", "spend", "uncategorized_count"):
             assert actual[key] == monthly[key]
         assert actual["net"] == monthly["income"] - monthly["spend"]
+
+
+@pytest.mark.parametrize("currency", ["EUR", "XXX", "USD", None])
+def test_balance_currency_controls_totals(office, currency):
+    from fo.store.index import read_state
+
+    ingest(
+        office,
+        "simplefin",
+        [
+            {
+                "account_id": "checking",
+                "positions": [],
+                "balance": {"net_value": "20000", "currency": currency},
+            },
+            {
+                "account_id": "home-loan",
+                "positions": [],
+                "balance": {"net_value": "-80000"},
+            },
+        ],
+    )
+    non_usd = currency not in (None, "USD")
+    worth = compute.networth(office)
+    assert worth["non_usd_accounts"] == (["checking"] if non_usd else [])
+    assert worth["total"] == (None if non_usd else Decimal(40000))
+    assert compute.allocation(office)["total"] == (None if non_usd else Decimal(120000))
+    registry = {"checking": {"role": "cash"}, "brokerage": {"role": "investment"}}
+    assert compute.cash_holdings(read_state(office), registry) == (
+        None if non_usd else Decimal(30000)
+    )
+
+
+@pytest.mark.parametrize("currency", ["EUR", "USD", None, "eur", "EU", "https://example.invalid"])
+def test_balance_currency_validation(currency):
+    from fo.errors import OfficeError
+    from fo.store.records import validate
+
+    row = {"as_of": "2026-09-12T00:00:00Z", "run_id": "r", "account_id": "a"}
+    validate("balances", row)
+    row["currency"] = currency
+    if currency in ("EUR", "USD", None):
+        validate("balances", row)
+    else:
+        with pytest.raises(OfficeError):
+            validate("balances", row)
