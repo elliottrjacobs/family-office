@@ -7,8 +7,8 @@ import WebKit
 /// that `DeviceSession.login()` received. The store is non-persistent, so the cookie lives
 /// only as long as this view; the next launch logs in again with the Keychain token.
 ///
-/// Links to other sites open in Safari. A 401 on any navigation means the Mac no longer
-/// knows this phone, and `onUnauthorized` sends it back to pairing.
+/// Links to other sites open in Safari. The first 401 on a navigation asks the phone to log in
+/// again with its Keychain token; the status probe catches any later one.
 struct OfficeWebView: UIViewRepresentable {
     let url: URL
     let cookies: [HTTPCookie]
@@ -50,7 +50,15 @@ struct OfficeWebView: UIViewRepresentable {
         context.coordinator.onUnauthorized = onUnauthorized
         if context.coordinator.reloadToken != reloadToken {
             context.coordinator.reloadToken = reloadToken
-            webView.reload()
+            // A fresh login brings a new cookie; a cancelled first load has no page to reload.
+            let cookies = self.cookies
+            let request = URLRequest(url: url)
+            Task { @MainActor in
+                for cookie in cookies {
+                    await webView.configuration.websiteDataStore.httpCookieStore.setCookie(cookie)
+                }
+                if webView.url == nil { webView.load(request) } else { webView.reload() }
+            }
         }
     }
 

@@ -20,7 +20,7 @@ If a command fails, name the command and reason under Data gaps. Never replace a
 
 Context levels are none, household, and full. Follow each skill's declared default and allowed levels. Active corrections and open subject decisions are mandatory at every level. A household brief may exceed its token target to preserve them.
 
-Never read secrets/, expose full account numbers, execute provider transactions, or write directly under data/ or notebook/. Only `fo` owns derived facts and notebook events. Edit profile/ only with user authorization or during explicit onboard intake. Do not copy live portfolio figures into authored policy.
+The office may live in iCloud Drive; credentials live in a per-machine folder outside the office. Never read that credentials folder or legacy secrets/, expose full account numbers, execute provider transactions, or write directly under data/ or notebook/. Only `fo` owns derived facts and notebook events. Edit profile/ only with user authorization or during explicit onboard intake. Do not copy live portfolio figures into authored policy.
 
 ## Hosts
 

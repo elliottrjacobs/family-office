@@ -8,7 +8,7 @@ from typer.testing import CliRunner
 
 from fo.auth import save_keys
 from fo.cli import app
-from fo.config import provider_key
+from fo.config import credentials_dir, provider_key
 from fo.init import initialize
 from fo.providers import http
 
@@ -58,7 +58,7 @@ def test_connect_validates_once_and_writes_a_private_key_file(office, provider, 
     assert len(seen) == 1 and seen[0].url.host == host
     if header:
         assert KEY in seen[0].headers[header]
-    path = office / f"secrets/{name}.json"
+    path = credentials_dir(office) / f"{name}.json"
     assert json.loads(path.read_text()) == {"api_key": KEY}
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
     assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
@@ -79,7 +79,7 @@ def test_a_rejected_key_leaves_no_file_and_a_safe_reason(office, provider, respo
     code, data = invoke("connect", "exa", "--office", str(office), input=KEY)
     assert (code, data["reason"]) == (1, reason)
     assert KEY not in json.dumps(data) and "trace" not in json.dumps(data)
-    assert not (office / "secrets/exa.json").exists()
+    assert not (credentials_dir(office) / "exa.json").exists()
 
 
 def test_an_unreachable_provider_leaves_no_file(office, monkeypatch):
@@ -90,7 +90,7 @@ def test_an_unreachable_provider_leaves_no_file(office, monkeypatch):
     code, data = invoke("connect", "firecrawl", "--office", str(office), input=KEY)
     assert (code, data["reason"]) == (1, "provider_unreachable")
     assert "fixture-key" not in json.dumps(data)
-    assert not (office / "secrets/firecrawl.json").exists()
+    assert not (credentials_dir(office) / "firecrawl.json").exists()
 
 
 def test_empty_or_multiline_keys_are_refused_without_a_call(office, provider):
@@ -104,7 +104,7 @@ def test_alphavantage_notice_is_an_invalid_key(office, provider):
     provider[1].append(httpx.Response(200, json={"Error Message": "Invalid API call."}))
     code, data = invoke("connect", "alphavantage", "--office", str(office), input=KEY)
     assert (code, data["reason"]) == (1, "invalid_key")
-    assert not (office / "secrets/alphavantage.json").exists()
+    assert not (credentials_dir(office) / "alphavantage.json").exists()
 
 
 def test_remove_deletes_the_key_and_any_auth_entry(office, provider):
@@ -112,8 +112,8 @@ def test_remove_deletes_the_key_and_any_auth_entry(office, provider):
     save_keys(office, {"fred": {"api_key": "older"}, "schwab": {"app_key": "kept"}})
     code, data = invoke("connect", "fred", "--remove", "--office", str(office))
     assert (code, data) == (0, {"provider": "fred", "connected": False})
-    assert not (office / "secrets/fred.json").exists()
-    keys = tomllib.loads((office / "secrets/keys.toml").read_text())
+    assert not (credentials_dir(office) / "fred.json").exists()
+    keys = tomllib.loads((credentials_dir(office) / "keys.toml").read_text())
     assert keys == {"schwab": {"app_key": "kept"}}
     assert provider_key(office, "fred") is None
     assert invoke("connect", "fred", "--remove", "--office", str(office))[0] == 0
@@ -172,7 +172,7 @@ def test_connect_is_refused_under_the_run_marker(office, provider, monkeypatch, 
     code, data = invoke(*args, input=KEY)
     assert (code, data["reason"]) == (1, "serve_run_restricted")
     assert provider[0] == []
-    assert not (office / "secrets/exa.json").exists()
+    assert not (credentials_dir(office) / "exa.json").exists()
 
 
 def test_read_only_mode_refuses_connect(office, provider):

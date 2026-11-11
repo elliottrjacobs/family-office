@@ -1,8 +1,10 @@
 import json
 import platform
+import uuid
 from pathlib import Path
 
 from fo import __version__
+from fo.config import CREDENTIAL_READ_DENIES, ensure_credentials
 from fo.errors import OfficeError
 from fo.office import atomic_write, git, write_json
 
@@ -55,6 +57,7 @@ def target(path: Path):
 def initialize(path: Path):
     root, exists = target(path)
     if exists:
+        ensure_credentials(root)
         return {"office": str(root), "created": False, "reason": "already_initialized"}
     root.mkdir(parents=True, exist_ok=True)
     for directory in (
@@ -69,13 +72,12 @@ def initialize(path: Path):
         "hooks",
         ".claude",
         ".codex",
-        "secrets",
     ):
         (root / directory).mkdir(parents=True, exist_ok=True)
-    (root / "secrets").chmod(0o700)
     atomic_write(
         root / "office.toml",
         f"""[office]
+id = "{uuid.uuid4().hex}"
 timezone = "America/New_York"
 
 [hosts]
@@ -108,6 +110,7 @@ run_timeout_minutes = 30
 keep_runs = 50
 """,
     )
+    ensure_credentials(root)
     examples = {
         "ips": {"bands": [], "prohibitions": []},
         "goals": {"goals": []},
@@ -151,6 +154,7 @@ family-office = {git = "https://github.com/elliottrjacobs/family-office.git", ta
                 "allow": ["Bash(uv run fo *)", "Bash(fo *)", "Read", "Edit(reports/**)"],
                 "deny": [
                     "Read(secrets/**)",
+                    *CREDENTIAL_READ_DENIES,
                     "Edit(data/**)",
                     "Edit(notebook/**)",
                     "Bash(python *)",

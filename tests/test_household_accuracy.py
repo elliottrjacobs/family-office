@@ -1,9 +1,10 @@
 import json
+from datetime import date
 from decimal import Decimal
 
 import pytest
 
-from fo import compute
+from fo import compute, market
 from fo.doctor import diagnose
 from fo.init import initialize
 from fo.market import metric_observations
@@ -120,13 +121,146 @@ def test_spend_ignores_portfolio_activity_and_nets_refunds(office):
     assert result["excluded_investment_transactions"] == 1
 
 
-def test_cash_months_counts_bank_cash(office, monkeypatch):
-    monkeypatch.setattr(
-        compute,
-        "cashflow",
-        lambda *a, **k: {"months": [{"spend": Decimal(3000)}] * 3},
+@pytest.mark.parametrize(
+    ("start", "as_of", "expected"),
+    [
+        ("2026-07-01", "2026-10-20T12:00:00Z", "10"),
+        ("2026-08-01", "2026-10-20T00:00:00Z", None),
+        ("2026-10-20", "2026-10-20T12:00:00Z", None),
+        ("2026-07-01", "2026-10-31T23:00:00Z", "6"),
+    ],
+)
+def test_cash_months_requires_three_covered_months(tmp_path, monkeypatch, start, as_of, expected):
+    office = tmp_path / "office"
+    initialize(office)
+    (office / "profile/accounts.json").write_text(
+        json.dumps(
+            {
+                "accounts": [
+                    {"id": "checking", "provider": "simplefin", "type": "checking", "last4": ""}
+                ]
+            }
+        )
     )
-    assert metric_observations(office, "", "cash_months")[0]["value"] == "10"
+
+    class Today(date):
+        @classmethod
+        def today(cls):
+            return cls(2026, 11, 2)
+
+    monkeypatch.setattr(market, "date", Today)
+    ingest(
+        office,
+        "simplefin",
+        [
+            {
+                "account_id": "checking",
+                "as_of": as_of,
+                "balance": {"net_value": "30000"},
+                "transactions": [
+                    {
+                        "provider_id": f"c{i}",
+                        "amount": amount,
+                        "transacted_at": day,
+                        "posted_date": max(day, start),
+                        "description": "Hardware Store",
+                    }
+                    for i, (day, amount) in enumerate(
+                        [
+                            ("2026-07-01", "-3000"),
+                            ("2026-08-01", "-3000"),
+                            ("2026-09-01", "-3000"),
+                            ("2026-10-01", "-9000"),
+                        ],
+                        1,
+                    )
+                ],
+            }
+        ],
+    )
+    result = metric_observations(office, "", "cash_months")
+    assert (result[0]["value"] if result else None) == expected
+
+
+@pytest.mark.parametrize(
+    ("older_row", "expected"),
+    [
+        ({}, "300"),
+        ({"account_id": "brokerage"}, None),
+        ({"kind": "trade"}, None),
+        ({"kind": "dividend"}, None),
+        ({"kind": "transfer"}, None),
+        ({"kind": "corporate_action"}, None),
+        ({"pending": True}, None),
+        ({"status": "expired"}, None),
+        ({"description": "Transfer"}, None),
+        ({"description": "Unknown deposit", "amount": "5000"}, None),
+        ({"posted_date": "2026-07-01"}, None),
+        ({"transacted_at": None}, None),
+    ],
+)
+def test_cash_months_checks_counted_history_per_account(office, monkeypatch, older_row, expected):
+    class Today(date):
+        @classmethod
+        def today(cls):
+            return cls(2026, 9, 2)
+
+    monkeypatch.setattr(market, "date", Today)
+    state = compute.context(office, True)
+    state["as_of"] = "2026-09-01T00:00:00Z"
+    state["transactions"] = [
+        {
+            "account_id": "checking",
+            "amount": "-100",
+            "transacted_at": "2026-06-01",
+            "description": "Hardware Store",
+            **older_row,
+        },
+        *[
+            {
+                "account_id": "checking",
+                "amount": "-100",
+                "posted_date": day,
+                "description": "Hardware Store",
+            }
+            for day in ("2026-07-01", "2026-08-01")
+        ],
+        {
+            "account_id": "brokerage",
+            "amount": "-10000",
+            "posted_date": "2020-01-01",
+            "kind": "trade",
+        },
+    ]
+    with (office / "profile/categories.yaml").open("a") as f:
+        f.write("  - pattern: Transfer\n    category: transfer\n")
+    monkeypatch.setattr(compute, "context", lambda root, read_only=False: state)
+    result = metric_observations(office, "", "cash_months")
+    assert (result[0]["value"] if result else None) == expected
+
+
+@pytest.mark.parametrize(("refund", "expected"), [("97", "30000"), ("100", None), ("101", None)])
+def test_cash_months_requires_positive_outflow(office, monkeypatch, refund, expected):
+    class Today(date):
+        @classmethod
+        def today(cls):
+            return cls(2026, 9, 2)
+
+    monkeypatch.setattr(market, "date", Today)
+    state = compute.context(office, True)
+    state["as_of"] = "2026-09-01T00:00:00Z"
+    state["transactions"] = [
+        {
+            "account_id": "checking",
+            "amount": amount,
+            "posted_date": day,
+            "description": "Hardware Store",
+        }
+        for day, amount in [("2026-06-01", "-100"), ("2026-07-01", refund)]
+    ]
+    monkeypatch.setattr(compute, "context", lambda root, read_only=False: state)
+    result = metric_observations(office, "", "cash_months")
+    assert (result[0]["value"] if result else None) == expected
 
 
 def test_doctor_flags_accounts_without_a_role(office):
@@ -145,6 +279,85 @@ def test_holding_period_uses_the_anniversary():
     assert compute.held_long(date(2023, 3, 1), date(2024, 3, 2))
     assert not compute.held_long(date(2024, 2, 29), date(2025, 2, 28))
     assert compute.held_long(date(2024, 2, 29), date(2025, 3, 1))
+
+
+def test_uncategorized_inflows_are_reported_without_netting_spend(office):
+    (office / "profile/categories.yaml").write_text("rules: []\n")
+    result = compute.spend(office, "2026-08")
+    assert result["income"] == 0
+    assert result["spend"] == Decimal(300)
+    assert result["categories"] == {"needs-review": Decimal(300)}
+    assert result["uncategorized_count"] == 3
+    assert result["uncategorized_inflow"] == Decimal(5100)
+
+    (office / "profile/categories.yaml").write_text(
+        "rules:\n  - pattern: Payroll\n    category: income-salary\n"
+    )
+    result = compute.spend(office, "2026-08")
+    assert result["income"] == Decimal(5000)
+    assert result["spend"] == Decimal(300)
+    assert result["uncategorized_count"] == 2
+    assert result["uncategorized_inflow"] == Decimal(100)
+
+
+def test_cashflow_marks_partial_month_and_runway_uses_complete_months(office, monkeypatch):
+    class Today(date):
+        @classmethod
+        def today(cls):
+            return cls(2026, 9, 2)
+
+    monkeypatch.setattr(compute, "date", Today)
+    monkeypatch.setattr(market, "date", Today)
+    ingest(
+        office,
+        "simplefin",
+        [
+            {
+                "account_id": "checking",
+                "as_of": "2026-09-01T00:00:00Z",
+                "balance": {"net_value": "20000"},
+                "transactions": [
+                    {
+                        "provider_id": "history",
+                        "amount": "0",
+                        "transacted_at": "2026-06-01",
+                    }
+                ],
+            }
+        ],
+    )
+    (office / "profile/categories.yaml").write_text("rules: []\n")
+    rows = compute.cashflow(office, 4, True)["months"]
+    assert [row["month"] for row in rows] == ["2026-06", "2026-07", "2026-08", "2026-09"]
+    assert [row["partial"] for row in rows] == [False, False, False, True]
+    assert [row["uncategorized_count"] for row in rows] == [1, 0, 3, 0]
+    assert [row["uncategorized_inflow"] for row in rows] == [0, 0, Decimal(5100), 0]
+    assert [row["net"] for row in rows] == [0, 0, None, 0]
+    assert rows[2]["income"] == 0
+    assert rows[2]["spend"] == Decimal(300)
+
+    (office / "profile/categories.yaml").write_text(
+        "rules:\n  - pattern: Payroll\n    category: income-salary\n"
+    )
+    august = compute.cashflow(office, 4, True)["months"][2]
+    assert august["uncategorized_inflow"] == Decimal(100)
+    assert august["net"] is None
+
+    (office / "profile/categories.yaml").write_text(
+        "rules:\n"
+        "  - pattern: Hardware\n    category: home\n"
+        "  - pattern: Payroll\n    category: salary\n    income: true\n"
+    )
+    august = compute.cashflow(office, 4, True)["months"][2]
+    assert august["uncategorized_inflow"] == 0
+    assert august["net"] == Decimal(4800)
+
+    (office / "profile/categories.yaml").write_text("rules: []\n")
+    assert metric_observations(office, "", "cash_months")[0]["value"] == "300"
+
+    # Moving back to August requires May history, which this office lacks.
+    monkeypatch.setattr(Today, "today", classmethod(lambda cls: cls(2026, 8, 2)))
+    assert metric_observations(office, "", "cash_months") == []
 
 
 @pytest.mark.parametrize("currency", ["EUR", "XXX", "USD", None])

@@ -1,4 +1,7 @@
-"""Onboarding state, re-derived from the office on disk at every poll.
+"""Onboarding state derived from the office on disk.
+
+The server caches ready responses for up to 25 seconds, invalidating them after
+server-side device changes or advisor launches; setup responses are never cached.
 
 The browser shows status and the exact next command; credentials, provider consent,
 setup, and sync always happen in the terminal. The server never creates an office.
@@ -9,7 +12,7 @@ import platform
 import shlex
 from pathlib import Path
 
-from fo.config import public_config, read_config
+from fo.config import credentials_dir, public_config, read_config
 from fo.doctor import diagnose
 from fo.errors import OfficeError
 from fo.init import target
@@ -35,7 +38,7 @@ CHECKLIST = {
     "device_paired": "Pair a phone",
 }
 RUNS = "cache/serve/runs"
-DEVICES = "secrets/devices.json"
+DEVICES = "devices.json"
 
 
 def fo(*args, root=None):
@@ -57,9 +60,8 @@ def fix(root, name):
         return fo("sync", root=root), None
     if name == "providers":
         return fo("auth", "simplefin", root=root), "Or connect Schwab with fo auth schwab."
-    if name == "secrets.perms":
-        secrets = shlex.quote(str(root / "secrets"))
-        return f"chmod 700 {secrets} && chmod 600 {secrets}/*", None
+    if name in {"credentials.perms", "credentials.agent_reads", "secrets.in_office"}:
+        return fo("doctor", "--fix", root=root), "Download any .icloud placeholders first."
     if name.startswith("profile.") or name == "accounts.roles":
         return None, ONBOARD
     if name.startswith("sync.errors."):
@@ -86,19 +88,19 @@ def choose(locator, value):
 
 
 def paired(root):
-    """Whether secrets/devices.json lists a device; an unreadable file counts as none."""
-    path = contained(root, DEVICES)
-    if not path.is_file():
-        return False
+    """Whether local devices.json lists a device; an unreadable file counts as none."""
     try:
+        path = credentials_dir(root) / DEVICES
+        if not path.is_file():
+            return False
         records = json.loads(path.read_text()).get("devices")
-    except (ValueError, AttributeError, OSError):
+    except (OfficeError, ValueError, AttributeError, OSError):
         return False
     return isinstance(records, list) and bool(records)
 
 
 def checklist(root, connected, registry, complete):
-    """Home's getting-started items, each re-derived from the office on every poll."""
+    """Home's getting-started items, derived when the onboarding response is refreshed."""
     runs = contained(root, RUNS)
     done = {
         "account_connected": bool(connected) or bool(registry),
@@ -142,7 +144,10 @@ def derive(locator):
         }
     result["office"] = str(root)
     config = read_config(root)
-    connected = sorted(set(public_config(root)["secrets"]) & set(LIVE))
+    try:
+        connected = sorted(set(public_config(root)["secrets"]) & set(LIVE))
+    except (OfficeError, OSError):
+        connected = []
     registry = load(root, "accounts")["accounts"]
     registered = {a["provider"] for a in registry}
     result["providers"] = [

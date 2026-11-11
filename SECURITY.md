@@ -26,7 +26,7 @@ Exposures the Mac and phone apps add, each described in full below:
 | Exposure | Where it is described |
 |---|---|
 | Web search and fetch for runs at context level `none` | [Advisor runs](#advisor-runs), "Web access at context level `none`" |
-| Research provider keys in `secrets/<provider>.json` | [Third parties](#third-parties), "Research provider keys" |
+| Research provider keys in the per-machine credentials folder | [Third parties](#third-parties), "Research provider keys" |
 | Device tokens held by a paired phone, used over the tailnet | [Device tokens](#device-tokens) |
 | Codex read confinement is command-based, so the engine ships disabled | [Advisor runs](#advisor-runs), "Codex engine" |
 
@@ -58,8 +58,8 @@ the token and a same-origin `Origin`, and none exist with `--read-only`.
 
 A paired phone holds a device token: 32 random bytes shown once, in the pairing
 response, and stored only as a SHA-256 hash with its name, creation time, and
-last-seen time in the office's `secrets/devices.json` at 0600 inside the 0700
-`secrets/` directory. Pairing codes are eight characters, held only in memory,
+last-seen time in the per-machine credentials folder's `devices.json` at 0600 inside a 0700
+directory outside the office. Pairing codes are eight characters, held only in memory,
 single use, valid for five minutes, one at a time, and dropped after ten wrong
 attempts. A code is issued only over a loopback `Host` with the launch cookie,
 and redeemed only over the tailnet name with a Tailscale identity that passes
@@ -101,23 +101,35 @@ otherwise reach files outside the office. The runner never passes
 `bypassPermissions`. Run records and event logs live in `cache/serve/runs/` at
 0600 in a 0700 directory and never hold environment, cookie, or token values.
 
-Web access at context level `none`: a run at that level, which reads no household
-data, also gets the WebSearch and WebFetch tools; at `household` and `full` both
-stay disallowed (`--tools` and `--disallowedTools` are built per launch and resume
-from the level, and the hook denies both tools in any run not marked for web). The
-hook checks every fetch URL against `fo.netguard`, the same deny list `fo research
-fetch` uses: only `http` and `https`, no user name or password in the URL, no
-`localhost` or `.ts.net` name, and no host that resolves to a loopback, private,
-link-local, CGNAT or tailnet (`100.64.0.0/10`), IPv6 unique local, unspecified, or
-reserved address, so a fetch cannot reach `fo serve`, other local services, or
-another device. Fetches are capped per run by `web_fetch_cap` under `[serve]`
-(default 20) with a counter in the run's own folder, `cache/serve/runs/<id>/`,
-which the run cannot read or write. The hook appends every search query and fetch
-URL it lets through, scrubbed of credentials, to `web.jsonl` there; the run log
-shows them as sites visited and the run record counts them. Each refusal names a
-stable reason code. Accepted exposure: a hostile page or search result can at most
-learn the question being researched and shape the report, and later briefs already
-treat reports as untrusted text.
+Web access at context level `none`: the hook denies reads of `data/`, `profile/`,
+and `notebook/`, including symlink targets. Skills, instructions, and reports stay
+readable. Known residual: earlier reports may contain household figures, which a
+web run can read and disclose. User prompts and mandatory context can also contain
+household information; the guard does not scrub these inputs.
+
+Web runs allow market commands, research, and scoped report/journal/correction
+bookkeeping; `fo start` and `fo brief` require explicit `--level none` (or
+`--level=none`). Other household commands remain denied. Reports can be read and
+written for drafting, parts, and verification. WebSearch and WebFetch are offered
+only at level `none`; the hook denies them in non-web runs. The CLI enforces the
+same command allowlist and research gate for both runners whenever `FO_SERVE_RUN`
+is set, refusing every `fo research` subcommand outside web runs. Research queries
+(including deep questions) and URLs use the same logging boundary as
+WebSearch/WebFetch; a missing run folder denies access. Put the research query or
+URL before subcommand options.
+
+The hook and CLI check fetch URLs against `fo.netguard`: HTTP(S) only, no credentials,
+localhost, tailnet names, or hosts resolving to non-public addresses. WebFetch and
+`fo research fetch` share the per-run `web_fetch_cap` (default 20). Its counter
+and scrubbed query/URL log, `web.jsonl`, live in the run folder, which the run
+cannot read or write. The run log shows accepted queries and URLs; each refusal
+has a stable reason code. Hostile web evidence can shape reports, which later
+briefs treat as untrusted text.
+
+Claude sets `FO_SERVE_HOOK_ACTIVE=1`: its hook counts and logs research calls, and
+the CLI validates them without counting or logging again. Codex leaves that flag
+unset, so the CLI counts and logs its research calls. The hook validates every
+`&&` segment before any segment consumes a fetch or logs web use.
 
 Codex engine. A Codex run (`codex exec --json`) is isolated differently, and more
 weakly. It gets its own Codex home and `HOME` in its run folder, so no user config,
@@ -136,12 +148,16 @@ says otherwise), and Claude Code stays the recommended engine. Codex has no budg
 flag: its runs are bounded only by `run_timeout_minutes`, and the budget is recorded
 for information. The gate is in
 [research providers](docs/development/research-providers.md#codex-isolation).
+Codex's built-in web search at level `none` appears as `web` events in the run log,
+but it bypasses `web.jsonl`, the fetch cap, and the netguard URL checks; this remains
+a residual limitation alongside the read limitations.
 
 Accepted risk: reports, corrections, and decisions are fed back into later briefs,
 so text planted in provider data or an earlier report can steer later advice. The
-run boundary removes the exfiltration channels (MCP servers, web tools at every
-level that reads household data, network commands, reads outside the office), and
-the page renders report text as elements,
+Claude run boundary blocks MCP servers, arbitrary network commands, reads outside
+the office, and web tools and `fo research` in non-web runs. Web runs instead
+block household folders and commands as described above. The Codex limitations
+above still apply. The page renders report text as elements,
 never HTML, so stored text cannot run in the browser. Market commands reach only
 their fixed provider hosts.
 
@@ -164,8 +180,8 @@ their fixed provider hosts.
 | Fetched websites | A GET request with a family-office User-Agent for each direct fetch |
 | GitHub | Public code; tracked private office files only when its remote is configured |
 
-Research provider keys live in `secrets/<provider>.json` at 0600, written by
-`fo connect` only after one validating call; advisor runs cannot run `fo connect`.
+Research provider keys live in `<provider>.json` in the per-machine credentials
+folder at 0600, written by `fo connect` only after one validating call; advisor runs cannot run `fo connect`.
 `fo research fetch` refuses URLs with credentials, non-HTTP schemes, localhost,
 `.ts.net`, and hosts resolving to loopback, link-local, private, CGNAT, or ULA
 addresses, rechecking every redirect, so a run cannot reach `fo serve` or the
@@ -189,3 +205,25 @@ Read-only mode avoids providers, cache writes, and index writes. It can still
 read the tracked office facts. Source text is scrubbed for credential URLs and
 long account-number-like strings, but this is not a general anonymizer. Review
 any report before sharing it outside the private office.
+
+## Credential storage and synced offices
+
+The office may live in iCloud Drive or another synced folder. Credentials live
+outside it, per machine, under `~/Library/Application Support/FamilyOffice/credentials`
+on macOS or `${XDG_DATA_HOME:-~/.local/share}/family-office/credentials` elsewhere.
+`FO_CREDENTIALS_HOME` overrides that base. A random `[office].id` in `office.toml`
+selects a 0700 subdirectory; credential files are 0600. The id is safe to sync;
+each machine must connect separately. This uses files, not macOS Keychain;
+Keychain integration remains possible future hardening.
+
+On `fo init`, `fo setup`, `fo doctor --fix`, writable `fo serve`, or a
+credential-writing command, fo-managed legacy office `secrets/` files move to
+that folder; reads never migrate. An existing destination wins: identical office
+copies are removed; differing copies
+stay in both locations for manual resolution. `fo doctor` flags office leftovers
+and local credential permissions. Keep `secrets/` ignored and blocked by the
+pre-commit hook as defense for older offices.
+
+Claude's guard denies direct reads outside the office. Codex's command-based
+read confinement does not protect the external credentials directory any more
+than it protected `secrets/`. Its engine remains disabled by default.
