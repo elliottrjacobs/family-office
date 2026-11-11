@@ -139,7 +139,7 @@ public final class DeviceSession {
         + "Settings > Devices. Pair it again to continue."
 
     public nonisolated static let credentialUnavailableExplanation =
-        "The Keychain is not available. Unlock this iPhone and try again."
+        "This iPhone's pairing could not be read from the Keychain. Try again."
 
     public private(set) var state: State
     /// The version the server reported at the last login.

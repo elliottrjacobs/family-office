@@ -70,10 +70,10 @@ struct PairingView: View {
             }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase != .active {
-                scanning = false
-                focus = nil
-            }
+            // The camera permission alert makes the scene inactive; close the scanner only
+            // when the app actually leaves. The cover already hides it while inactive.
+            if phase != .active { focus = nil }
+            if phase == .background { scanning = false }
         }
     }
 

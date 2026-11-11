@@ -724,8 +724,8 @@ xcrun simctl launch booted com.familyoffice.phone
 ```
 
 CI builds with `CODE_SIGNING_ALLOWED=NO`, which is enough to compile and run the tests. An
-unsigned app cannot use the Keychain, though, and opens on pairing with "The Keychain could
-not be read"; to try it by hand keep Xcode's ad-hoc "Sign to Run Locally" signing (leave the
+unsigned app cannot use the Keychain, though, and opens on "Pairing Unavailable"; to try it
+by hand keep Xcode's ad-hoc "Sign to Run Locally" signing (leave the
 flag out, as above).
 
 ### TestFlight builds
