@@ -36,7 +36,8 @@
           "spend",
           "net",
           "partial",
-          "uncategorized_count"
+          "uncategorized_count",
+          "uncategorized_inflow"
         ],
         "properties": {
           "income": {
@@ -65,6 +66,10 @@
           },
           "uncategorized_count": {
             "type": "integer"
+          },
+          "uncategorized_inflow": {
+            "type": "string",
+            "pattern": "^-?\\d+(\\.\\d+)?([Ee][+-]?\\d+)?$"
           }
         }
       }

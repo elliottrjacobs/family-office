@@ -17,6 +17,8 @@ bank balances plus brokerage cash, and `fo doctor` warns about accounts whose ro
 is unknown. `fo spend` ignores trades, dividends, and funding transfers, and a
 refund lowers its category. Mark an income rule with `income: true` in
 `profile/categories.yaml`.
+Monthly cashflow includes `partial` for the current month and `uncategorized_inflow`
+for excluded positive needs-review amounts, with `net` null while those amounts remain.
 
 ## Companion app settings
 

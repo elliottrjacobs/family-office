@@ -23,6 +23,11 @@
   without a role.
 - `fo spend` ignores trades, dividends, and funding transfers; refunds lower their
   category; income rules use `income: true`.
+- Uncategorized inflows no longer count as income or offset spending; `uncategorized_inflow`
+  reports their total in spending and monthly cashflow results, and monthly `net` is null
+  until those inflows are categorized. Cashflow marks the current month as `partial`;
+  runway requires three complete months covered by every account with counted transactions
+  and a positive total outflow.
 - `fo performance`: modified Dietz returns per investment account with dividends,
   fees, and an optional weekly benchmark. Realized gains stay unknown without lots.
 - Schwab transactions keep symbol, quantity, price, fees, and kind; option prices
