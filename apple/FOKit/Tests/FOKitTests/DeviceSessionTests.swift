@@ -1,4 +1,5 @@
 import Foundation
+import Security
 import XCTest
 
 @testable import FOKit
@@ -77,12 +78,24 @@ final class DeviceStub: URLProtocol, @unchecked Sendable {
 /// cannot use without a signed host. Written at 0600, like the real item is device-only.
 final class FileCredentialStore: CredentialStore, @unchecked Sendable {
     let url: URL
+    private let lock = NSLock()
+    private var readFailure: OSStatus?
+    private var deletes = 0
+
+    var deleteCalls: Int { lock.withLock { deletes } }
+
+    func setReadFailure(_ status: OSStatus?) {
+        lock.withLock { readFailure = status }
+    }
 
     init(directory: URL) {
         url = directory.appendingPathComponent("credential.json")
     }
 
     func read() throws -> DeviceCredential? {
+        if let status = lock.withLock({ readFailure }) {
+            throw KeychainError(status: status)
+        }
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         return try JSONDecoder().decode(DeviceCredential.self, from: Data(contentsOf: url))
     }
@@ -93,6 +106,7 @@ final class FileCredentialStore: CredentialStore, @unchecked Sendable {
     }
 
     func delete() throws {
+        lock.withLock { deletes += 1 }
         if FileManager.default.fileExists(atPath: url.path) {
             try FileManager.default.removeItem(at: url)
         }
@@ -255,6 +269,106 @@ final class DeviceSessionTests: XCTestCase {
         XCTAssertEqual(status.path, "/api/status")
         XCTAssertEqual(status.headers["Cookie"], "fo_session=synthetic-session")
         XCTAssertNil(status.headers["Authorization"])
+    }
+
+    func testCredentialReadFailuresAtLaunchAreRetriedWithoutUnpairing() async throws {
+        let credential = DeviceCredential(
+            url: URL(string: "https://\(host)")!, deviceId: "dev_0001", name: "Test iPhone", token: token)
+        try store.write(credential)
+
+        for status in [errSecInteractionNotAllowed, errSecNotAvailable] {
+            serveDevices()
+            store.setReadFailure(status)
+            let session = session()
+            XCTAssertEqual(session.state, .credentialUnavailable)
+            XCTAssertNil(session.url)
+            XCTAssertNil(session.apiClient)
+            session.restoreCredential()
+            XCTAssertEqual(session.state, .credentialUnavailable)
+            XCTAssertEqual(store.deleteCalls, 0)
+            XCTAssertTrue(DeviceStub.requests.isEmpty)
+
+            store.setReadFailure(nil)
+            session.restoreCredential()
+            XCTAssertEqual(session.state, .paired(
+                url: credential.url, deviceId: credential.deviceId, name: credential.name))
+            try await session.login()
+            XCTAssertEqual(session.serverVersion, "2.0.0a1")
+            XCTAssertEqual(try store.read(), credential)
+            XCTAssertEqual(store.deleteCalls, 0)
+        }
+    }
+
+    func testLoginReadFailuresKeepTheCredentialAndPairing() async throws {
+        serveDevices()
+        let session = session()
+        try await session.pair(payload: payload, name: "Test iPhone")
+        try await session.login()
+        let credential = try XCTUnwrap(store.read())
+        let paired = session.state
+        let cookies = session.cookies.map(\.value)
+
+        for status in [errSecInteractionNotAllowed, errSecNotAvailable] {
+            let requests = DeviceStub.requests.count
+            store.setReadFailure(status)
+            do {
+                try await session.login()
+                XCTFail("login should wait for the credential to become readable")
+            } catch let error as DeviceSessionError {
+                XCTAssertEqual(error, .refused(DeviceSession.credentialUnavailableExplanation))
+            }
+            XCTAssertEqual(session.state, paired)
+            XCTAssertEqual(session.cookies.map(\.value), cookies)
+            XCTAssertEqual(DeviceStub.requests.count, requests)
+            XCTAssertEqual(store.deleteCalls, 0)
+
+            store.setReadFailure(nil)
+            try await session.login()
+            XCTAssertEqual(try store.read(), credential)
+            XCTAssertEqual(store.deleteCalls, 0)
+        }
+    }
+
+    func testUnreadableCredentialDataIsPreservedForRetry() throws {
+        let invalid = Data("invalid synthetic credential".utf8)
+        try invalid.write(to: store.url)
+        let session = session()
+        XCTAssertEqual(session.state, .credentialUnavailable)
+        session.restoreCredential()
+        XCTAssertEqual(session.state, .credentialUnavailable)
+        XCTAssertEqual(try Data(contentsOf: store.url), invalid)
+        XCTAssertEqual(store.deleteCalls, 0)
+
+        let credential = DeviceCredential(
+            url: URL(string: "https://\(host)")!, deviceId: "dev_0001", name: "Test iPhone", token: token)
+        try store.write(credential)
+        session.restoreCredential()
+        XCTAssertEqual(session.state, .paired(
+            url: credential.url, deviceId: credential.deviceId, name: credential.name))
+        XCTAssertEqual(store.deleteCalls, 0)
+    }
+
+    func testMissingOrChangedCredentialIsNotDeletedByLogin() async throws {
+        serveDevices()
+        let session = session()
+        try await session.pair(payload: payload, name: "Test iPhone")
+        let paired = session.state
+        let replacement = DeviceCredential(
+            url: URL(string: "https://machine.your-tailnet.ts.net")!,
+            deviceId: "dev_0002", name: "Other iPhone", token: "synthetic-other-token")
+        try store.delete()
+        let deletes = store.deleteCalls
+
+        await XCTAssertThrowsAsync(try await session.login())
+        XCTAssertEqual(session.state, paired)
+        XCTAssertEqual(store.deleteCalls, deletes)
+
+        try store.write(replacement)
+        await XCTAssertThrowsAsync(try await session.login())
+        XCTAssertEqual(try store.read(), replacement)
+        XCTAssertEqual(session.state, paired)
+        XCTAssertEqual(store.deleteCalls, deletes)
+        XCTAssertEqual(DeviceStub.requests.count, 1) // Only the initial pairing.
     }
 
     func testCookieUnauthorizedCanLoginAgainWithoutLosingTheToken() async throws {

@@ -1,5 +1,6 @@
 import json
 import re
+from functools import cache
 from importlib.resources import files
 
 import jsonschema
@@ -19,6 +20,11 @@ PROFILE_FILES = {
 }
 
 
+@cache
+def schema(name):
+    return json.loads(files("fo").joinpath(f"store/schemas/{name}.schema.json").read_text())
+
+
 def load(root, name):
     path = contained(root, "profile/" + PROFILE_FILES[name])
     try:
@@ -32,8 +38,7 @@ def load(root, name):
             value = yaml.safe_load(text)
         else:
             value = json.loads(text)
-        schema = json.loads(files("fo").joinpath(f"store/schemas/{name}.schema.json").read_text())
-        jsonschema.Draft202012Validator(schema).validate(value)
+        jsonschema.Draft202012Validator(schema(name)).validate(value)
         if name == "ips":
             for i, band in enumerate(value.get("bands", [])):
                 if band["min"] > band["max"]:
