@@ -121,9 +121,9 @@ def write_json(path: Path, value: object, mode: int = 0o644) -> None:
     atomic_write(path, json.dumps(value, indent=2, ensure_ascii=False) + "\n", mode)
 
 
-def git(root: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess:
+def git(root: Path, *args: str, check: bool = True, env=None) -> subprocess.CompletedProcess:
     result = subprocess.run(
-        ["git", "-C", str(root), *args], capture_output=True, text=True, timeout=60
+        ["git", "-C", str(root), *args], capture_output=True, text=True, timeout=60, env=env
     )
     if check and result.returncode:
         raise OfficeError(

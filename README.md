@@ -365,7 +365,8 @@ has data in the supported legacy layout. It is not part of normal onboarding.
 activating them, including a 02:00 `fo sync --commit --if-writer` job. That sync
 skips cleanly on hosts other than `hosts.writer`, without writing a sync log.
 The machine-specific files in `launchd/` are ignored by Git. For an older office,
-`fo doctor --fix` adds and commits the ignore rule.
+`fo doctor --fix` commits the ignore rule and untracks old plists, keeping local files.
+It also retries local commits of managed settings after an earlier failure.
 Regenerate and reload existing definitions to pick up `--if-writer`. The agent
 loads the jobs after runtime verification and cutover approval. See
 [office layout and operations](docs/office-layout.md) and the

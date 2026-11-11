@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 
 from fo.config import credentials_dir, credentials_read_denied, load_json, read_config
 from fo.errors import OfficeError
-from fo.office import contained
+from fo.office import contained, git
 from fo.store.authored import PROFILE_FILES, load
 from fo.sync import unmapped_hint
 
@@ -18,13 +18,24 @@ def diagnose(root):
         ignored = "launchd/" in contained(root, ".gitignore").read_text().splitlines()
     except (OfficeError, OSError):
         ignored = False
+    try:
+        recorded = (
+            git(
+                root, "diff", "--quiet", "HEAD", "--", ".gitignore", "launchd", check=False
+            ).returncode
+            == 0
+        )
+        tracked = bool(git(root, "ls-files", "--", "launchd").stdout)
+    except OfficeError:
+        recorded, tracked = False, False
+    ignored = ignored and recorded and not tracked
     checks.append(
         check(
             "office.ignore",
             "pass" if ignored else "warn",
             "Machine-specific launchd files are ignored."
             if ignored
-            else "Add launchd/ to .gitignore with fo doctor --fix.",
+            else "Run fo doctor --fix to record .gitignore and stop tracking launchd/ files.",
         )
     )
     config = {}

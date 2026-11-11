@@ -1,6 +1,8 @@
 import os
 import shutil
 import subprocess
+import tempfile
+from pathlib import Path
 
 from fo.config import read_config
 from fo.errors import OfficeError
@@ -9,27 +11,73 @@ from fo.office import git
 HIDDEN = "Hidden files or folders under reports/ cannot be committed."
 
 
+def check_commit_state(root):
+    for marker in (
+        "MERGE_HEAD",
+        "REBASE_HEAD",
+        "CHERRY_PICK_HEAD",
+        "rebase-merge",
+        "rebase-apply",
+    ):
+        path = Path(git(root, "rev-parse", "--git-path", marker).stdout.strip())
+        if (root / path).exists():
+            raise OfficeError(
+                "merge_in_progress",
+                "Finish or abort the Git merge or rebase in the office before fo commits.",
+            )
+    status = git(
+        root, "status", "--porcelain", "-z", "--no-renames", "--untracked-files=all"
+    ).stdout
+    if any("U" in row[:2] or row[:2] in {"AA", "DD"} for row in status.split("\0") if row):
+        raise OfficeError(
+            "merge_in_progress",
+            "Finish or abort the Git merge or rebase in the office before fo commits.",
+        )
+    return status
+
+
 def record(root, paths, message):
     if not paths or not (root / ".git").exists():
         return
-    changed = git(root, "diff", "--quiet", "HEAD", "--", *paths, check=False).returncode != 0
+    check_commit_state(root)
+    changed = any(
+        git(root, "diff", *cached, "--quiet", "HEAD", "--", *paths, check=False).returncode
+        for cached in ([], ["--cached"])
+    )
     untracked = git(root, "ls-files", "--others", "--exclude-standard", "--", *paths).stdout
     if not changed and not untracked:
         return
-    git(root, "add", "--", *paths)
-    git(
-        root,
-        "-c",
-        "user.name=Family Office",
-        "-c",
-        "user.email=office@localhost",
-        "commit",
-        "--only",
-        "-qm",
-        message,
-        "--",
-        *paths,
-    )
+    stage = [
+        path
+        for path in paths
+        if git(root, "check-ignore", "--quiet", "--", path, check=False).returncode != 0
+    ]
+    if stage:
+        git(root, "add", "--", *stage)
+    staged = git(root, "diff", "--cached", "--no-renames", "--name-only", "-z").stdout.split("\0")
+    unrelated = [
+        path
+        for path in staged
+        if path and not any(path == p or path.startswith(p + "/") for p in paths)
+    ]
+    index = root / git(root, "rev-parse", "--git-path", "index").stdout.strip()
+    with tempfile.TemporaryDirectory(prefix="fo-record-", dir=index.parent) as directory:
+        isolated = Path(directory) / "index"
+        shutil.copyfile(index, isolated)
+        env = {**os.environ, "GIT_INDEX_FILE": str(isolated)}
+        if unrelated:
+            git(root, "reset", "-q", "HEAD", "--", *unrelated, env=env)
+        git(
+            root,
+            "-c",
+            "user.name=Family Office",
+            "-c",
+            "user.email=office@localhost",
+            "commit",
+            "-qm",
+            message,
+            env=env,
+        )
 
 
 def scan_history(root):
@@ -56,7 +104,7 @@ def scan_history(root):
 def commit_office(root, include_data=False):
     allowed = ["notebook", "reports"] + (["data"] if include_data else [])
     # Every untracked file is listed, so a hidden file inside a new folder is seen too.
-    status = git(root, "status", "--porcelain", "-z", "--untracked-files=all").stdout
+    status = check_commit_state(root)
     for row in status.split("\0"):
         if not row:
             continue

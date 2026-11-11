@@ -6,9 +6,11 @@
   text. Institution failures point to provider repairs. SimpleFIN registration
   requires a new setup token. First-sync onboarding shows the repair before retrying.
 - Offices ignore machine-specific `launchd/` files. `fo doctor --fix` adds the rule
-  for existing offices. Settings changes and credential repairs create local commits
-  of only the files they changed, so scheduled sync commits can continue.
-  Office commits also handle an empty reports folder.
+  for existing offices and untracks old plists without deleting local files.
+  Settings changes and credential repairs create local commits of managed files.
+  Repeating `fo config set` or running `fo doctor --fix` recovers failed commits.
+  Doctor warns about unrecorded ignore changes and tracked plists. Office commits
+  handle an empty reports folder and refuse unfinished merges, rebases, and cherry-picks.
 - A provider sync that returns accounts but matches none in the registry and has
   no institution errors now fails with `no_mapped_accounts`.
   It does not count as a completed sync for freshness or

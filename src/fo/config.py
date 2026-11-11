@@ -107,8 +107,9 @@ def ensure_credentials(root: Path) -> Path:
                 _write_config(root, "office.id", uuid.uuid4().hex)
                 changed.append("office.toml")
             record(root, changed, "Record credential settings")
-    else:
-        record(root, changed, "Record credential settings")
+    elif changed:
+        with office_lock(root, wait=LOCK_WAIT):
+            record(root, changed, "Record credential settings")
     directory = credentials_dir(root)
     try:
         directory.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -397,8 +398,8 @@ def set_config(root: Path, key: str, text: str) -> dict:
         writer_changed = (
             key == "hosts.writer" and read_config(root).get("hosts", {}).get("writer") != value
         )
-        if _write_config(root, key, value):
-            record(root, ["office.toml"], f"Set {key}")
+        _write_config(root, key, value)
+        record(root, ["office.toml"], f"Set {key}")
     result = {"key": key, "value": value}
     if writer_changed:
         result["note"] = (

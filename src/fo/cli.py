@@ -146,9 +146,9 @@ def doctor(ctx: typer.Context, notify: bool = False, fix: bool = False):
         if notify or fix:
             writable(ctx)
         if fix:
-            from fo.commits import record
+            from fo.commits import check_commit_state, record
             from fo.config import ensure_credentials
-            from fo.office import atomic_write, contained
+            from fo.office import atomic_write, contained, git
 
             directory = ensure_credentials(root(ctx))
             if not os.environ.get("FO_CREDENTIALS_HOME"):
@@ -156,12 +156,33 @@ def doctor(ctx: typer.Context, notify: bool = False, fix: bool = False):
             for path in directory.rglob("*"):
                 if not path.is_symlink():
                     path.chmod(0o700 if path.is_dir() else 0o600)
-            ignore = contained(root(ctx), ".gitignore")
-            original = ignore.read_text() if ignore.exists() else ""
-            if "launchd/" not in original.splitlines():
-                updated = original + ("\n" if original and not original.endswith("\n") else "")
-                atomic_write(ignore, updated + "launchd/\n")
-                record(root(ctx), [".gitignore"], "Ignore machine-specific launchd files")
+            office = root(ctx)
+            with office_lock(office):
+                check_commit_state(office)
+                ignore = contained(office, ".gitignore")
+                original = ignore.read_text() if ignore.exists() else ""
+                if "launchd/" not in original.splitlines():
+                    updated = original + ("\n" if original and not original.endswith("\n") else "")
+                    atomic_write(ignore, updated + "launchd/\n")
+                if git(office, "ls-files", "--", "launchd").stdout:
+                    git(office, "rm", "-r", "--cached", "-q", "--", "launchd")
+                paths = [
+                    path
+                    for path in [".gitignore", ".claude/settings.json", "office.toml"]
+                    if contained(office, path).exists()
+                ]
+                removed = git(
+                    office,
+                    "diff",
+                    "--cached",
+                    "--name-only",
+                    "-z",
+                    "--diff-filter=D",
+                    "--",
+                    "launchd",
+                ).stdout
+                paths.extend(path for path in removed.split("\0") if path)
+                record(office, paths, "Repair office settings and launchd tracking")
         checks = diagnose(root(ctx))
         if notify and any(c["status"] in {"warn", "fail"} for c in checks):
             from fo.operations import notification

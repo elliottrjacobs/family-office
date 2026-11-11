@@ -280,6 +280,22 @@ def test_config_set_records_only_its_file(office, staged):
     assert git(office, "rev-parse", "HEAD").stdout == head
 
 
+def test_config_set_retries_recording_after_index_lock(office):
+    head = git(office, "rev-parse", "HEAD").stdout
+    lock = office / ".git/index.lock"
+    lock.touch()
+    code, data = cli(office, "config", "set", "hosts.writer", "other-host")
+    assert (code, data["reason"]) == (1, "git_failed")
+    assert read_config(office)["hosts"]["writer"] == "other-host"
+    assert git(office, "rev-parse", "HEAD").stdout == head
+    lock.unlink()
+    code, data = cli(office, "config", "set", "hosts.writer", "other-host")
+    assert code == 0, data
+    assert git(office, "status", "--porcelain").stdout == ""
+    assert git(office, "rev-parse", "HEAD").stdout != head
+    assert cli(office, "commit")[0] == 0
+
+
 @pytest.mark.parametrize(
     "key,value",
     [

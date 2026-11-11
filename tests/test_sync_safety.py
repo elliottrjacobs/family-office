@@ -1,4 +1,6 @@
 import json
+import subprocess
+from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
@@ -365,12 +367,124 @@ def test_record_includes_a_new_managed_file_and_skips_unchanged_files(office):
     assert git(office, "rev-parse", "HEAD").stdout == head
 
 
+@pytest.mark.parametrize("source", ["Unrelated.md", "profile/unrelated.md"])
+def test_record_preserves_unrelated_staged_rename(office, source):
+    from fo.commits import record
+
+    (office / source).write_text("Unrelated contents\n")
+    record(office, [source], "Create synthetic note")
+    git(office, "mv", "--", source, "profile/renamed.md")
+    before = git(office, "diff", "--cached", "--raw").stdout
+    (office / ".claude/local.json").write_text("{}\n")
+    record(office, [".claude/local.json"], "Record synthetic settings")
+    assert git(office, "show", f"HEAD:{source}").stdout == "Unrelated contents\n"
+    assert git(office, "cat-file", "-e", "HEAD:profile/renamed.md", check=False).returncode
+    assert git(office, "diff", "--cached", "--raw").stdout == before
+    assert git(office, "show", "--format=", "--name-only", "HEAD").stdout.splitlines() == [
+        ".claude/local.json"
+    ]
+
+
 def test_record_without_a_repository_does_not_create_one(tmp_path):
     from fo.commits import record
 
     (tmp_path / "office.toml").write_text('[office]\nid = "fixture"\n')
     record(tmp_path, ["office.toml"], "Record synthetic settings")
     assert sorted(p.name for p in tmp_path.iterdir()) == ["office.toml"]
+
+
+@pytest.mark.parametrize("command", ["office", "record"])
+def test_commits_do_not_conclude_a_conflicted_merge(office, command):
+    from fo.commits import commit_office, record
+
+    identity = ["-c", "user.name=t", "-c", "user.email=t@example.invalid"]
+    note = office / "notebook/plan.md"
+    base = git(office, "symbolic-ref", "--short", "HEAD").stdout.strip()
+    git(office, "checkout", "-qb", "other")
+    note.write_text("other host\n")
+    git(office, "add", "--", "notebook")
+    git(office, *identity, "commit", "-qm", "other")
+    git(office, "checkout", "-q", base)
+    note.write_text("this host\n")
+    git(office, "add", "--", "notebook")
+    git(office, *identity, "commit", "-qm", "mine")
+    assert git(office, *identity, "merge", "other", check=False).returncode
+    head = git(office, "rev-parse", "HEAD").stdout
+    status = git(office, "status", "--porcelain").stdout
+    with pytest.raises(OfficeError) as error:
+        if command == "office":
+            commit_office(office)
+        else:
+            record(office, ["notebook/plan.md"], "Record plan")
+    assert error.value.reason == "merge_in_progress"
+    assert (
+        error.value.message
+        == "Finish or abort the Git merge or rebase in the office before fo commits."
+    )
+    assert git(office, "rev-parse", "HEAD").stdout == head
+    assert git(office, "status", "--porcelain").stdout == status
+    assert "<<<<<<<" not in git(office, "show", "HEAD:notebook/plan.md").stdout
+
+
+@pytest.mark.parametrize("command", ["office", "record"])
+@pytest.mark.parametrize(
+    "marker", ["MERGE_HEAD", "REBASE_HEAD", "CHERRY_PICK_HEAD", "rebase-merge", "rebase-apply"]
+)
+def test_commits_refuse_unfinished_git_operations_even_when_clean(office, marker, command):
+    from fo.commits import commit_office, record
+
+    marker_path = Path(git(office, "rev-parse", "--git-path", marker).stdout.strip())
+    marker_path = office / marker_path
+    if marker.startswith("rebase-"):
+        marker_path.mkdir()
+    else:
+        marker_path.write_text(git(office, "rev-parse", "HEAD").stdout)
+    with pytest.raises(OfficeError) as error:
+        if command == "office":
+            commit_office(office)
+        else:
+            record(office, ["office.toml"], "Record settings")
+    assert error.value.reason == "merge_in_progress"
+
+
+@pytest.mark.parametrize("command", ["office", "record"])
+@pytest.mark.parametrize(
+    "status,stages",
+    [
+        ("DD", [1]),
+        ("AU", [2]),
+        ("UD", [1, 2]),
+        ("UA", [3]),
+        ("DU", [1, 3]),
+        ("AA", [2, 3]),
+        ("UU", [1, 2, 3]),
+    ],
+)
+def test_commits_refuse_unmerged_index_without_operation_markers(office, status, stages, command):
+    from fo.commits import commit_office, record
+
+    path = "notebook/corrections.md"
+    oid = git(office, "rev-parse", f"HEAD:{path}").stdout.strip()
+    entries = f"0 {'0' * 40}\t{path}\n" + "".join(
+        f"100644 {oid} {stage}\t{path}\n" for stage in stages
+    )
+    subprocess.run(
+        ["git", "-C", str(office), "update-index", "--index-info"],
+        input=entries,
+        text=True,
+        check=True,
+    )
+    before = git(office, "status", "--porcelain").stdout
+    assert before.startswith(status + " ")
+    head = git(office, "rev-parse", "HEAD").stdout
+    with pytest.raises(OfficeError) as error:
+        if command == "office":
+            commit_office(office)
+        else:
+            record(office, ["office.toml"], "Record settings")
+    assert error.value.reason == "merge_in_progress"
+    assert git(office, "status", "--porcelain").stdout == before
+    assert git(office, "rev-parse", "HEAD").stdout == head
 
 
 @pytest.mark.parametrize("writer", [False, True])

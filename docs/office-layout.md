@@ -83,8 +83,9 @@ source, rotate its credentials, or unload its jobs as a side effect of migration
 
 `fo schedule install` prepares launchd definitions in `launchd/` and returns
 argument arrays for loading them. The files contain machine-specific absolute
-paths and are ignored by Git. `fo doctor` warns if the ignore rule is missing.
-`fo doctor --fix` adds and commits it locally. Every host gets the 02:00
+paths and are ignored by Git. `fo doctor` warns if the ignore rule is missing or
+unrecorded, or if plists remain tracked. `fo doctor --fix` commits the rule and
+untracks old plists without deleting local files. Every host gets the 02:00
 `sync --commit --if-writer` job. It checks `hosts.writer` each time and exits
 successfully on other hosts without syncing, writing a sync log, or notifying.
 Manual `fo sync` without `--if-writer` still refuses a non-writer host.
@@ -99,6 +100,8 @@ load the returned jobs as described below. The old host's sync job now skips.
 `fo config set` commits its `office.toml` change locally without committing other
 dirty or staged files. These managed writes keep `fo commit` and nightly syncs
 from being blocked by their own settings changes.
+Repeat `fo config set` or run `fo doctor --fix` to retry a failed local settings commit.
+Doctor records existing `.gitignore`, `.claude/settings.json`, and `office.toml` changes.
 For existing installations, regenerate and reload the definitions to pick up
 `--if-writer` before moving the writer.
 
@@ -128,4 +131,6 @@ A read-only task runs `fo --read-only …`. Account computations never contact a
 provider. Only the writer can sync. An authorized report-producing task writes
 reports and notebook events and runs `fo commit` to rebase and publish them.
 A rebase conflict stops publication and preserves local commits for resolution.
+Office commits and managed settings commits refuse unfinished Git merges, rebases,
+and cherry-picks. Finish or abort the Git operation before retrying.
 Changes to authored profiles must be committed separately before `fo commit`.
