@@ -30,7 +30,12 @@ const SETTING_UP = new Set(["no_office", "uninitialized_path", "unconnected", "o
 
 export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const server = useApi("status", status, 10_000)
-  const setup = useApi("onboarding", onboarding, 4_000)
+  const [onboardingInterval, setOnboardingInterval] = React.useState(4_000)
+  const setup = useApi("onboarding", async () => {
+    const result = await onboarding()
+    setOnboardingInterval(result.state === "ready" ? 30_000 : 4_000)
+    return result
+  }, onboardingInterval)
   const registry = useApi("skills", skills)
   const office = server.data?.mode === "office"
   const decisions = useApi(office ? "review" : "review-none", () => (office ? review() : Promise.resolve(undefined)), 30_000)
