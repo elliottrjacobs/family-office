@@ -6,6 +6,7 @@ import UIKit
 /// a phone without a camera).
 struct PairingView: View {
     @Bindable var model: PhoneModel
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var name = UIDevice.current.name
     @State private var scanning = false
@@ -67,6 +68,12 @@ struct PairingView: View {
                     focus = .url
                 }
             }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            // The camera permission alert makes the scene inactive; close the scanner only
+            // when the app actually leaves. The cover already hides it while inactive.
+            if phase != .active { focus = nil }
+            if phase == .background { scanning = false }
         }
     }
 

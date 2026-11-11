@@ -127,6 +127,7 @@ targets:
         # export-compliance answer.
         ITSAppUsesNonExemptEncryption: false
         NSCameraUsageDescription: Family Office uses the camera only to scan the pairing code your Mac shows.
+        NSFaceIDUsageDescription: Family Office uses Face ID to unlock access to your office.
         UILaunchScreen: {}
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
