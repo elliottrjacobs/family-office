@@ -106,6 +106,8 @@ public enum DeviceSessionError: Error, Equatable, Sendable {
 @Observable
 public final class DeviceSession {
     public enum State: Equatable, Sendable, CustomStringConvertible {
+        /// The credential could not be read yet; retry when the app becomes active.
+        case credentialUnavailable
         case unpaired(reason: String?)
         case pairing(url: URL, code: String)
         case paired(url: URL, deviceId: String, name: String)
@@ -113,6 +115,7 @@ public final class DeviceSession {
         /// Never includes the code.
         public var description: String {
             switch self {
+            case .credentialUnavailable: return "credentialUnavailable"
             case .unpaired(let reason): return "unpaired(\(reason == nil ? "" : "with reason"))"
             case .pairing(let url, _): return "pairing(\(url))"
             case .paired(let url, let deviceId, _): return "paired(\(url), \(deviceId))"
@@ -135,6 +138,9 @@ public final class DeviceSession {
         "This iPhone is no longer paired with the Mac. It may have been revoked in "
         + "Settings > Devices. Pair it again to continue."
 
+    public nonisolated static let credentialUnavailableExplanation =
+        "The Keychain is not available. Unlock this iPhone and try again."
+
     public private(set) var state: State
     /// The version the server reported at the last login.
     public private(set) var serverVersion: String?
@@ -155,6 +161,14 @@ public final class DeviceSession {
         self.store = store
         self.timeout = timeout
         self.protocolClasses = protocolClasses
+        state = .credentialUnavailable
+        restoreCredential()
+    }
+
+    /// Retry a failed credential read when the app becomes active. In particular,
+    /// `errSecInteractionNotAllowed` while the device is locked does not mean unpaired.
+    public func restoreCredential() {
+        guard case .credentialUnavailable = state else { return }
         do {
             if let credential = try store.read() {
                 state = .paired(url: credential.url, deviceId: credential.deviceId, name: credential.name)
@@ -162,7 +176,8 @@ public final class DeviceSession {
                 state = .unpaired(reason: nil)
             }
         } catch {
-            state = .unpaired(reason: "The Keychain could not be read. Pair this iPhone again.")
+            // Every read failure is non-destructive, including decoding failures.
+            state = .credentialUnavailable
         }
     }
 
@@ -180,7 +195,7 @@ public final class DeviceSession {
     public var url: URL? {
         switch state {
         case .paired(let url, _, _), .pairing(let url, _): return url
-        case .unpaired: return nil
+        case .credentialUnavailable, .unpaired: return nil
         }
     }
 
@@ -235,10 +250,11 @@ public final class DeviceSession {
         do {
             credential = try store.read()
         } catch {
-            credential = nil
+            throw DeviceSessionError.refused(Self.credentialUnavailableExplanation)
         }
         guard let credential, credential.url == url else {
-            throw unauthorized(reason: "This iPhone's device token is missing. Pair it again.")
+            throw DeviceSessionError.refused(
+                "This iPhone's device token is missing or changed. Try again or unpair this iPhone.")
         }
         do {
             let (login, cookies) = try await client(for: url).login(token: credential.token)
@@ -256,7 +272,7 @@ public final class DeviceSession {
         }
     }
 
-    /// A 401 from the token login (or a missing token): forgets the Keychain token and returns
+    /// A 401 from the token login: forgets the Keychain token and returns
     /// to `unpaired` with `reason`. Cookie 401s from the web view or a status probe trigger one
     /// re-login with the stored token instead. Returns the matching error for callers to throw.
     @discardableResult

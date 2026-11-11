@@ -4,6 +4,7 @@ import SwiftUI
 /// The paired Mac: whether it answers, when it last did, and what to do when it does not.
 struct ConnectionView: View {
     @Bindable var model: PhoneModel
+    @Environment(\.scenePhase) private var scenePhase
     @State private var confirmingUnpair = false
 
     static let requirement = "Your Mac must be awake and on your tailnet, with Family Office open."
@@ -115,6 +116,9 @@ struct ConnectionView: View {
         .navigationTitle("Connection")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await model.connect() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { confirmingUnpair = false }
+        }
     }
 
     private var statusText: String {

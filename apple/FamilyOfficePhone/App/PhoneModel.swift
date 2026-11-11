@@ -49,7 +49,11 @@ final class PhoneModel {
 
     /// The app came to the front: log in when needed and start probing.
     func resume() {
-        guard case .paired = session.state else { return }
+        session.restoreCredential()
+        guard case .paired(let url, _, _) = session.state else { return }
+        if reachability == nil {
+            reachability = makeReachability(for: url)
+        }
         if phase != .connected && phase != .connecting {
             Task { await connect() }
         }

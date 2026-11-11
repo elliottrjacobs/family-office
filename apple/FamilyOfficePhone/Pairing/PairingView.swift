@@ -6,6 +6,7 @@ import UIKit
 /// a phone without a camera).
 struct PairingView: View {
     @Bindable var model: PhoneModel
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var name = UIDevice.current.name
     @State private var scanning = false
@@ -66,6 +67,12 @@ struct PairingView: View {
                     manual = true
                     focus = .url
                 }
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active {
+                scanning = false
+                focus = nil
             }
         }
     }

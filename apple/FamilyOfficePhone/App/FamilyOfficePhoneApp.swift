@@ -1,6 +1,7 @@
 import FOKit
 import LocalAuthentication
 import SwiftUI
+import UIKit
 
 @main
 struct FamilyOfficePhoneApp: App {
@@ -24,9 +25,21 @@ struct RootView: View {
     @State private var needsAuthentication = true
     @State private var authenticationContext: LAContext?
 
+    private var covered: Bool { locked || scenePhase != .active }
+
     var body: some View {
         Group {
             switch model.session.state {
+            case .credentialUnavailable:
+                ContentUnavailableView {
+                    Label("Pairing Unavailable", systemImage: "lock")
+                } description: {
+                    Text(DeviceSession.credentialUnavailableExplanation)
+                } actions: {
+                    Button("Retry") { model.resume() }
+                    // An item this build cannot decode stays unreadable; let the owner start over.
+                    Button("Unpair This iPhone", role: .destructive) { model.unpair() }
+                }
             case .unpaired, .pairing:
                 PairingView(model: model)
             case .paired:
@@ -40,9 +53,12 @@ struct RootView: View {
             }
         }
         .animation(.default, value: model.phase)
+        .accessibilityHidden(covered)
+        .disabled(covered)
+        .allowsHitTesting(!covered)
         // An overlay, not a swap, so the web view keeps its page under the cover.
         .overlay {
-            if locked || scenePhase != .active {
+            if covered {
                 ZStack {
                     Color(uiColor: .systemBackground).ignoresSafeArea()
                     VStack(spacing: 16) {
@@ -57,18 +73,25 @@ struct RootView: View {
                         }
                     }
                 }
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Family Office privacy cover")
             }
         }
         .onChange(of: scenePhase, initial: true) { _, phase in
             switch phase {
             case .active:
-                model.resume()
-                if needsAuthentication {
+                if !locked {
+                    model.resume()
+                } else if needsAuthentication {
                     needsAuthentication = false
                     Task { await unlock() }
                 }
+            case .inactive:
+                endEditing()
+                model.suspend()
             case .background:
                 locked = true
+                endEditing()
                 needsAuthentication = true
                 authenticationContext?.invalidate()
                 authenticationContext = nil
@@ -78,6 +101,18 @@ struct RootView: View {
         }
     }
 
+    private func endEditing() {
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+
+    private func didUnlock() {
+        locked = false
+        // LocalAuthentication can finish while its system UI still makes the scene inactive.
+        // In that case the next active transition resumes the model.
+        if scenePhase == .active { model.resume() }
+    }
+
     private func unlock() async {
         guard locked, scenePhase == .active, authenticationContext == nil else { return }
         let context = LAContext()
@@ -85,7 +120,7 @@ struct RootView: View {
         guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
             if error?.domain == LAError.errorDomain,
                error?.code == LAError.passcodeNotSet.rawValue {
-                locked = false
+                didUnlock()
             }
             return
         }
@@ -96,7 +131,7 @@ struct RootView: View {
         )) == true
         guard authenticationContext === context else { return }
         authenticationContext = nil
-        if authenticated { locked = false }
+        if authenticated { didUnlock() }
     }
 }
 
@@ -104,6 +139,7 @@ struct RootView: View {
 struct OfficeScreen: View {
     @Bindable var model: PhoneModel
     let url: URL
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showingConnection = false
 
     var body: some View {
@@ -153,6 +189,9 @@ struct OfficeScreen: View {
                         }
                     }
             }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { showingConnection = false }
         }
     }
 }

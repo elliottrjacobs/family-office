@@ -790,13 +790,22 @@ the refusal for a request that did not come over the tailnet. Revoke with
 ### What the phone keeps
 
 - **Keychain:** one generic password item, service `com.familyoffice.phone`, account `device`,
-  `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` (never in a backup restored to another
-  device). It holds the server URL, the device id and name, and the device token shown once in
-  the pairing response.
+  `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` (readable only while the device is unlocked,
+  never in a backup restored to another device). It holds the server URL, the device id and
+  name, and the device token shown once in the pairing response. Existing items migrate on a
+  successful read, on a best-effort basis. A Keychain read failure preserves the item and is
+  retried when the app becomes active.
 - **UserDefaults:** `lastSeen`, when the Mac last answered.
 - **Nothing else.** The web view's store is non-persistent: the session cookie from
   `POST /api/devices/login` is copied into it on each launch and dies with the app. Codes and
   tokens are never logged or shown after pairing.
+
+The app asks for Face ID, Touch ID, or the device passcode on launch and after backgrounding,
+before starting login. Without a device passcode, it proceeds without the app lock. An opaque
+privacy cover hides the content whenever the scene is inactive or backgrounded, including in
+the app switcher. Covered content is hidden from accessibility and disabled for touch and
+keyboard input; editing ends and presented sheets and confirmations dismiss on deactivation.
+The web view keeps its page beneath the cover for the next unlock.
 
 ### When the Mac says 401
 

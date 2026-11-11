@@ -61,15 +61,28 @@ public struct Keychain: CredentialStore {
     public func read() throws -> DeviceCredential? {
         var lookup = query
         lookup[kSecReturnData as String] = true
+        lookup[kSecReturnAttributes as String] = true
         lookup[kSecMatchLimit as String] = kSecMatchLimitOne
         var result: CFTypeRef?
         let status = SecItemCopyMatching(lookup as CFDictionary, &result)
         if status == errSecItemNotFound { return nil }
-        guard status == errSecSuccess, let data = result as? Data else {
+        guard status == errSecSuccess else {
             throw KeychainError(status: status)
         }
-        // An item this version cannot read is treated as absent; pairing again replaces it.
-        return try? JSONDecoder().decode(DeviceCredential.self, from: data)
+        guard let item = result as? [String: Any], let data = item[kSecValueData as String] as? Data
+        else {
+            throw KeychainError(status: errSecDecode)
+        }
+        let credential = try JSONDecoder().decode(DeviceCredential.self, from: data)
+        // Migrate older pairings once. A failed migration never prevents a successful read.
+        let accessibility = item[kSecAttrAccessible as String] as? String
+        if accessibility != kSecAttrAccessibleWhenUnlockedThisDeviceOnly as String {
+            let attributes: [String: Any] = [
+                kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+            ]
+            _ = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+        }
+        return credential
     }
 
     public func write(_ credential: DeviceCredential) throws {
