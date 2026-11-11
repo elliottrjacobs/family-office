@@ -80,6 +80,57 @@ def test_public_repo_cannot_be_an_office(tmp_path):
     assert json.loads(result.stdout)["reason"] == "nested_repository"
 
 
+@pytest.mark.parametrize(
+    "change", ["clean", "allowed", "profile", "staged", "deleted", "untracked"]
+)
+def test_doctor_reports_changes_that_block_nightly_commit(tmp_path, change):
+    from fo.commits import commit_office
+    from fo.doctor import diagnose
+    from fo.errors import OfficeError
+    from fo.init import initialize
+    from fo.serve.onboarding import fix
+
+    root = tmp_path / "office"
+    initialize(root)
+    if change == "allowed":
+        for directory in ("notebook", "reports", "data"):
+            (root / directory / "new file\nwith newline.txt").write_text("Update\n")
+    elif change in {"profile", "staged"}:
+        path = root / "profile/household.md"
+        path.write_text(path.read_text() + "\nUser edit.\n")
+        if change == "staged":
+            git(root, "add", "--", "profile/household.md")
+    elif change == "deleted":
+        (root / "profile/household.md").unlink()
+    elif change == "untracked":
+        (root / "reports-other").mkdir()
+        (root / "reports-other/new file\nwith newline.txt").write_text("Unrelated\n")
+    before = git(root, "status", "--porcelain", "-z").stdout
+    item = next(c for c in diagnose(root) if c["name"] == "office.uncommitted")
+    assert git(root, "status", "--porcelain", "-z").stdout == before
+    assert item["status"] == ("pass" if change in {"clean", "allowed"} else "warn")
+    if item["status"] == "warn":
+        assert item["reason"].startswith("1 uncommitted change(s)")
+        assert "block fo commit and the nightly sync" in item["reason"]
+        command, hint = fix(root, item["name"])
+        assert command is None and "commit or resolve" in hint.lower()
+        with pytest.raises(OfficeError) as exc:
+            commit_office(root, include_data=True)
+        assert exc.value.reason == "dirty_office"
+    else:
+        assert commit_office(root, include_data=True)["committed"] == (change == "allowed")
+
+
+def test_doctor_skips_uncommitted_check_without_git(tmp_path):
+    from fo.doctor import diagnose
+    from fo.init import initialize
+
+    root = tmp_path / "office"
+    initialize(root)
+    (root / ".git").rename(tmp_path / "git-backup")
+    assert "office.uncommitted" not in {c["name"] for c in diagnose(root)}
+
+
 @pytest.mark.parametrize("managed", [".gitignore", ".claude/settings.json", "office.toml"])
 def test_doctor_retries_recording_after_index_lock(tmp_path, managed):
     from fo.init import initialize

@@ -5,6 +5,7 @@ import yaml
 
 from fo.errors import OfficeError
 from fo.init import initialize
+from fo.office import git
 from fo.skills import freshness, parse_skill, sync
 
 
@@ -81,3 +82,25 @@ def test_legacy_directory_is_not_replaced(tmp_path, library):
     with pytest.raises(OfficeError, match="legacy"):
         sync(root)
     assert (link / "user.md").read_text() == "Keep"
+
+
+def test_skills_command_records_rules_and_claude_entrypoint(tmp_path, library, monkeypatch):
+    from typer.testing import CliRunner
+
+    from fo.cli import app
+
+    root = tmp_path / "office"
+    initialize(root)
+    monkeypatch.setattr("fo.skills.rules", lambda: "Updated office rules.\n")
+    (root / "CLAUDE.md").unlink()
+    unrelated = root / "profile/household.md"
+    before = git(root, "show", "HEAD:profile/household.md").stdout
+    unrelated.write_text(unrelated.read_text() + "\nUser edit.\n")
+    git(root, "add", "--", "profile/household.md")
+    result = CliRunner().invoke(app, ["skills", "sync", "--office", str(root), "--json"])
+    assert result.exit_code == 0, result.output
+    assert "Updated office rules." in git(root, "show", "HEAD:AGENTS.md").stdout
+    assert git(root, "show", "HEAD:CLAUDE.md").stdout == "@AGENTS.md\n"
+    assert git(root, "status", "--porcelain", "--", "AGENTS.md", "CLAUDE.md").stdout == ""
+    assert git(root, "show", "HEAD:profile/household.md").stdout == before
+    assert git(root, "status", "--porcelain").stdout.startswith("M  profile/household.md")

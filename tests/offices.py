@@ -6,6 +6,7 @@ import yaml
 
 from fo import notebook, reports
 from fo.init import initialize
+from fo.office import git
 from fo.sync import ingest
 
 ACCOUNTS = [
@@ -55,6 +56,12 @@ def write_report(root, kind, subject, body, summary):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("---\n" + yaml.safe_dump(meta) + "---\n\n" + body + "\n\n" + reports.CLOSING)
     return allocated["path"]
+
+
+def commit_all(root):
+    """Commit the fixture the way a set-up office would be committed."""
+    git(root, "add", "-A")
+    git(root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "fixture")
 
 
 def synthetic(root):
@@ -127,4 +134,5 @@ def synthetic(root):
         "# Briefing\n\n- Holdings unchanged.\n- No breaches.",
         "Synthetic briefing.",
     )
+    commit_all(root)
     return root

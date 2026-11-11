@@ -1,12 +1,16 @@
+import base64
 import json
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from typer.testing import CliRunner
 
 from fo.auth import authenticate
+from fo.cli import app
 from fo.config import credentials_dir
 from fo.doctor import diagnose
 from fo.init import initialize
+from fo.office import git
 
 
 @pytest.mark.parametrize("existing_account", [True, False])
@@ -53,6 +57,7 @@ def test_browser_flow_writes_private_token_and_real_expiry(
     monkeypatch.setattr(schwab.auth, "client_from_login_flow", login)
     start = datetime.now(UTC)
     assert authenticate(root, "schwab")["authenticated"]
+    assert git(root, "status", "--porcelain").stdout == ""
     accounts = json.loads((root / "profile/accounts.json").read_text())["accounts"]
     assert len(accounts) == 1
     assert accounts[0]["id"] == ("a" if existing_account else "schwab-1")
@@ -66,6 +71,64 @@ def test_browser_flow_writes_private_token_and_real_expiry(
     for path in (root / "profile").rglob("*"):
         if path.is_file():
             assert "HASH_SENTINEL" not in path.read_text()
+
+
+@pytest.mark.parametrize("command", ["auth", "setup"])
+@pytest.mark.parametrize("legacy", [False, True])
+def test_simplefin_authentication_records_accounts(tmp_path, monkeypatch, command, legacy):
+    import httpx
+    import typer
+
+    from fo.providers.simplefin import SimpleFIN
+
+    root = tmp_path / "office"
+    initialize(root)
+    if legacy:
+        config = root / "office.toml"
+        config.write_text(
+            "".join(
+                line for line in config.read_text().splitlines(True) if not line.startswith("id = ")
+            )
+        )
+        (root / ".claude/settings.json").write_text("{}\n")
+    token = base64.b64encode(b"https://bridge.simplefin.org/claim/fixture").decode()
+    monkeypatch.setattr(typer, "prompt", lambda *args, **kwargs: token)
+    monkeypatch.setattr(
+        httpx.Client,
+        "post",
+        lambda self, url: httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            text="https://fixture:SECRET@bridge.example/base",
+        ),
+    )
+    monkeypatch.setattr(SimpleFIN, "discover", lambda self: [{"provider_ref": "a", "last4": ""}])
+    monkeypatch.setattr(
+        SimpleFIN,
+        "accounts",
+        lambda self, registry, **kwargs: [
+            {"account_id": registry[0]["id"], "balance": {"net_value": "10"}}
+        ],
+    )
+    args = (
+        ["auth", "simplefin", "--office", str(root)]
+        if command == "auth"
+        else ["setup", str(root), "--provider", "simplefin"]
+    )
+    result = CliRunner().invoke(app, [*args, "--json"])
+    if command == "setup":
+        assert json.loads(result.output)["connections"] == [
+            {"provider": "simplefin", "status": "connected"}
+        ]
+    else:
+        assert result.exit_code == 0, result.output
+    assert (
+        git(root, "status", "--porcelain", "--", "profile", "office.toml", ".claude").stdout == ""
+    )
+    from fo.commits import commit_office
+
+    commit_office(root, include_data=True)
+    assert git(root, "status", "--porcelain").stdout == ""
 
 
 def test_doctor_warns_at_36_hours_and_fails_after_expiry(tmp_path):

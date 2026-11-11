@@ -66,6 +66,11 @@ def fix(root, name):
         return fo("doctor", "--fix", root=root), "Download any .icloud placeholders first."
     if name == "office.ignore":
         return fo("doctor", "--fix", root=root), None
+    if name == "office.uncommitted":
+        return None, (
+            "Commit or resolve changes outside notebook/, reports/ and data/ in Git, "
+            "then retry fo commit or fo sync --commit."
+        )
     if name.startswith("profile.") or name == "accounts.roles":
         return None, ONBOARD
     if name.startswith("sync.errors."):

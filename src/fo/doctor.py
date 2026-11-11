@@ -1,6 +1,7 @@
 import os
 from datetime import UTC, datetime
 
+from fo.commits import changes_outside, git_status
 from fo.config import credentials_dir, credentials_read_denied, load_json, read_config
 from fo.errors import OfficeError
 from fo.office import contained, git
@@ -14,6 +15,21 @@ def check(name, status, reason):
 
 def diagnose(root):
     checks = []
+    if (root / ".git").exists():
+        try:
+            count = len(changes_outside(git_status(root), ("notebook", "reports", "data")))
+            checks.append(
+                check(
+                    "office.uncommitted",
+                    "warn" if count else "pass",
+                    f"{count} uncommitted change(s) outside notebook/, reports/ and data/ "
+                    "block fo commit and the nightly sync; commit or resolve them."
+                    if count
+                    else "No uncommitted changes outside notebook/, reports/ and data/.",
+                )
+            )
+        except OfficeError as exc:
+            checks.append(check("office.uncommitted", "warn", exc.message))
     try:
         ignored = "launchd/" in contained(root, ".gitignore").read_text().splitlines()
     except (OfficeError, OSError):

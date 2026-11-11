@@ -11,6 +11,19 @@ from fo.office import git
 HIDDEN = "Hidden files or folders under reports/ cannot be committed."
 
 
+def git_status(root):
+    # List every untracked file, including hidden files inside new folders.
+    return git(root, "status", "--porcelain", "-z", "--no-renames", "--untracked-files=all").stdout
+
+
+def changes_outside(status, allowed):
+    return [
+        row[3:]
+        for row in status.split("\0")
+        if row and not any(row[3:] == p or row[3:].startswith(p + "/") for p in allowed)
+    ]
+
+
 def check_commit_state(root):
     for marker in (
         "MERGE_HEAD",
@@ -25,9 +38,7 @@ def check_commit_state(root):
                 "merge_in_progress",
                 "Finish or abort the Git merge or rebase in the office before fo commits.",
             )
-    status = git(
-        root, "status", "--porcelain", "-z", "--no-renames", "--untracked-files=all"
-    ).stdout
+    status = git_status(root)
     if any("U" in row[:2] or row[:2] in {"AA", "DD"} for row in status.split("\0") if row):
         raise OfficeError(
             "merge_in_progress",
@@ -103,17 +114,16 @@ def scan_history(root):
 
 def commit_office(root, include_data=False):
     allowed = ["notebook", "reports"] + (["data"] if include_data else [])
-    # Every untracked file is listed, so a hidden file inside a new folder is seen too.
     status = check_commit_state(root)
+    if changes_outside(status, allowed):
+        raise OfficeError(
+            "dirty_office",
+            "Unrelated office changes must be committed or resolved before publication.",
+        )
     for row in status.split("\0"):
         if not row:
             continue
         path = row[3:]
-        if not any(path == p or path.startswith(p + "/") for p in allowed):
-            raise OfficeError(
-                "dirty_office",
-                "Unrelated office changes must be committed or resolved before publication.",
-            )
         # Hidden entries under reports/ (.claude/, .git/, ...) would reach later sessions.
         if path.startswith("reports/") and any(
             part.startswith(".") for part in path.split("/")[1:]

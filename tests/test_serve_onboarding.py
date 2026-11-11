@@ -12,7 +12,7 @@ from fo.serve.onboarding import derive
 from fo.serve.runs import RunManager
 from fo.serve.server import ONBOARDING_TTL, Locator
 from fo.sync import ingest
-from tests.offices import synthetic
+from tests.offices import commit_all, synthetic
 from tests.serving import serving
 from tests.test_serve_devices import OWNER, paired, remote
 from tests.test_serve_runs import COMPLETE, runner_for
@@ -36,6 +36,7 @@ def secrets(root, text='[simplefin]\naccess_url = "https://example.invalid/fake"
 
 def accounts(root, rows):
     (root / "profile/accounts.json").write_text(json.dumps({"accounts": rows}))
+    commit_all(root)
 
 
 def test_no_office_asks_for_a_folder():

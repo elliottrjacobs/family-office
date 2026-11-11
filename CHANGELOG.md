@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `fo auth`, `fo setup`, `fo connect edgar` and `fo skills sync` commit the tracked
+  files they write (`profile/accounts.json`, `office.toml`, `AGENTS.md`, `CLAUDE.md`),
+  so they no longer block `fo commit` or the nightly sync. `fo doctor` warns with
+  `office.uncommitted` when changes outside notebook/, reports/ and data/ would block it.
 - Failed syncs retain institution error and unmapped account counts without error
   text. Institution failures point to provider repairs. SimpleFIN registration
   requires a new setup token. First-sync onboarding shows the repair before retrying.
