@@ -6,7 +6,7 @@ A private family office built around the `fo` command. Python computes the facts
 package. For example, `fo positions` shows holdings and `fo networth` calculates
 net worth. Your coding agent uses these same commands to retrieve facts.
 
-This is an alpha prerelease (`2.0.0a1`). Automated tests use synthetic accounts;
+This is a beta prerelease (`2.0.0b1`). Automated tests use synthetic accounts;
 end-to-end live account reconciliation and scheduled operation have not yet been
 validated. Check imported balances and holdings against your institution before
 relying on the results.
@@ -87,7 +87,7 @@ identifying User-Agent in `office.toml`; the agent configures it from the user's
 contact information. The agent must not invent a contact address.
 
 The packaged prerelease is installed with
-`uv tool install "family-office @ git+https://github.com/elliottrjacobs/family-office.git@v2.0.0a1"`.
+`uv tool install "family-office @ git+https://github.com/elliottrjacobs/family-office.git@v2.0.0b1"`.
 New offices pin that same package version. Version numbers identify releases;
 the installed command and product name remain `fo` and family-office.
 
@@ -167,10 +167,10 @@ it. A setup dialog walks you through choosing or creating your office folder, pi
 an engine, and connecting accounts; credentials and provider consent stay in the
 terminal pane. New versions arrive as new signed releases.
 
-It needs macOS 14 or later, and Claude Code or Codex installed and signed in
-(Codex ships disabled until you turn it on in Settings). Advisor runs go through
-your own account with that tool and are billed there; the app has no account or
-subscription of its own.
+It needs an Apple Silicon Mac with macOS 14 or later, and Claude Code or Codex
+installed and signed in (Codex ships disabled until you turn it on in Settings).
+Advisor runs go through your own account with that tool and are billed there; the
+app has no account or subscription of its own.
 
 Your office stays on the Mac, and nothing phones home: no telemetry and no analytics.
 The iPhone app reaches the Mac only over your own tailnet, after a one-time pairing

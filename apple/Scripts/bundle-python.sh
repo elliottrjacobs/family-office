@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Build the Python runtime the Mac app ships in Contents/Resources/fo.
 #
-#   apple/Scripts/bundle-python.sh            # host architecture
-#   FO_BUNDLE_ARCH=x86_64 apple/Scripts/...   # force one architecture
+#   apple/Scripts/bundle-python.sh            # Apple Silicon (arm64) only
 #
 # Output, under apple/Resources/fo/ (a build product, never committed):
 #   python/   python-build-standalone 3.12 install_only runtime
@@ -21,11 +20,10 @@
 set -euo pipefail
 
 # python-build-standalone release pinned by exact tag and SHA-256 (from the release's
-# SHA256SUMS, checked 2026-11-04). Update all four values together.
+# SHA256SUMS, checked 2026-11-04). Update all three values together.
 PBS_TAG="20261026"
 PBS_PYTHON="3.12.16"
 PBS_SHA256_AARCH64="fbf4afef53c2a6b72bb741bc06d5671a9dfaf87bd84e5aa73ac9b3d0d589f14e"
-PBS_SHA256_X86_64="a962e47df522889eaa7ff0d6a56203f1079f68aabb65ffdbe8455f362bc769f3"
 
 SCRIPTS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APPLE="$(dirname "$SCRIPTS")"
@@ -47,8 +45,7 @@ case "$arch" in
         sha="$PBS_SHA256_AARCH64"
         ;;
     x86_64)
-        triple="x86_64-apple-darwin"
-        sha="$PBS_SHA256_X86_64"
+        die "Intel Macs are not supported: cryptography publishes no x86_64 macOS wheels."
         ;;
     *) die "unsupported architecture: $arch" ;;
 esac

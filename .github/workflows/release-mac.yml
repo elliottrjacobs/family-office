@@ -3,6 +3,9 @@
 # Every step that needs a secret is skipped, with a notice saying so, when that secret is absent,
 # so a fork (or a repository before the one-time setup) still produces ad-hoc signed DMGs as
 # workflow artifacts and attaches them to a draft release.
+#
+# Signing secrets live in the `release` environment and only the build job reads them; the
+# publish job holds the write token and no secret. Actions are pinned by commit SHA.
 name: Release Mac app
 on:
   push:
@@ -24,17 +27,17 @@ env:
   SPARKLE_SHA256: 1a856d2a9edb8e628de88121d7be04cf0e2167f8641650b78fca00b14244cf27
 jobs:
   build:
-    name: Build ${{ matrix.arch }}
+    # Apple Silicon only: cryptography (a locked dependency of the bundled runtime) publishes no
+    # Intel macOS wheels, so an x86_64 bundle cannot be built from the lock.
+    name: Build arm64
     runs-on: macos-latest
-    strategy:
-      fail-fast: true
-      matrix:
-        arch: [arm64, x86_64]
+    # Every signing secret lives in this environment; it is the only job that reads them.
+    environment: release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
       - run: brew install xcodegen
 
       - name: Check secrets
@@ -60,26 +63,38 @@ jobs:
           fi
 
       - name: Version
-        id: version
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
         run: |
           if [ "$GITHUB_REF_TYPE" = tag ] && [[ "$GITHUB_REF_NAME" == v* ]]; then
-            echo "marketing=${GITHUB_REF_NAME#v}" >>"$GITHUB_OUTPUT"
+            marketing="${GITHUB_REF_NAME#v}"
+            tag="$GITHUB_REF_NAME"
           else
-            echo "marketing=$(sed -n 's/^ *MARKETING_VERSION: *//p' apple/project.yml | head -1)" >>"$GITHUB_OUTPUT"
+            marketing="$(sed -n 's/^ *MARKETING_VERSION: *//p' apple/project.yml | head -1)"
+            tag="$INPUT_TAG"
           fi
-          # Sparkle compares CFBundleVersion, which must grow with every release.
-          echo "build=$(git rev-list --count HEAD)" >>"$GITHUB_OUTPUT"
-
-      - name: Install Rosetta for the x86_64 runtime checks
-        if: matrix.arch == 'x86_64'
-        run: /usr/bin/pgrep -q oahd || sudo softwareupdate --install-rosetta --agree-to-license
+          # The tag reaches xcodebuild and the release, so accept only a plain version.
+          if ! [[ "$marketing" =~ ^[0-9]+\.[0-9]+\.[0-9]+((a|b|rc)[0-9]+)?$ ]]; then
+            echo "::error::Version '$marketing' is not N.N.N with an optional a/b/rc suffix."
+            exit 1
+          fi
+          if [ -n "$tag" ] && ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+((a|b|rc)[0-9]+)?$ ]]; then
+            echo "::error::Tag '$tag' is not vN.N.N with an optional a/b/rc suffix."
+            exit 1
+          fi
+          {
+            echo "MARKETING_VERSION=$marketing"
+            echo "RELEASE_TAG=$tag"
+            # Sparkle compares CFBundleVersion, which must grow with every release.
+            echo "BUILD_NUMBER=$(git rev-list --count HEAD)"
+          } >>"$GITHUB_ENV"
 
       - name: Build the wheel
         run: uv build --wheel --out-dir dist
 
       - name: Bundle Python
         env:
-          FO_BUNDLE_ARCH: ${{ matrix.arch }}
+          FO_BUNDLE_ARCH: arm64
         run: apple/Scripts/bundle-python.sh
 
       - name: Generate the Xcode project
@@ -93,9 +108,9 @@ jobs:
             -project apple/FamilyOffice.xcodeproj -scheme FamilyOffice -configuration Release \
             -destination 'generic/platform=macOS' \
             -archivePath "$RUNNER_TEMP/FamilyOffice.xcarchive" \
-            ARCHS=${{ matrix.arch }} ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO \
-            MARKETING_VERSION=${{ steps.version.outputs.marketing }} \
-            CURRENT_PROJECT_VERSION=${{ steps.version.outputs.build }}
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO \
+            MARKETING_VERSION="$MARKETING_VERSION" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
           echo "APP=$RUNNER_TEMP/FamilyOffice.xcarchive/Products/Applications/FamilyOffice.app" >>"$GITHUB_ENV"
 
       - name: Import the Developer ID certificate
@@ -172,11 +187,40 @@ jobs:
           xcrun stapler validate "$DMG"
           spctl --assess --type open --context context:primary-signature -vv "$DMG"
 
-      - uses: actions/upload-artifact@v4
+      - name: Sign the appcast
+        if: env.RELEASE_TAG != ''
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/appcast"
+          if [ -z "$SPARKLE_PRIVATE_KEY" ]; then
+            echo "::notice::SPARKLE_PRIVATE_KEY is not set: no appcast is generated, so installed apps will not see this release."
+            exit 0
+          fi
+          tools="$RUNNER_TEMP/sparkle"
+          mkdir -p "$tools" "$RUNNER_TEMP/appcast-in"
+          curl -fsSL --retry 3 -o "$tools/sparkle.tar.xz" \
+            "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz"
+          echo "$SPARKLE_SHA256  $tools/sparkle.tar.xz" | shasum -a 256 -c
+          tar -xJf "$tools/sparkle.tar.xz" -C "$tools"
+          cp "$DMG" "$RUNNER_TEMP/appcast-in/"
+          prefix="https://github.com/$GITHUB_REPOSITORY/releases/download/$RELEASE_TAG/"
+          printf '%s' "$SPARKLE_PRIVATE_KEY" | "$tools/bin/generate_appcast" --ed-key-file - \
+            --download-url-prefix "$prefix" -o "$RUNNER_TEMP/appcast/appcast.xml" "$RUNNER_TEMP/appcast-in"
+          ls -l "$RUNNER_TEMP/appcast/appcast.xml"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: dmg-${{ matrix.arch }}
+          name: dmg-arm64
           path: ${{ env.DMG }}
           if-no-files-found: error
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: env.RELEASE_TAG != ''
+        with:
+          name: appcast
+          path: ${{ runner.temp }}/appcast
+          if-no-files-found: ignore
 
       - name: Remove the signing material
         if: always()
@@ -185,19 +229,13 @@ jobs:
           if [ -n "${KEYCHAIN:-}" ]; then security delete-keychain "$KEYCHAIN" || true; fi
 
   publish:
-    name: Appcast and release
+    # Holds the write token but no signing secret; it only attaches what the build job made.
+    name: Attach to the release
     needs: build
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: dmg-*
-          path: dmg
-
       - name: Release tag
         id: tag
         env:
@@ -208,56 +246,32 @@ jobs:
           else
             tag="$INPUT_TAG"
           fi
+          if [ -n "$tag" ] && ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+((a|b|rc)[0-9]+)?$ ]]; then
+            echo "::error::Tag '$tag' is not vN.N.N with an optional a/b/rc suffix."
+            exit 1
+          fi
           echo "tag=$tag" >>"$GITHUB_OUTPUT"
           if [ -z "$tag" ]; then
-            echo "::notice::No tag: the DMGs stay as workflow artifacts and no release is touched."
+            echo "::notice::No tag: the DMG stays a workflow artifact and no release is touched."
           fi
 
-      - name: Check the Sparkle key
-        id: sparkle
-        env:
-          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
-        run: |
-          if [ -n "$SPARKLE_PRIVATE_KEY" ]; then
-            echo "sign=true" >>"$GITHUB_OUTPUT"
-          else
-            echo "sign=false" >>"$GITHUB_OUTPUT"
-            echo "::notice::SPARKLE_PRIVATE_KEY is not set: no appcast is generated, so installed apps will not see this release."
-          fi
-
-      - name: Generate the appcasts
-        if: steps.sparkle.outputs.sign == 'true' && steps.tag.outputs.tag != ''
-        env:
-          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
-          TAG: ${{ steps.tag.outputs.tag }}
-        run: |
-          tools="$RUNNER_TEMP/sparkle"
-          mkdir -p "$tools"
-          curl -fsSL --retry 3 -o "$tools/sparkle.tar.xz" \
-            "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz"
-          echo "$SPARKLE_SHA256  $tools/sparkle.tar.xz" | shasum -a 256 -c
-          tar -xJf "$tools/sparkle.tar.xz" -C "$tools"
-          prefix="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/"
-          # One appcast per architecture; Intel builds read appcast-x86_64.xml (App/Updater.swift).
-          for arch in arm64 x86_64; do
-            feed=appcast.xml
-            [ "$arch" = arm64 ] || feed="appcast-$arch.xml"
-            printf '%s' "$SPARKLE_PRIVATE_KEY" | "$tools/bin/generate_appcast" --ed-key-file - \
-              --download-url-prefix "$prefix" -o "$PWD/$feed" "dmg/dmg-$arch"
-          done
-          ls -l appcast*.xml
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        if: steps.tag.outputs.tag != ''
+        with:
+          path: artifacts
 
       - name: Attach to the release
         if: steps.tag.outputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             gh release create "$TAG" --draft --verify-tag --title "$TAG" \
               --notes "Draft created by the Mac release workflow. Edit the notes, then publish."
           fi
-          gh release upload "$TAG" dmg/dmg-*/*.dmg --clobber
-          if ls appcast*.xml >/dev/null 2>&1; then
-            gh release upload "$TAG" appcast*.xml --clobber
+          gh release upload "$TAG" artifacts/dmg-arm64/*.dmg --clobber
+          if [ -f artifacts/appcast/appcast.xml ]; then
+            gh release upload "$TAG" artifacts/appcast/appcast.xml --clobber
           fi

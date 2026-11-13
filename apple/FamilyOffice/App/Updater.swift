@@ -8,8 +8,6 @@ import os
 ///
 /// The feed (`SUFeedURL`) is the `appcast.xml` attached to the latest GitHub Release, and every
 /// download must carry an EdDSA signature that verifies against `SUPublicEDKey` in Info.plist.
-/// Each architecture has its own DMG, so each has its own appcast: Apple Silicon builds read
-/// `SUFeedURL` and Intel builds read `appcast-x86_64.xml` beside it (`FeedDelegate`).
 /// Until the real public key replaces the placeholder (see RELEASING.md) the updater is not
 /// started, so development builds never show Sparkle's "failed to start" alert.
 @MainActor
@@ -26,8 +24,6 @@ final class Updater {
     private(set) var automaticallyChecks = true
 
     @ObservationIgnored private let controller: SPUStandardUpdaterController
-    /// The controller holds its delegate weakly.
-    @ObservationIgnored private let feedDelegate = FeedDelegate()
     @ObservationIgnored private var observation: NSKeyValueObservation?
     @ObservationIgnored private let log = Logger(subsystem: "com.familyoffice.app", category: "updates")
 
@@ -36,7 +32,7 @@ final class Updater {
         let feed = bundle.object(forInfoDictionaryKey: "SUFeedURL") as? String ?? ""
         configured = !key.isEmpty && key != Self.placeholderKey && !feed.isEmpty
         controller = SPUStandardUpdaterController(
-            startingUpdater: configured, updaterDelegate: feedDelegate, userDriverDelegate: nil)
+            startingUpdater: configured, updaterDelegate: nil, userDriverDelegate: nil)
         guard configured else {
             log.info("updates: not configured (placeholder public key); updater not started")
             return
@@ -74,18 +70,3 @@ final class Updater {
     }
 }
 
-/// Points Intel builds at the x86_64 appcast, which lists only the x86_64 DMG.
-private final class FeedDelegate: NSObject, SPUUpdaterDelegate {
-    static let intelAppcast = "appcast-x86_64.xml"
-
-    func feedURLString(for updater: SPUUpdater) -> String? {
-        #if arch(x86_64)
-            guard let feed = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String,
-                let url = URL(string: feed)
-            else { return nil }
-            return url.deletingLastPathComponent().appendingPathComponent(Self.intelAppcast).absoluteString
-        #else
-            return nil
-        #endif
-    }
-}
