@@ -12,7 +12,6 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     MACOSX_DEPLOYMENT_TARGET: "14.0"
-    # Apple Silicon and Intel.
     ARCHS: $(ARCHS_STANDARD)
     DEAD_CODE_STRIPPING: YES
 packages:
@@ -72,6 +71,9 @@ targets:
       base:
         PRODUCT_NAME: FamilyOffice
         PRODUCT_BUNDLE_IDENTIFIER: com.familyoffice.app
+        # Apple Silicon only: the bundled runtime's locked dependencies (cryptography) publish no
+        # Intel macOS wheels, so an x86_64 app would ship without a working fo.
+        ARCHS: arm64
         MARKETING_VERSION: 2.0.0
         CURRENT_PROJECT_VERSION: 1
         ENABLE_HARDENED_RUNTIME: YES

@@ -24,12 +24,10 @@ env:
   SPARKLE_SHA256: 1a856d2a9edb8e628de88121d7be04cf0e2167f8641650b78fca00b14244cf27
 jobs:
   build:
-    name: Build ${{ matrix.arch }}
+    # Apple Silicon only: cryptography (a locked dependency of the bundled runtime) publishes no
+    # Intel macOS wheels, so an x86_64 bundle cannot be built from the lock.
+    name: Build arm64
     runs-on: macos-latest
-    strategy:
-      fail-fast: true
-      matrix:
-        arch: [arm64, x86_64]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -70,16 +68,12 @@ jobs:
           # Sparkle compares CFBundleVersion, which must grow with every release.
           echo "build=$(git rev-list --count HEAD)" >>"$GITHUB_OUTPUT"
 
-      - name: Install Rosetta for the x86_64 runtime checks
-        if: matrix.arch == 'x86_64'
-        run: /usr/bin/pgrep -q oahd || sudo softwareupdate --install-rosetta --agree-to-license
-
       - name: Build the wheel
         run: uv build --wheel --out-dir dist
 
       - name: Bundle Python
         env:
-          FO_BUNDLE_ARCH: ${{ matrix.arch }}
+          FO_BUNDLE_ARCH: arm64
         run: apple/Scripts/bundle-python.sh
 
       - name: Generate the Xcode project
@@ -93,7 +87,7 @@ jobs:
             -project apple/FamilyOffice.xcodeproj -scheme FamilyOffice -configuration Release \
             -destination 'generic/platform=macOS' \
             -archivePath "$RUNNER_TEMP/FamilyOffice.xcarchive" \
-            ARCHS=${{ matrix.arch }} ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO \
             MARKETING_VERSION=${{ steps.version.outputs.marketing }} \
             CURRENT_PROJECT_VERSION=${{ steps.version.outputs.build }}
           echo "APP=$RUNNER_TEMP/FamilyOffice.xcarchive/Products/Applications/FamilyOffice.app" >>"$GITHUB_ENV"
@@ -174,7 +168,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: dmg-${{ matrix.arch }}
+          name: dmg-arm64
           path: ${{ env.DMG }}
           if-no-files-found: error
 
@@ -225,7 +219,7 @@ jobs:
             echo "::notice::SPARKLE_PRIVATE_KEY is not set: no appcast is generated, so installed apps will not see this release."
           fi
 
-      - name: Generate the appcasts
+      - name: Generate the appcast
         if: steps.sparkle.outputs.sign == 'true' && steps.tag.outputs.tag != ''
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
@@ -238,14 +232,9 @@ jobs:
           echo "$SPARKLE_SHA256  $tools/sparkle.tar.xz" | shasum -a 256 -c
           tar -xJf "$tools/sparkle.tar.xz" -C "$tools"
           prefix="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/"
-          # One appcast per architecture; Intel builds read appcast-x86_64.xml (App/Updater.swift).
-          for arch in arm64 x86_64; do
-            feed=appcast.xml
-            [ "$arch" = arm64 ] || feed="appcast-$arch.xml"
-            printf '%s' "$SPARKLE_PRIVATE_KEY" | "$tools/bin/generate_appcast" --ed-key-file - \
-              --download-url-prefix "$prefix" -o "$PWD/$feed" "dmg/dmg-$arch"
-          done
-          ls -l appcast*.xml
+          printf '%s' "$SPARKLE_PRIVATE_KEY" | "$tools/bin/generate_appcast" --ed-key-file - \
+            --download-url-prefix "$prefix" -o "$PWD/appcast.xml" dmg/dmg-arm64
+          ls -l appcast.xml
 
       - name: Attach to the release
         if: steps.tag.outputs.tag != ''
@@ -258,6 +247,6 @@ jobs:
               --notes "Draft created by the Mac release workflow. Edit the notes, then publish."
           fi
           gh release upload "$TAG" dmg/dmg-*/*.dmg --clobber
-          if ls appcast*.xml >/dev/null 2>&1; then
-            gh release upload "$TAG" appcast*.xml --clobber
+          if [ -f appcast.xml ]; then
+            gh release upload "$TAG" appcast.xml --clobber
           fi

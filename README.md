@@ -167,10 +167,10 @@ it. A setup dialog walks you through choosing or creating your office folder, pi
 an engine, and connecting accounts; credentials and provider consent stay in the
 terminal pane. New versions arrive as new signed releases.
 
-It needs macOS 14 or later, and Claude Code or Codex installed and signed in
-(Codex ships disabled until you turn it on in Settings). Advisor runs go through
-your own account with that tool and are billed there; the app has no account or
-subscription of its own.
+It needs an Apple Silicon Mac with macOS 14 or later, and Claude Code or Codex
+installed and signed in (Codex ships disabled until you turn it on in Settings).
+Advisor runs go through your own account with that tool and are billed there; the
+app has no account or subscription of its own.
 
 Your office stays on the Mac, and nothing phones home: no telemetry and no analytics.
 The iPhone app reaches the Mac only over your own tailnet, after a one-time pairing

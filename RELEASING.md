@@ -1,9 +1,8 @@
 # Releasing the Mac app
 
-A release is a pushed `v*` tag. `.github/workflows/release-mac.yml` then builds one DMG per
-architecture (`FamilyOffice-<version>-arm64.dmg`, `FamilyOffice-<version>-x86_64.dmg`), signs
-them with the Developer ID, notarizes and staples them, signs the Sparkle appcasts, and attaches
-everything to a draft GitHub Release. Publishing the draft is what makes installed apps see the
+A release is a pushed `v*` tag. `.github/workflows/release-mac.yml` then builds the Apple Silicon
+DMG (`FamilyOffice-<version>-arm64.dmg`), signs it with the Developer ID, notarizes and staples
+it, signs the Sparkle appcast, and attaches both to a draft GitHub Release. Publishing the draft is what makes installed apps see the
 update.
 
 Signing material lives only in GitHub Actions secrets. Nothing in this repository, and nothing
@@ -100,7 +99,7 @@ release should receive the assets. Delete test releases and tags afterwards.
 
 ## Verifying a release
 
-On a Mac that has never built the app, download each DMG from the release page, then:
+On a Mac that has never built the app, download the DMG from the release page, then:
 
 ```sh
 spctl -a -vv -t open --context context:primary-signature FamilyOffice-2.0.0-arm64.dmg
@@ -118,8 +117,7 @@ standard "downloaded from the internet" prompt), and check:
 - Family Office > Check for Updates… is enabled and reports the app up to date;
 - an older installed build, opened after the release is published, offers this version and
   installs it (Settings > General > Updates shows the last check);
-- `appcast.xml` on the release has an `sparkle:edSignature` on its enclosure, and
-  `appcast-x86_64.xml` exists beside it for Intel Macs;
+- `appcast.xml` on the release has an `sparkle:edSignature` on its enclosure;
 - the workflow log shows no secret values (GitHub masks them; nothing should print them).
 
 ## Rolling back

@@ -100,9 +100,9 @@ apple/Scripts/bundle-python.sh
 
 The script, runnable from any directory and safe to run again:
 
-1. downloads the python-build-standalone 3.12 `install_only` archive for the host architecture
-   (`FO_BUNDLE_ARCH=x86_64` or `arm64` overrides it) by the exact tag and SHA-256 pinned at the
-   top of the script, caching it under `apple/build/python-cache/`;
+1. downloads the python-build-standalone 3.12 `install_only` archive for Apple Silicon (the
+   app is arm64 only; cryptography publishes no Intel macOS wheels) by the exact tag and
+   SHA-256 pinned at the top of the script, caching it under `apple/build/python-cache/`;
 2. unpacks it to `apple/Resources/fo/python/`;
 3. builds the wheel with `uv build --wheel` and installs it, with the dependency versions from
    `uv.lock` (hash-checked), into the relocatable virtual environment `apple/Resources/fo/venv/`;
@@ -201,8 +201,8 @@ xcrun stapler validate FamilyOffice-<version>-<arch>.dmg
 ### Updates (Sparkle)
 
 `App/Updater.swift` owns an `SPUStandardUpdaterController`. `Info.plist` sets `SUFeedURL` to
-`appcast.xml` on the latest GitHub Release and `SUEnableAutomaticChecks` to true; Intel builds
-read `appcast-x86_64.xml` beside it (each architecture has its own DMG and appcast).
+`appcast.xml` on the latest GitHub Release and `SUEnableAutomaticChecks` to true. The app is
+Apple Silicon only, so there is one DMG and one appcast.
 `SUPublicEDKey` is a placeholder until the release key pair exists (RELEASING.md, one-time
 setup); while it is, the updater is not started and the menu item and the Settings controls
 are disabled, so development builds never show Sparkle's "failed to start" alert.

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- The Mac app is Apple Silicon only. cryptography, a locked dependency of the bundled
+  runtime, publishes no Intel macOS wheels, so the release builds one arm64 DMG and one
+  appcast. `bundle-python.sh` refuses `FO_BUNDLE_ARCH=x86_64`.
 - `fo auth`, `fo setup`, `fo connect edgar` and `fo skills sync` commit the tracked
   files they write (`profile/accounts.json`, `office.toml`, `AGENTS.md`, `CLAUDE.md`),
   so they no longer block `fo commit` or the nightly sync. `fo doctor` warns with
