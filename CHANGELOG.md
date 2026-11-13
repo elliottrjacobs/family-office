@@ -5,6 +5,10 @@
 - The Mac app is Apple Silicon only. cryptography, a locked dependency of the bundled
   runtime, publishes no Intel macOS wheels, so the release builds one arm64 DMG and one
   appcast. `bundle-python.sh` refuses `FO_BUNDLE_ARCH=x86_64`.
+- Release workflows pin every action by commit SHA, read signing secrets from the
+  protected `release` environment only in the steps that use them, validate the tag before
+  it reaches a build, and sign the Sparkle appcast in the build job so the job that writes
+  the release holds no secret.
 - `fo auth`, `fo setup`, `fo connect edgar` and `fo skills sync` commit the tracked
   files they write (`profile/accounts.json`, `office.toml`, `AGENTS.md`, `CLAUDE.md`),
   so they no longer block `fo commit` or the nightly sync. `fo doctor` warns with

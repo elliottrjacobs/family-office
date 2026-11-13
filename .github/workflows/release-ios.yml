@@ -10,7 +10,8 @@
 #   ASC_ISSUER_ID             App Store Connect issuer id
 #   ASC_KEY_P8                the API key (AuthKey_<id>.p8) contents, base64
 # Upload uses `xcrun altool --upload-app` with the API key, so no third-party action receives
-# the credentials. The Mac app is released by release-mac.yml.
+# the credentials. The secrets live in the `release` environment and each one is given only to
+# the steps that use it. The Mac app is released by release-mac.yml.
 name: Release iOS
 on:
   push:
@@ -25,15 +26,9 @@ jobs:
   ios:
     runs-on: macos-latest
     timeout-minutes: 45
-    env:
-      IOS_CERT_P12: ${{ secrets.IOS_CERT_P12 }}
-      IOS_CERT_PASSWORD: ${{ secrets.IOS_CERT_PASSWORD }}
-      IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
-      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+    environment: release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate the Xcode project
@@ -41,6 +36,13 @@ jobs:
         run: xcodegen generate
       - name: Check for signing secrets
         id: gate
+        env:
+          IOS_CERT_P12: ${{ secrets.IOS_CERT_P12 }}
+          IOS_CERT_PASSWORD: ${{ secrets.IOS_CERT_PASSWORD }}
+          IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
         run: |
           missing=""
           for name in IOS_CERT_P12 IOS_CERT_PASSWORD IOS_PROVISIONING_PROFILE ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8; do
@@ -63,6 +65,10 @@ jobs:
       # With secrets: sign, archive, export and upload.
       - name: Import the certificate and provisioning profile
         if: steps.gate.outputs.signed == 'true'
+        env:
+          IOS_CERT_P12: ${{ secrets.IOS_CERT_P12 }}
+          IOS_CERT_PASSWORD: ${{ secrets.IOS_CERT_PASSWORD }}
+          IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
         run: |
           keychain="$RUNNER_TEMP/release.keychain-db"
           keychain_password="$(uuidgen)"
@@ -72,8 +78,12 @@ jobs:
           security create-keychain -p "$keychain_password" "$keychain"
           security set-keychain-settings -lut 21600 "$keychain"
           security unlock-keychain -p "$keychain_password" "$keychain"
-          security import "$RUNNER_TEMP/cert.p12" -P "$IOS_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
-          security set-key-partition-list -S apple-tool:,apple: -k "$keychain_password" "$keychain"
+          # Only codesign may use the key (not every app on the runner, as -A would allow).
+          security import "$RUNNER_TEMP/cert.p12" -P "$IOS_CERT_PASSWORD" -T /usr/bin/codesign \
+            -t cert -f pkcs12 -k "$keychain"
+          rm -f "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" \
+            "$keychain" >/dev/null
           security list-keychains -d user -s "$keychain" login.keychain-db
           security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
           uuid="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")"
@@ -114,6 +124,10 @@ jobs:
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export"
       - name: Upload to TestFlight
         if: steps.gate.outputs.signed == 'true'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
         run: |
           mkdir -p "$HOME/.appstoreconnect/private_keys"
           echo "$ASC_KEY_P8" | base64 --decode > "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
@@ -129,5 +143,5 @@ jobs:
         if: always() && steps.gate.outputs.signed == 'true'
         run: |
           security delete-keychain "$RUNNER_TEMP/release.keychain-db" || true
-          rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/profile.mobileprovision" \
-            "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/profile.mobileprovision"
+          rm -f "$HOME"/.appstoreconnect/private_keys/AuthKey_*.p8
