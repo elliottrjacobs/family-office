@@ -9,6 +9,9 @@
   protected `release` environment only in the steps that use them, validate the tag before
   it reaches a build, and sign the Sparkle appcast in the build job so the job that writes
   the release holds no secret.
+- Dependency updates for the bundled runtime: certifi 2026.10.23 (drops the distrusted
+  emSign ECC Root CA - G3), joserfc 1.8.0 (CVE-2026-119284), authlib 1.9.5, urllib3 2.8.0
+  and werkzeug 3.1.9. `pip-audit` reports no known vulnerabilities in the shipped set.
 - `fo auth`, `fo setup`, `fo connect edgar` and `fo skills sync` commit the tracked
   files they write (`profile/accounts.json`, `office.toml`, `AGENTS.md`, `CLAUDE.md`),
   so they no longer block `fo commit` or the nightly sync. `fo doctor` warns with
