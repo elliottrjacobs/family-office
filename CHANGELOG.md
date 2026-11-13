@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.0.0b1 — 2026-11-13
 
 - The Mac app is Apple Silicon only. cryptography, a locked dependency of the bundled
   runtime, publishes no Intel macOS wheels, so the release builds one arm64 DMG and one

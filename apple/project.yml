@@ -55,7 +55,7 @@ targets:
         NSHumanReadableCopyright: MIT License
         NSPrincipalClass: NSApplication
         # The family-office package version the bundled `fo --version` must report.
-        FOExpectedVersion: 2.0.0a1
+        FOExpectedVersion: 2.0.0b1
         # The web view talks to fo serve over plain HTTP on 127.0.0.1 only.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
