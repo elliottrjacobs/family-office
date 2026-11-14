@@ -1,10 +1,10 @@
+import AppKit
+import FOKit
 import SwiftUI
 
 struct ContentView: View {
     @Environment(AppState.self) private var state
-    #if DEBUG
     @Environment(\.openSettings) private var openSettings
-    #endif
 
     var body: some View {
         @Bindable var state = state
@@ -14,7 +14,8 @@ struct ContentView: View {
                     handshake: handshake,
                     generation: state.pageGeneration,
                     dataStore: state.websiteDataStore,
-                    onLoad: { cookies in state.pageLoaded(cookies: cookies) }
+                    onLoad: { cookies in state.pageLoaded(cookies: cookies) },
+                    onAction: { action in perform(action) }
                 )
             } else {
                 Color(nsColor: .windowBackgroundColor)
@@ -39,6 +40,20 @@ struct ContentView: View {
             }
         }
         #endif
+    }
+}
+
+extension ContentView {
+    /// A button on the page asked for one of the app's own windows.
+    fileprivate func perform(_ action: WebAction) {
+        switch action {
+        case .setup:
+            state.openSetup(manual: true)
+        case .settings(let tab):
+            UserDefaults.standard.set(tab, forKey: SettingsView.tabKey)
+            openSettings()
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
 }
 
