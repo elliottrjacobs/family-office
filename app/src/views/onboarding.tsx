@@ -1,15 +1,28 @@
 import * as React from "react"
-import { CircleAlert, CircleCheck, FolderOpen, Loader2, ShieldCheck, Terminal, TriangleAlert } from "lucide-react"
+import {
+  CircleAlert,
+  CircleCheck,
+  FolderOpen,
+  Loader2,
+  MessageSquare,
+  Settings2,
+  ShieldCheck,
+  Sparkles,
+  TriangleAlert,
+} from "lucide-react"
 import { cn } from "cn"
 
 import { ApiError } from "@/api/client"
-import { chooseOffice, type Onboarding } from "@/api/office"
+import { chooseOffice, type Onboarding, type StepAction } from "@/api/office"
 import { useAppData } from "@/app-data"
 import { CommandLine } from "@/components/command-line"
+import { SyncButton, SyncResult, useSync } from "@/components/sync-button"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { moment } from "@/lib/format"
+import { hasNative, native, stepButton, stepPlace } from "@/lib/native"
+import { Link } from "@/lib/router"
 
 const TITLES: Record<string, string> = {
   no_office: "Set up your family office",
@@ -25,16 +38,19 @@ function Waiting() {
   return (
     <p className="flex items-center gap-2 text-xs text-muted-foreground">
       <Loader2 className="size-3.5 animate-spin" />
-      This page moves on by itself once the step finishes in your terminal.
+      This page moves on by itself once the step is done.
     </p>
   )
 }
 
-function TerminalOnly() {
+function CredentialsNote() {
+  const { status } = useAppData()
   return (
     <p className="flex items-start gap-2 text-xs text-muted-foreground">
       <ShieldCheck className="mt-0.5 size-3.5 shrink-0" />
-      Credentials and provider consent stay in your terminal; this page never asks for them.
+      {status?.app
+        ? "Account credentials are entered in the Mac app's own windows; this page never asks for them."
+        : "Credentials and provider consent stay in your terminal; this page never asks for them."}
     </p>
   )
 }
@@ -42,16 +58,75 @@ function TerminalOnly() {
 // In these states the commands are alternatives, not a sequence.
 const CHOICES = new Set(["uninitialized_path", "unconnected"])
 
+/**
+ * How to do one step without leaving the app when that is possible: a sync from this
+ * page, the interview with Onboard, or a button that opens the Mac app's own window.
+ * Otherwise where it lives on the Mac, or the terminal command.
+ */
+export function StepAct({
+  action,
+  command,
+}: {
+  action: StepAction | undefined
+  command: string | null
+}) {
+  const { status } = useAppData()
+  const syncing = useSync()
+  if (action === "sync" && status?.chat) {
+    return (
+      <div className="space-y-2">
+        <SyncButton state={syncing} />
+        <SyncResult state={syncing} />
+      </div>
+    )
+  }
+  if (action === "onboard") {
+    return (
+      <Button variant="outline" size="sm" render={<Link to="/advisors/onboard" />}>
+        <MessageSquare /> Open Onboard
+      </Button>
+    )
+  }
+  const button = stepButton(action)
+  if (button && hasNative()) {
+    return (
+      <Button variant="outline" size="sm" onClick={() => native(button.action)}>
+        {button.action === "setup" ? <Sparkles /> : <Settings2 />} {button.label}
+      </Button>
+    )
+  }
+  const place = status?.app ? stepPlace(action) : null
+  if (place) return <p className="text-xs text-muted-foreground">{place}</p>
+  return command ? <CommandLine command={command} /> : null
+}
+
 function Steps({ data }: { data: Onboarding }) {
+  const { status } = useAppData()
   const choice = CHOICES.has(data.state) && data.steps.length > 1
+  // The Mac app's Connectors pane lists every provider, so one button covers them all.
+  const inApp = hasNative() || Boolean(status?.app)
+  const steps = inApp
+    ? data.steps.filter(
+        (step, index) =>
+          !stepButton(step.action) ||
+          data.steps.findIndex((s) => stepButton(s.action)?.action === stepButton(step.action)?.action) === index
+      )
+    : data.steps
+  const visible = inApp && data.state === "uninitialized_path" ? steps.slice(0, 1) : steps
   return (
     <div className="space-y-2">
-      {choice && <p className="text-sm font-medium">Run one of these in a terminal:</p>}
+      {choice && !inApp && <p className="text-sm font-medium">Run one of these in a terminal:</p>}
       <ul className="space-y-3">
-        {data.steps.map((step) => (
+        {visible.map((step) => (
           <li key={step.command} className="space-y-1.5">
-            <p className="text-sm">{step.purpose}</p>
-            <CommandLine command={step.command} />
+            <p className="text-sm">
+              {inApp && step.action?.startsWith("connect") && data.state === "unconnected"
+                ? "Connect Schwab or SimpleFIN in the Connectors settings."
+                : inApp && step.action === "setup"
+                  ? "Create the office with the setup guide."
+                  : step.purpose}
+            </p>
+            <StepAct action={step.action} command={step.command} />
           </li>
         ))}
       </ul>
@@ -118,12 +193,19 @@ export function OnboardingPage({ data }: { data: Onboarding }) {
       <div className="w-full max-w-xl space-y-6 rounded-2xl border bg-background p-6 shadow-sm sm:p-8">
         <div className="space-y-2">
           <span className="inline-flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Terminal className="size-4" />
+            <Sparkles className="size-4" />
           </span>
           <h1 className="text-2xl">{TITLES[data.state]}</h1>
           <p className="text-sm text-muted-foreground">{data.reason}</p>
         </div>
-        {data.state === "no_office" ? (
+        {data.state === "no_office" && hasNative() ? (
+          <div className="space-y-2">
+            <p className="text-sm">The setup guide creates the office folder and connects your accounts.</p>
+            <Button onClick={() => native("setup")}>
+              <Sparkles /> Open setup
+            </Button>
+          </div>
+        ) : data.state === "no_office" ? (
           <ChooseFolder />
         ) : (
           <div className="space-y-4">
@@ -134,7 +216,7 @@ export function OnboardingPage({ data }: { data: Onboarding }) {
             <Waiting />
           </div>
         )}
-        <TerminalOnly />
+        <CredentialsNote />
       </div>
     </div>
   )
@@ -154,7 +236,7 @@ export function SetupCard({ data }: { data: Onboarding }) {
         {stale ? (
           <TriangleAlert className="mt-0.5 size-5 shrink-0 text-warning-foreground" />
         ) : (
-          <Terminal className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+          <Sparkles className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
         )}
         <div className="space-y-1">
           <h2 className="text-base font-semibold">{TITLES[data.state]}</h2>
@@ -188,11 +270,8 @@ export function SetupCard({ data }: { data: Onboarding }) {
                   <span className="ml-1.5 font-mono text-xs text-muted-foreground">{item.name}</span>
                 </span>
               </p>
-              {item.command ? (
-                <CommandLine command={item.command} />
-              ) : (
-                item.hint && <p className="text-xs text-muted-foreground">{item.hint}</p>
-              )}
+              {!item.command && item.hint && <p className="text-xs text-muted-foreground">{item.hint}</p>}
+              <StepAct action={item.action} command={item.command} />
             </li>
           ))}
         </ul>
@@ -204,7 +283,7 @@ export function SetupCard({ data }: { data: Onboarding }) {
       {data.last_sync && (
         <p className="text-xs text-muted-foreground">Last complete sync {moment(data.last_sync)}.</p>
       )}
-      {!stale && <TerminalOnly />}
+      {!stale && <CredentialsNote />}
     </section>
   )
 }

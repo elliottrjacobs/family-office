@@ -8,17 +8,36 @@ import { AdvisorIcon, advisorName, byAdvisorOrder } from "@/components/advisor-i
 import { Empty, ErrorNotice, Loading, Page, SectionTitle, Stat } from "@/components/page"
 import { Button } from "@/components/ui/button"
 import { action, age, day, money, moment } from "@/lib/format"
+import type { StepAction } from "@/api/office"
+import { hasNative } from "@/lib/native"
 import { Link, reportHref } from "@/lib/router"
-import { SetupCard } from "@/views/onboarding"
+import { SetupCard, StepAct } from "@/views/onboarding"
 
 const CHECKLIST_DISMISSED = "fo.checklist.dismissed.v1"
 
-/** Where each getting-started item is done; the server says whether it is. */
-const HOW: Record<string, string> = {
-  account_connected: "In the Mac app: Settings > Connectors. Or run fo auth in a terminal.",
-  first_sync: "Run fo sync, or Run First Sync in the Mac app's setup.",
-  first_run: "Open an advisor and ask it something.",
-  device_paired: "In the Mac app: Settings > Devices > Pair a Phone.",
+/** Where each getting-started item is done, and what does it from here; the server says whether it is. */
+const HOW: Record<string, { text: string; action?: StepAction }> = {
+  account_connected: { text: "Connect Schwab or SimpleFIN in the Mac app's Settings > Connectors.", action: "connect" },
+  first_sync: { text: "Pull balances, positions, and transactions from your accounts.", action: "sync" },
+  profile_started: {
+    text: "Onboard interviews you about your household, goals, and taxes so advisors know your situation.",
+    action: "onboard",
+  },
+  first_run: { text: "Open an advisor in the sidebar and ask it something." },
+  device_paired: { text: "Pair your iPhone in the Mac app's Settings > Devices." },
+}
+
+/** Only the actions this page can carry out itself; the rest stay as words. */
+function HowTo({ how }: { how: { text: string; action?: StepAction } }) {
+  const { status } = useAppData()
+  const offered =
+    how.action === "onboard" || (how.action === "sync" && status?.chat) || (how.action === "connect" && hasNative())
+  return (
+    <div className="space-y-1.5">
+      <p className="text-xs text-muted-foreground">{how.text}</p>
+      {offered && <StepAct action={how.action} command={null} />}
+    </div>
+  )
 }
 
 function useDismissed(): [boolean, () => void] {
@@ -71,7 +90,7 @@ export function ChecklistCard({ items }: { items: ChecklistItem[] }) {
             <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
             <div className="min-w-0">
               <p className="text-sm font-medium">{item.label}</p>
-              {HOW[item.id] && <p className="text-xs text-muted-foreground">{HOW[item.id]}</p>}
+              {HOW[item.id] && <HowTo how={HOW[item.id]} />}
             </div>
           </li>
         ))}
@@ -165,9 +184,9 @@ export function Home() {
       icon: RefreshCw,
       tone: "warning",
       title: `${provider} has not synced on schedule`,
-      detail: "Run fo sync on the writer host.",
-      to: "/",
-      action: "Details",
+      detail: "Its accounts are older than the sync schedule allows. Use Sync now at the top of the window.",
+      to: "/finances",
+      action: "View",
     })
   }
 
@@ -277,7 +296,9 @@ export function Home() {
         </Link>
       ) : (
         <Empty icon={Newspaper} title="No briefing yet">
-          Ask the briefing advisor for one from your coding agent in the office folder.
+          <Link to="/advisors/briefing" className="underline underline-offset-4">
+            Ask Briefing for one
+          </Link>
         </Empty>
       )}
 

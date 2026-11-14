@@ -1,6 +1,6 @@
 /** Advisor chat: runner status, preview, runs, and their event streams. */
 
-import { get, post } from "@/api/client"
+import { get, post, request } from "@/api/client"
 import type { Decision, Level, ReportFrontmatter } from "@/api/office"
 
 export type RunStatus =
@@ -21,10 +21,17 @@ export const ENGINE_LABELS: Record<string, string> = { claude: "Claude Code", co
 
 export const engineLabel = (name: string) => ENGINE_LABELS[name] ?? name
 
+export type WebPolicy = "on" | "isolated" | "off"
+
 export interface Run {
   id: string
   skill: string
   subject: string
+  // A conversation ("chat") starts from a message; a report run from a subject. Absent
+  // on runs recorded before conversations.
+  mode?: "chat" | "report"
+  // The first line of the first message, for the history.
+  title?: string
   level: Level
   deep: boolean
   status: RunStatus
@@ -41,9 +48,12 @@ export interface Run {
   model?: string | null
   effort?: Effort | null
   reported_model?: string | null
-  // Web search and fetch, on only at level none; absent on runs recorded before.
+  // Web search and fetch for the latest turn; absent on runs recorded before.
   web?: boolean
+  // The conversation's own switch; null follows the office policy.
+  web_wanted?: boolean | null
   web_count?: number
+  updated?: string
 }
 
 interface Base {
@@ -94,6 +104,8 @@ export interface RunnerStatus {
   ready: boolean
   default?: string
   deep?: boolean
+  // [serve] web in office.toml: on at every level, only without household data, or never.
+  web?: WebPolicy
   engines?: EngineStatus[]
   reason?: string
   message?: string
@@ -153,7 +165,32 @@ export const run = (id: string) => get<Run>(`/api/runs/${encodeURIComponent(id)}
 export const launch = (skill: string, subject: string, level: Level, deep: boolean, choice?: EngineChoice) =>
   post<Run>("/api/runs", { skill, subject, level, deep, ...choice })
 
-export const reply = (id: string, text: string) => post<Run>(`/api/runs/${encodeURIComponent(id)}/message`, { text })
+/** Start a conversation with an advisor from the user's own message. */
+export const converse = (
+  skill: string,
+  message: string,
+  options: { level?: Level; web?: boolean; deep?: boolean; choice?: EngineChoice } = {}
+) =>
+  post<Run>("/api/runs", {
+    skill,
+    message,
+    level: options.level,
+    web: options.web,
+    deep: options.deep ?? false,
+    ...options.choice,
+  })
+
+export const reply = (id: string, text: string, web?: boolean) =>
+  post<Run>(`/api/runs/${encodeURIComponent(id)}/message`, web === undefined ? { text } : { text, web })
+
+export const remove = (id: string) =>
+  request<{ deleted: string }>(`/api/runs/${encodeURIComponent(id)}`, { method: "DELETE" })
+
+/** Whether a run at this level may search and fetch; mirrors web_allowed on the server. */
+export function webAllowed(level: Level, policy: WebPolicy | undefined, wanted?: boolean | null) {
+  if (policy === "off" || wanted === false) return false
+  return level === "none" || (policy ?? "on") === "on"
+}
 
 export const cancel = (id: string) => post<Run>(`/api/runs/${encodeURIComponent(id)}/cancel`, {})
 

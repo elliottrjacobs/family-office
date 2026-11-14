@@ -26,6 +26,8 @@ export interface Status {
   mode: "office" | "onboarding"
   read_only: boolean
   chat: boolean
+  /** Served by the Mac app, which connects accounts and syncs in its own windows. */
+  app?: boolean
   remote: boolean
   identity: { login: string; name: string | null } | null
   office: {
@@ -51,9 +53,16 @@ export interface DoctorCheck {
   reason: string
 }
 
+/**
+ * What the Mac app can do for a step without a terminal: "setup", "connect",
+ * "connect:<provider>", "sync", or "onboard" (the interview with the Onboard advisor).
+ */
+export type StepAction = string | null
+
 export interface DoctorItem extends DoctorCheck {
   command: string | null
   hint: string | null
+  action?: StepAction
 }
 
 export interface Onboarding {
@@ -61,7 +70,7 @@ export interface Onboarding {
   reason: string
   office: string | null
   candidate: string | null
-  steps: { command: string; purpose: string }[]
+  steps: { command: string; purpose: string; action?: StepAction }[]
   note: string | null
   providers: { provider: string; connected: boolean; accounts: number }[]
   doctor: DoctorItem[]
@@ -80,6 +89,18 @@ export const status = () => get<Status>("/api/status")
 export const onboarding = () => get<Onboarding>("/api/onboarding")
 export const chooseOffice = (path: string) => post<Onboarding>("/api/onboarding/path", { path })
 export const doctor = () => get<DoctorCheck[]>("/api/doctor")
+
+/** One provider's outcome from a sync; `message` is fo's own wording, never a provider's. */
+export interface SyncOutcome {
+  provider: string | null
+  status: "complete" | "failed" | "skipped" | string
+  reason: string | null
+  message: string | null
+  as_of: string | null
+}
+
+/** Refresh every connected account now, as fo sync does. */
+export const sync = () => post<{ complete: boolean; providers: SyncOutcome[] }>("/api/sync", {})
 
 // --- finances ----------------------------------------------------------------------
 

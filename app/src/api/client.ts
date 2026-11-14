@@ -30,7 +30,7 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetch(path, { credentials: "same-origin", ...init })
   } catch {
-    throw new ApiError(0, "server_unreachable", "fo serve is not running. Start it again in a terminal.")
+    throw new ApiError(0, "server_unreachable", "The office server is not responding.")
   }
   const body = await read(response)
   if (!response.ok) {

@@ -22,13 +22,51 @@ function asError(reason: unknown) {
 }
 
 /**
+ * The last answer for each key, kept for the life of the page. A view that mounts again,
+ * such as a tab or a page revisited, shows it at once instead of a loading skeleton, and
+ * asks again only when it is older than FRESH.
+ */
+const answers = new Map<string, { data: unknown; at: number }>()
+// Requests under way, so two views that ask for the same key at once share one.
+const asking = new Map<string, Promise<unknown>>()
+const FRESH = 2_000
+
+/** Forget every remembered answer; tests call this between cases. */
+export function resetApiCache() {
+  answers.clear()
+  asking.clear()
+}
+
+function ask<T>(key: string, load: () => Promise<T>): Promise<T> {
+  const under = asking.get(key)
+  if (under) return under as Promise<T>
+  const request = load().then(
+    (data) => {
+      answers.set(key, { data, at: Date.now() })
+      return data
+    }
+  )
+  const settled = () => {
+    if (asking.get(key) === request) asking.delete(key)
+  }
+  request.then(settled, settled)
+  asking.set(key, request)
+  return request
+}
+
+/**
  * Load `key` once, and again every `interval` ms while the page is visible. A refresh
- * keeps the previous data on screen; `loading` is true only before the first answer.
+ * keeps the previous data on screen; `loading` is true only before the first answer this
+ * page has seen for the key.
  */
 export function useApi<T>(key: string, load: () => Promise<T>, interval?: number): Loaded<T> {
-  const [result, setResult] = React.useState<Result<T>>({ key: "" })
+  const [result, setResult] = React.useState<Result<T>>(() => {
+    const known = answers.get(key)
+    return known ? { key, data: known.data as T } : { key: "" }
+  })
   const [tick, setTick] = React.useState(0)
   const loader = React.useRef(load)
+  const loaded = React.useRef<{ key: string; tick: number } | null>(null)
 
   React.useEffect(() => {
     loader.current = load
@@ -36,13 +74,21 @@ export function useApi<T>(key: string, load: () => Promise<T>, interval?: number
 
   React.useEffect(() => {
     let live = true
-    loader.current().then(
+    const known = answers.get(key)
+    // A mount or a new key reuses a fresh answer; a tick (poll or reload) always asks.
+    const asked = loaded.current?.key === key && loaded.current.tick !== tick
+    loaded.current = { key, tick }
+    if (known && !asked && Date.now() - known.at < FRESH) {
+      setResult({ key, data: known.data as T })
+      return
+    }
+    ask(key, loader.current).then(
       (data) => live && setResult({ key, data }),
       (reason: unknown) =>
         live &&
         setResult((previous) => ({
           key,
-          data: previous.key === key ? previous.data : undefined,
+          data: previous.key === key ? previous.data : (answers.get(key)?.data as T | undefined),
           error: asError(reason),
         }))
     )
@@ -61,10 +107,12 @@ export function useApi<T>(key: string, load: () => Promise<T>, interval?: number
 
   const reload = React.useCallback(() => setTick((t) => t + 1), [])
   const current = result.key === key
+  // Between a key change and its effect, the remembered answer stands in.
+  const known = current ? undefined : answers.get(key)
   return {
-    data: current ? result.data : undefined,
+    data: current ? result.data : (known?.data as T | undefined),
     error: current ? result.error : undefined,
-    loading: !current,
+    loading: !current && !known,
     reload,
   }
 }

@@ -5,6 +5,7 @@ import {
   FileText,
   House,
   IdCard,
+  MessagesSquare,
   Monitor,
   Moon,
   Scale,
@@ -45,6 +46,7 @@ import { Link, useLocation } from "@/lib/router"
 
 const NAV = [
   { to: "/", label: "Home", icon: House },
+  { to: "/chats", label: "Chats", icon: MessagesSquare },
   { to: "/finances", label: "Finances", icon: ChartPie },
   { to: "/reports", label: "Reports", icon: FileText },
   { to: "/decisions", label: "Decisions", icon: Scale },

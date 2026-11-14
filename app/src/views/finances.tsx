@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { age, money, monthLabel, moment, percent, quantity, UNKNOWN } from "@/lib/format"
+import { Link } from "@/lib/router"
 
 interface RegistryAccount {
   id: string
@@ -95,7 +96,10 @@ function Overview() {
             </div>
           ) : (
             <Empty icon={LineChart} title="No policy bands yet">
-              The onboard skill writes your investment policy, including its bands.
+              <Link to="/advisors/onboard" className="underline underline-offset-4">
+                Onboard
+              </Link>{" "}
+              writes your investment policy, including its bands, from your answers.
             </Empty>
           )}
           {p && (p.unclassified.length > 0 || p.unclassified_accounts.length > 0) && (
@@ -356,14 +360,39 @@ function Goals() {
         </div>
       ) : (
         <Empty icon={GoalIcon} title="No goals yet">
-          The onboard or plan skill records goals in profile/goals.json.
+          Tell{" "}
+          <Link to="/advisors/onboard" className="underline underline-offset-4">
+            Onboard
+          </Link>{" "}
+          or{" "}
+          <Link to="/advisors/plan" className="underline underline-offset-4">
+            Planner
+          </Link>{" "}
+          what you are saving for, and it records the goals here.
         </Empty>
       )}
     </div>
   )
 }
 
+/**
+ * Asks for every tab's data when the page opens. The tabs read the same answers from
+ * useApi's memory, so switching between them paints at once instead of flashing a
+ * loading skeleton.
+ */
+function usePreload() {
+  const month = new Date().toISOString().slice(0, 7)
+  useApi("networth", netWorth, 60_000)
+  useApi("allocation", allocation, 60_000)
+  useApi("profile:accounts", () => profile("accounts"))
+  useApi("positions", positions, 60_000)
+  useApi("cashflow", () => cashflow(6), 60_000)
+  useApi(`spend:${month}`, () => spend(month), 60_000)
+  useApi("goals", goals, 60_000)
+}
+
 export function Finances() {
+  usePreload()
   return (
     <Page>
       <PageTitle title="Finances" description="Read from the latest complete sync. Nothing here can trade or move money." />
