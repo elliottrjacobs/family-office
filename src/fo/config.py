@@ -280,6 +280,7 @@ def _schema():
             "a list of logins, as a JSON array of strings or comma-separated",
         ),
         "serve.web_fetch_cap": (_integer(0), "an integer of 0 or more"),
+        "serve.web": (_choice("on", "isolated", "off"), "on, isolated, or off"),
         "serve.max_budget_usd": (_positive_float, "a number greater than 0"),
         "serve.run_timeout_minutes": (_positive_float, "a number greater than 0"),
         "serve.keep_runs": (_integer(0), "an integer of 0 or more"),

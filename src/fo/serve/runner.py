@@ -14,9 +14,13 @@ Events are plain dicts with a "kind":
   web          action ("fetch" or "search") and value (the URL or query), folded in by
                the run manager from the guard hook's web.jsonl in the run folder
 
-`web` is true only at context level none: the runner then offers its web tools, and the
-guard hook, which reads FO_SERVE_RUN_DIR, FO_SERVE_WEB, and FO_SERVE_WEB_FETCH_CAP from
-the environment the runner builds, checks, caps, and logs each web call.
+`web` follows the office's [serve] web policy and the conversation's own switch (see
+fo.serve.runs.web_allowed): the runner then offers its web tools, and the guard hook,
+which reads FO_SERVE_RUN_DIR, FO_SERVE_WEB, FO_SERVE_WEB_SCOPE, and
+FO_SERVE_WEB_FETCH_CAP from the environment the runner builds, checks, caps, and logs
+each web call. The scope is "isolated" at context level none, where a web run may not
+read household data at all, and "household" at the other levels, where the run reads
+the office and the guard limits what a query or URL can carry instead.
 """
 
 import json
@@ -30,6 +34,11 @@ OUTPUT_LIMIT = 2000
 # What the runner's environment tells the guard hook about the run.
 RUN_FOLDER = "FO_SERVE_RUN_DIR"
 WEB_FLAG = "FO_SERVE_WEB"
+# "isolated": web and household data never meet. "household": the owner turned web on
+# for a run that reads the office.
+WEB_SCOPE = "FO_SERVE_WEB_SCOPE"
+# The advisor the run belongs to; the onboard interview alone may write profile/.
+RUN_SKILL = "FO_SERVE_SKILL"
 FETCH_CAP = "FO_SERVE_WEB_FETCH_CAP"
 # Claude's PreToolUse hook already caps/logs research; the CLI still validates it.
 # Codex leaves this unset so the CLI owns cap/log accounting for its fo commands.
@@ -44,7 +53,7 @@ class Runner(Protocol):
 
     def check(self, init: dict, skill: str, web: bool = False) -> str | None: ...
 
-    def settings(self, office, web: bool = False) -> str: ...
+    def settings(self, office, web: bool = False, profile_writes: bool = False) -> str: ...
 
     def command(
         self,
@@ -59,7 +68,13 @@ class Runner(Protocol):
     ) -> list[str]: ...
 
     def environment(
-        self, office, folder=None, web: bool = False, web_fetch_cap: int = 0
+        self,
+        office,
+        folder=None,
+        web: bool = False,
+        web_fetch_cap: int = 0,
+        web_scope: str = "isolated",
+        skill: str | None = None,
     ) -> dict: ...
 
     def parse(self, line: str, office) -> list[dict]: ...

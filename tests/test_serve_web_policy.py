@@ -1,4 +1,8 @@
-"""Web access by context level: offered only at level none, and checked, capped, logged."""
+"""The isolated web policy: web offered only at level none, and checked, capped, logged.
+
+[serve] web = "isolated" keeps web and household data apart. The default policy, on, and
+the conversation's own switch are covered in test_serve_conversations.py.
+"""
 
 import json
 
@@ -15,7 +19,9 @@ from tests.test_serve_runs import COMPLETE, runner_for, settle
 
 @pytest.fixture
 def office(tmp_path):
-    return synthetic(tmp_path / "office")
+    root = synthetic(tmp_path / "office")
+    set_config(root, "serve.web", "isolated")
+    return root
 
 
 def launched(office, tmp_path, level, lines=COMPLETE):

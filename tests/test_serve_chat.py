@@ -79,6 +79,7 @@ def test_runner_status_is_reported_and_cached(office, tmp_path):
             "ready": True,
             "default": "claude",
             "deep": True,
+            "web": "on",
             "engines": [
                 {
                     "name": "claude",
@@ -171,7 +172,9 @@ def test_launch_validates_its_body(office, tmp_path):
             ({"skill": "research"}, "invalid_request"),
             ({"skill": "research", "subject": "BETA", "deep": "yes"}, "invalid_request"),
             ({"skill": "research", "subject": "BETA", "level": 3}, "invalid_request"),
-            ({"skill": "onboard", "subject": "household"}, "not_in_chat"),
+            ({"skill": "journal", "subject": "household"}, "not_in_chat"),
+            ({"skill": "research", "message": "   "}, "invalid_request"),
+            ({"skill": "research", "message": "Hello", "web": "yes"}, "invalid_request"),
         ):
             status, data = client.post("/api/runs", body)
             assert data["reason"] == reason, body

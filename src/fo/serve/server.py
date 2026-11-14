@@ -37,10 +37,14 @@ STATUS = {
     "run_active": 409,
     "not_running": 409,
     "not_resumable": 409,
+    "sync_active": 409,
+    "not_writer": 409,
+    "sync_timeout": 504,
     "runner_missing": 503,
     "runner_outdated": 503,
     "runner_unsupported": 503,
     "engine_disabled": 503,
+    "engine_unsupported": 503,
     "device_not_found": 404,
     "invalid_pairing_code": 403,
     "invalid_devices": 500,
@@ -107,6 +111,9 @@ class App:
     runner_status: dict = field(default_factory=dict)
     # Paired phones, kept in the machine-local credentials folder's devices.json.
     devices: Devices | None = None
+    # Started by the Mac app (fo serve --app-mode), which connects accounts and syncs in
+    # its own windows; the page then points there instead of at a terminal.
+    app_mode: bool = False
 
     def __post_init__(self):
         if self.devices is None:
@@ -143,6 +150,7 @@ class App:
             "mode": "office" if office else "onboarding",
             "read_only": self.read_only,
             "chat": self.runs is not None,
+            "app": self.app_mode,
             "remote": self.access.remote,
             "identity": self.access.identity(headers),
             "office": office,

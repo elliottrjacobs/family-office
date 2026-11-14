@@ -3,7 +3,7 @@ import os
 
 from fo import compute, notebook, reports
 from fo.errors import OfficeError
-from fo.serve.runner import WEB_FLAG
+from fo.serve.runner import WEB_FLAG, WEB_SCOPE
 from fo.skills import assets, parse_skill
 from fo.store.authored import load
 
@@ -64,12 +64,17 @@ LEVELS = {
 }
 
 
+def isolated_web():
+    """An isolated web run: web is on and the owner did not turn it on for household data."""
+    return os.environ.get(WEB_FLAG) == "1" and os.environ.get(WEB_SCOPE) != "household"
+
+
 def estimate(value):
     return (len(json.dumps(value, default=str, separators=(",", ":"))) + 3) // 4
 
 
 def brief(root, level="household", subject=None, skill=None, full=False):
-    if os.environ.get(WEB_FLAG) == "1" and level != "none":
+    if isolated_web() and level != "none":
         raise OfficeError("web_level", "Web runs require context level none.")
     if level not in {"none", "household", "full"}:
         raise OfficeError("invalid_context", "Use none, household, or full.")
@@ -144,7 +149,7 @@ def start(root, skill, subject, level=None, report=None):
     meta, _ = parse_skill(path)
     settings = meta["metadata"]
     level = level or settings["default-context"]
-    if os.environ.get(WEB_FLAG) == "1" and level != "none":
+    if isolated_web() and level != "none":
         raise OfficeError("web_level", "Web runs require context level none.")
     if level not in settings["allowed-context"]:
         raise OfficeError("invalid_context", "This context level is not allowed by the skill.")

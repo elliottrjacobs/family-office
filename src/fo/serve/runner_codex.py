@@ -33,7 +33,7 @@ from pathlib import Path
 
 from fo.errors import OfficeError
 from fo.office import RUN_MARKER
-from fo.serve.runner import FETCH_CAP, OUTPUT_LIMIT, RUN_FOLDER, WEB_FLAG
+from fo.serve.runner import FETCH_CAP, OUTPUT_LIMIT, RUN_FOLDER, WEB_FLAG, WEB_SCOPE
 
 MINIMUM = (0, 157, 1)
 # A path to the codex executable, for a server started without it on PATH.
@@ -209,6 +209,8 @@ PREFACE = (
     "Write the finished report with: fo report write --report {report} --body-file "
     "{body} (draft report.md with apply_patch first)."
 )
+# A conversation has no report path until the advisor asks fo start for one.
+CHAT_REPORT = "<the path fo start returns>"
 
 
 def version(text):
@@ -386,9 +388,9 @@ class CodexRunner:
     def prompt(self, text, report, folder):
         """The skill invocation, prefixed with how to write the report without a Write tool."""
         body = self.workspace(folder) / "report.md"
-        return PREFACE.format(report=report, body=body) + "\n\n" + text
+        return PREFACE.format(report=report or CHAT_REPORT, body=body) + "\n\n" + text
 
-    def settings(self, office, web=False, folder=None):
+    def settings(self, office, web=False, folder=None, profile_writes=False):
         return config_toml()
 
     def command(
@@ -420,8 +422,14 @@ class CodexRunner:
             argv += ["-c", f"{key}={value}"]
         return [*argv, "-"]
 
-    def environment(self, office, folder=None, web=False, web_fetch_cap=0):
-        """The scrubbed environment with the run's own Codex home and HOME; no CLAUDE_*."""
+    def environment(
+        self, office, folder=None, web=False, web_fetch_cap=0, web_scope="isolated", skill=None
+    ):
+        """The scrubbed environment with the run's own Codex home and HOME; no CLAUDE_*.
+
+        Web is always isolated here: Codex confines reads by command, not by path, so the
+        run manager never turns web on for a Codex run that reads the household.
+        """
         env = {key: os.environ[key] for key in PASSED if key in os.environ}
         paths = [str(Path(self.python).parent)]
         if self.executable:
@@ -433,6 +441,7 @@ class CodexRunner:
             env["CODEX_HOME"] = str(Path(folder) / "codex-home")
             env["HOME"] = str(Path(folder) / "home")
         env[WEB_FLAG] = "1" if web else "0"
+        env[WEB_SCOPE] = "isolated"
         env[FETCH_CAP] = str(int(web_fetch_cap))
         return env
 

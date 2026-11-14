@@ -160,7 +160,7 @@ def main():
             output = fo(*args)
             state["decisions"].append(json.loads(output)["id"])
             tool(state["count"], "Bash", {"command": "fo " + " ".join(args)}, output)
-        elif action == "report":
+        elif action in ("report", "filed"):
             import yaml
 
             meta = {
@@ -179,6 +179,18 @@ def main():
             tool(
                 state["count"], "Write", {"file_path": str(path), "content": "..."}, "File created"
             )
+            if action == "filed":
+                # As the skeleton asks of a headless run: file the draft through fo.
+                args = [
+                    "report",
+                    "write",
+                    "--report",
+                    state["report"],
+                    "--body-file",
+                    state["report"],
+                    "--json",
+                ]
+                tool(state["count"] + 500, "Bash", {"command": "fo " + " ".join(args)}, fo(*args))
         elif action == "text":
             state["text"] = line["text"]
             for piece in (

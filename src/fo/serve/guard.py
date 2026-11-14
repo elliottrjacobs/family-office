@@ -7,18 +7,25 @@ the office outside its private folders, writes under reports/, and subagent call
 otherwise leaves the decision to the permission rules. Every other tool call, and any
 error in the hook itself, is denied.
 
-Web runs additionally deny reads of data/, profile/, and notebook/ and allow only
-market, research, and bookkeeping commands; start and brief require level none.
-Reports remain readable and writable, including earlier reports with household data.
-Non-web runs deny all fo research commands.
+A web run is marked FO_SERVE_WEB=1 and has a scope, FO_SERVE_WEB_SCOPE. An isolated web
+run (context level none) additionally denies reads of data/, profile/, and notebook/ and
+allows only market, research, and bookkeeping commands; start and brief require level
+none. Reports remain readable and writable, including earlier reports with household
+data. A household web run is one the owner turned web on for at a level that reads the
+office: it keeps its reads and commands, and instead a search query or fetch URL is
+refused when it is long enough to carry a file or holds an account-number-shaped run of
+digits. Non-web runs deny all fo research commands.
 
-WebSearch, WebFetch, and fo research pass only in a run the runner marked web
-(FO_SERVE_WEB=1, at context level none). Fetch URLs must pass fo.netguard, and fetches
-share a per-run cap, FO_SERVE_WEB_FETCH_CAP, with a counter in FO_SERVE_RUN_DIR under
-cache/serve/runs/, which a run cannot read or write. Every accepted query (including
-research deep questions, logged as searches) and fetch URL is appended, scrubbed, to
-web.jsonl there; the run manager folds entries into the run's event log. Each web
-denial ends with a stable reason code in parentheses.
+WebSearch, WebFetch, and fo research pass only in a run the runner marked web. Fetch
+URLs must pass fo.netguard, and fetches share a per-turn cap, FO_SERVE_WEB_FETCH_CAP,
+with a counter in FO_SERVE_RUN_DIR under cache/serve/runs/, which a run cannot read or
+write. Every accepted query (including research deep questions, logged as searches) and
+fetch URL is appended, scrubbed, to web.jsonl there; the run manager folds entries into
+the run's event log, where the conversation shows them. Each web denial ends with a
+stable reason code in parentheses.
+
+Writes go under reports/; the onboard interview (FO_SERVE_SKILL=onboard) may also write
+the authored files under profile/.
 
 Run as `python -m fo.serve.guard OFFICE`; it reads the hook event JSON on stdin.
 """
@@ -31,7 +38,15 @@ import shlex
 import sys
 
 from fo import netguard
-from fo.serve.runner import FETCH_CAP, RUN_FOLDER, WEB_FLAG, WEB_LOG, scrub_text
+from fo.serve.runner import (
+    FETCH_CAP,
+    RUN_FOLDER,
+    RUN_SKILL,
+    WEB_FLAG,
+    WEB_LOG,
+    WEB_SCOPE,
+    scrub_text,
+)
 from fo.store.jsonl import now
 
 PRIVATE = ("secrets", "cache", "imports", "medical", ".git", ".fo.lock")
@@ -66,10 +81,22 @@ WEB_COMMANDS = {
 }
 COUNTER = "web-fetches"
 VALUE_LIMIT = 2000
+# In a web run that also reads the household: what one query or URL may carry out.
+QUERY_LIMIT = 400
+URL_LIMIT = 600
+# Nine digits in a row, or a Social Security number as written.
+IDENTIFIER = re.compile(r"\d{9,}|\b\d{3}-\d{2}-\d{4}\b")
+# The folders a run may write under, by advisor.
+WRITABLE = {"onboard": ("reports", "profile")}
 OPERATOR = set("|;&<>()")
 # `$` may introduce an amount ($100, $1.5B) but never an expansion ($HOME, $(...), ${...}).
 EXPANSION = re.compile(r"\$(?![\d\s.,]|$)")
 CONTROL = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def isolated(env):
+    """A web run that may not touch household data: web on, and not the household scope."""
+    return env.get(WEB_FLAG) == "1" and env.get(WEB_SCOPE) != "household"
 
 
 def command_denial(command, env=None, resolver=None):
@@ -151,7 +178,7 @@ def words_denial(words, env=None, resolver=None, *, record=True):
         reason = web_denial(tool, {key: value[0]}, env, resolver, record=record)
         if reason:
             return reason
-    elif env.get(WEB_FLAG) == "1":
+    elif isolated(env):
         allowed = bool(words) and words[0] in WEB_COMMANDS
         if allowed:
             subcommands = WEB_COMMANDS[words[0]]
@@ -192,18 +219,17 @@ def path_denial(office, cwd, tool, arguments, env=None):
     # macOS volumes usually ignore case, so SECRETS/ opens secrets/.
     if first.casefold() in PRIVATE or first.casefold().startswith("store.sqlite"):
         return "That part of the office is private to fo."
-    if (
-        tool == "Read"
-        and env.get(WEB_FLAG) == "1"
-        and first.casefold() in ("data", "profile", "notebook")
-    ):
+    if tool == "Read" and isolated(env) and first.casefold() in ("data", "profile", "notebook"):
         return "Web runs cannot read household folders (web_household_read)"
-    if tool in WRITES and first != "reports":
+    writable = WRITABLE.get(env.get(RUN_SKILL), ("reports",))
+    if tool in WRITES and first not in writable:
+        if len(writable) > 1:
+            return "The onboard interview writes only under profile/ and reports/."
         return "Advisor runs write only under reports/."
     # A .claude/, .git/, or other hidden entry under reports/ would be committed and read
     # by later sessions that have no guard, such as settings, hooks, or git config.
     if tool in WRITES and any(part.startswith(".") for part in rest):
-        return "Advisor runs cannot write hidden files or folders under reports/."
+        return "Advisor runs cannot write hidden files or folders."
     return None
 
 
@@ -236,16 +262,30 @@ def log_web(folder, kind, value):
     locked(os.path.join(folder, WEB_LOG), lambda stream: stream.write(line))
 
 
+def carries_household(value, limit):
+    """Why a household web run may not send this query or URL, or None when it may."""
+    if len(value) > limit:
+        return f"Keep it under {limit} characters in a run that reads the household (web_too_long)"
+    return None
+
+
 def web_denial(tool, arguments, env, resolver=None, *, record=True):
     if env.get(WEB_FLAG) != "1":
-        return "Web search and fetch are on only at context level none (web_off)"
+        return "Web search and fetch are off for this conversation (web_off)"
     folder = env.get(RUN_FOLDER)
     if not folder or not os.path.isdir(folder):
         return "The run guard has no run folder to log web use in (web_unlogged)"
+    household = not isolated(env)
     if tool == "WebSearch":
         query = arguments.get("query")
         if not isinstance(query, str) or not query.strip():
             return "The search names no query (missing_query)"
+        if household:
+            if IDENTIFIER.search(query):
+                return "Searches cannot carry account or identity numbers (web_identifier)"
+            reason = carries_household(query, QUERY_LIMIT)
+            if reason:
+                return reason
         if record:
             log_web(folder, "search", query)
         return None
@@ -255,6 +295,10 @@ def web_denial(tool, arguments, env, resolver=None, *, record=True):
     reason = netguard.reject(url, resolver)
     if reason:
         return f"{netguard.REASONS[reason]} ({reason})"
+    if household:
+        reason = carries_household(url, URL_LIMIT)
+        if reason:
+            return reason
     if not record:
         return None
     try:
@@ -262,7 +306,7 @@ def web_denial(tool, arguments, env, resolver=None, *, record=True):
     except ValueError:
         cap = 0
     if not take_fetch(folder, cap):
-        return f"This run has used its {cap} web fetches (web_fetch_cap)"
+        return f"This turn has used its {cap} web fetches (web_fetch_cap)"
     log_web(folder, "fetch", url)
     return None
 

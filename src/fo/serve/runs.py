@@ -14,12 +14,21 @@ Runs go to an engine: a runner registered by name. Each engine's defaults (model
 effort, budget, enabled) come from [serve.engines.<name>] in office.toml, and
 [serve.engines] default names the engine a launch uses when it names none.
 
-Web access follows the context level: a run at level none, which reads no household
-data, may search and fetch; every launch and resume derives `web` from the level and
-the record keeps it. Each run also has a folder, cache/serve/runs/<id>/, holding the
-guard hook's fetch counter and web.jsonl and a workspace/ for scratch files; a Codex run
-also keeps its own Codex home and HOME there, so the folder is made before the command
-is built and a follow-up reuses it. Web
+A run is either a report run, launched with a subject and judged by its report, or a
+conversation ("chat"), launched with the user's own message. A conversation has no
+report until the advisor writes one through fo report write; it ends each turn waiting
+for the next message, and is completed only once a report it wrote verifies. Its record
+keeps a title, the first line of the first message, for the history the app lists.
+
+Web access follows the office's [serve] web policy, the context level, and the
+conversation's own switch (web_allowed): "on", the default, offers search and fetch at
+every level; "isolated" only at level none, which reads no household data; "off" never.
+Every launch and resume derives `web` again and the record keeps it. A web run at level
+none stays isolated from household data; at the other levels the guard limits what a
+query or URL can carry instead. Each run also has a folder, cache/serve/runs/<id>/,
+holding the guard hook's fetch counter (reset every turn) and web.jsonl and a
+workspace/ for scratch files; a Codex run also keeps its own Codex home and HOME there,
+so the folder is made before the command is built and a follow-up reuses it. Web
 entries are folded into the event log as `web` events and counted in `web_count`.
 """
 
@@ -40,6 +49,7 @@ from fo.errors import OfficeError
 from fo.lock import probe
 from fo.notebook import decisions
 from fo.office import atomic_write, contained
+from fo.serve.guard import COUNTER
 from fo.serve.runner import WEB_LOG, Runner, scrub
 from fo.skills import registry
 from fo.store.jsonl import identifier, now
@@ -47,11 +57,13 @@ from fo.store.jsonl import identifier, now
 FOLDER = "cache/serve/runs"
 ACTIVE = {"queued", "running", "verifying"}
 NOT_IN_CHAT = {
-    "onboard": "Onboarding is an interview; run the onboard skill in a terminal.",
     "journal": "Record a decision with the form on the Decisions page.",
 }
-DEFAULTS = {"max_budget_usd": 2.0, "run_timeout_minutes": 30.0, "keep_runs": 50}
+# keep_runs is the conversation history the app can list, across every advisor.
+DEFAULTS = {"max_budget_usd": 2.0, "run_timeout_minutes": 30.0, "keep_runs": 300}
 WEB_FETCH_CAP = 20
+WEB_POLICIES = ("on", "isolated", "off")
+DEFAULT_WEB = "on"
 DEFAULT_ENGINE = "claude"
 EFFORTS = ("low", "medium", "high")
 # What an engine runs with when office.toml names nothing; models.json recommends the same.
@@ -81,6 +93,45 @@ RESUME = (
 # A model name reaches the engine as one argument; it must not read as a flag.
 MODEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/@\[\]-]{0,199}")
 MESSAGE_LIMIT = 8000
+TITLE_LIMIT = 80
+REPORT_ARGUMENT = re.compile(r"--report[=\s]+(\S+)")
+# What a conversation's first turn tells the advisor, after the skill invocation.
+CHAT = (
+    "This is a conversation in the Family Office app, not a one-shot report task. Answer "
+    "the user's message below directly and in plain language, and ask a short question "
+    "back when you need something only they know.\n"
+    "- Before your first answer, run fo start {skill} <subject> --level {level} --json for "
+    "the standing corrections, open decisions, and brief. The subject is the ticker when "
+    "the message is about one security, otherwise household.\n"
+    "- Take the household's figures from fo commands, never from memory or a guess.\n"
+    "- {web}\n"
+    "- Write a report only when the user asks for one or the answer is an analysis they "
+    "will want to keep; then follow the skill skeleton and say where it was saved. "
+    "Otherwise just answer.\n"
+    "- Record a decision with fo journal add only when the user makes one or asks you to."
+)
+WEB_ON = (
+    "Web search and fetch are on. Use them to check anything that changes: current law, "
+    "limits, rates, deadlines, prices, and news. Cite each source with its URL and the "
+    "date you retrieved it, and say so when you could not confirm something. Never put "
+    "names, account numbers, or exact balances in a search or a URL."
+)
+WEB_OFF = (
+    "Web search and fetch are off in this conversation. Say so when an answer depends on "
+    "current rules or prices you cannot check; the user can turn web access on below the "
+    "message box."
+)
+# The onboard interview happens in the conversation and writes the authored profile.
+INTERVIEW = (
+    "This is the intake interview. Greet the user in a sentence, then work through "
+    "household, account roles, investment policy, goals, tax context, spending "
+    "categories, and watch universes, one topic at a time, with one or two questions per "
+    "message. Read the existing file under profile/ before each topic and skip what is "
+    "already answered. Once the user confirms a topic, write its file under profile/ and "
+    "run fo doctor --json. Never ask the user to open a terminal, run a command, or edit "
+    "a file: you do that here."
+)
+WEB_CHANGED = "(Web search and fetch are now {state} for this conversation.)"
 
 
 def run_settings(root):
@@ -95,7 +146,17 @@ def run_settings(root):
     if isinstance(cap, bool) or not isinstance(cap, int) or cap < 0:
         raise OfficeError("invalid_config", "[serve] web_fetch_cap must be 0 or more.")
     result["web_fetch_cap"] = cap
+    result["web"] = web_policy(root)
     return result
+
+
+def web_policy(root):
+    """[serve] web in office.toml: on (the default), isolated, or off."""
+    serve = read_config(root).get("serve", {})
+    value = serve.get("web", DEFAULT_WEB) if isinstance(serve, dict) else DEFAULT_WEB
+    if value not in WEB_POLICIES:
+        raise OfficeError("invalid_config", "[serve] web must be on, isolated, or off.")
+    return value
 
 
 def engine_settings(root):
@@ -151,9 +212,27 @@ def disabled_message(root, name):
     return f"The {name} engine is turned off in office.toml ([serve.engines.{name}])."
 
 
-def web_allowed(level):
-    """Web search and fetch are on only at context level none."""
-    return level == "none"
+def web_allowed(level, policy="isolated", wanted=None, household=False):
+    """Whether a run may search and fetch.
+
+    Never when the policy is off or the conversation switched web off. Always at context
+    level none, where the run reads no household data. At the other levels only when the
+    policy is on and the engine confines reads by path (household).
+    """
+    if policy == "off" or wanted is False:
+        return False
+    return level == "none" or (policy == "on" and household)
+
+
+def web_scope(level):
+    """What the guard holds a web run to: no household data at all, or limited sends."""
+    return "isolated" if level == "none" else "household"
+
+
+def title(text):
+    """A conversation's name in the history: the first line of its first message."""
+    line = next((line.strip() for line in text.splitlines() if line.strip()), "")
+    return line if len(line) <= TITLE_LIMIT else line[: TITLE_LIMIT - 1].rstrip() + "…"
 
 
 def start_time(pid):
@@ -306,6 +385,7 @@ class RunManager:
             "ready": bool(usable),
             "default": office["default"],
             "deep": self.deep,
+            "web": web_policy(root),
             "engines": engines,
         }
         if not usable:
@@ -337,13 +417,36 @@ class RunManager:
     # Lifecycle ---------------------------------------------------------------------
 
     def launch(
-        self, root, skill, subject, level=None, deep=False, engine=None, model=None, effort=None
+        self,
+        root,
+        skill,
+        subject=None,
+        level=None,
+        deep=False,
+        engine=None,
+        model=None,
+        effort=None,
+        message=None,
+        web=None,
     ):
+        """Start a report run on a subject, or, with a message, a conversation."""
         advisor = next((a for a in registry()["skills"] if a["name"] == skill), None)
         if advisor is None:
             raise OfficeError("unknown_skill", "No such advisor.")
         if skill in NOT_IN_CHAT:
             raise OfficeError("not_in_chat", NOT_IN_CHAT[skill])
+        chat = message is not None
+        if chat:
+            message = message.strip()
+            if not message:
+                raise OfficeError("invalid_request", "Write a message to send.")
+            if len(message) > MESSAGE_LIMIT:
+                raise OfficeError("invalid_request", "Keep a message under 8,000 characters.")
+            subject = subject or "household"
+        elif not subject:
+            raise OfficeError("invalid_request", "Name a subject or write a message.")
+        if web is not None and not isinstance(web, bool):
+            raise OfficeError("invalid_request", "web must be true or false.")
         reports.component(subject)
         level = level or advisor["default_context"]
         if level not in advisor["allowed_context"]:
@@ -359,18 +462,31 @@ class RunManager:
         config["max_budget_usd"] = settings["max_budget_usd"]
         if deep and not getattr(runner, "deep", True):
             raise OfficeError("deep_unavailable", f"Deep mode is not available with {name}.")
+        if skill == "onboard" and not getattr(runner, "profile_writes", False):
+            raise OfficeError(
+                "engine_unsupported", f"The onboard interview is not available with {name}."
+            )
+        household = getattr(runner, "web_household", False)
         with self.mutex:
             self.claim(root)
             try:
-                started = start(root, skill, subject, level)
-                if started["report"]["status"] != "ok":
-                    raise OfficeError(started["report"]["reason"], "No report path is available.")
+                report = ""
+                if not chat:
+                    started = start(root, skill, subject, level)
+                    if started["report"]["status"] != "ok":
+                        raise OfficeError(
+                            started["report"]["reason"], "No report path is available."
+                        )
+                    report = started["report"]["data"]["path"]
                 record = {
                     "id": identifier(),
                     "skill": skill,
                     "subject": subject,
+                    "mode": "chat" if chat else "report",
+                    "title": title(message) if chat else subject,
                     "level": level,
-                    "web": web_allowed(level),
+                    "web_wanted": web,
+                    "web": web_allowed(level, config["web"], web, household),
                     "web_count": 0,
                     "deep": deep,
                     "status": "queued",
@@ -380,7 +496,7 @@ class RunManager:
                     "effort": effort or settings["effort"],
                     "reported_model": None,
                     "session_id": None,
-                    "report": started["report"]["data"]["path"],
+                    "report": report,
                     "report_written": False,
                     "decisions": [],
                     "exit_code": None,
@@ -404,15 +520,22 @@ class RunManager:
                 raise
             self.active = (root, record["id"])
         prompt = f"/{skill} {subject} --level {level}" + (" --deep" if deep else "")
+        if chat:
+            rules = CHAT.format(skill=skill, level=level, web=WEB_ON if record["web"] else WEB_OFF)
+            if skill == "onboard":
+                rules += "\n" + INTERVIEW
+            prompt += f"\n\n{rules}\n\nThe user's message:\n{message}"
         if hasattr(runner, "prompt"):
             prompt = runner.prompt(prompt, record["report"], folder)
-        self.begin(root, record, prompt, None, config)
+        self.begin(root, record, prompt, None, config, message if chat else None)
         return record
 
-    def message(self, root, run_id, text):
+    def message(self, root, run_id, text, web=None):
         text = (text or "").strip()
         if len(text) > MESSAGE_LIMIT:
             raise OfficeError("invalid_request", "Keep a message under 8,000 characters.")
+        if web is not None and not isinstance(web, bool):
+            raise OfficeError("invalid_request", "web must be true or false.")
         record = self.get(root, run_id)
         if record["status"] in ACTIVE:
             raise OfficeError("run_active", "This run is still in progress.")
@@ -424,6 +547,11 @@ class RunManager:
         config = run_settings(root)
         runner, engine, _ = self.engine(root, record.get("engine") or record.get("runner"))
         config["max_budget_usd"] = engine["max_budget_usd"]
+        household = getattr(runner, "web_household", False)
+        before = web_allowed(record["level"], config["web"], record.get("web_wanted"), household)
+        if web is not None:
+            record["web_wanted"] = web
+        after = web_allowed(record["level"], config["web"], record.get("web_wanted"), household)
         with self.mutex:
             self.claim(root)
             record["status"] = "queued"
@@ -431,14 +559,28 @@ class RunManager:
             self.save(root, record)
             self.active = (root, record["id"])
         prompt = text
+        if after != before:
+            # The session was told the other state when it began.
+            prompt = WEB_CHANGED.format(state="on" if after else "off") + "\n\n" + text
         if partial:
             prompt = RESUME.format(path=record["report"]) + (f"\n\n{text}" if text else "")
             if hasattr(runner, "prompt"):
                 # A follow-up reuses the run's folder, and with it the Codex thread's home.
                 folder = self.run_folder(root, record["id"])
                 prompt = runner.prompt(prompt, record["report"], folder)
-        self.begin(root, record, prompt, record["session_id"], config)
+        self.begin(root, record, prompt, record["session_id"], config, text or None)
         return record
+
+    def delete(self, root, run_id):
+        """Remove a finished conversation: its record, its event log, and its folder."""
+        record = self.get(root, run_id)
+        with self.mutex:
+            if self.running(run_id) or record["status"] in ACTIVE:
+                raise OfficeError("run_active", "Stop this conversation before deleting it.")
+            for suffix in (".json", ".jsonl"):
+                self.path(root, run_id, suffix).unlink(missing_ok=True)
+            shutil.rmtree(self.path(root, run_id, ""), ignore_errors=True)
+        return {"deleted": run_id}
 
     def claim(self, root):
         """Hold the mutex: refuse while a run is active or another command holds the lock."""
@@ -477,12 +619,13 @@ class RunManager:
         if thread is not None:
             thread.join(self.grace + 5)
 
-    def begin(self, root, record, prompt, session, config):
+    def begin(self, root, record, prompt, session, config, shown=None):
+        """Log the user's turn and start the engine; shown is what the user typed."""
         # Never reuse a sequence number already in the log, whatever the record says.
         logged = self.events(root, record["id"], record["seq"])
         record["seq"] = max([record["seq"], *(e["seq"] for e in logged)])
         self.live[record["id"]] = []
-        self.emit(root, record, {"kind": "user", "text": prompt})
+        self.emit(root, record, {"kind": "user", "text": shown or prompt})
         self.thread = threading.Thread(
             target=self.run, args=(root, record, prompt, session, config), daemon=True
         )
@@ -491,9 +634,17 @@ class RunManager:
     def run(self, root, record, prompt, session, config):
         runner = self.runners.get(record.get("engine") or record.get("runner"))
         # Derived again on every launch and resume; a stored flag never widens a run.
-        web = record["web"] = web_allowed(record["level"])
+        web = record["web"] = web_allowed(
+            record["level"],
+            config.get("web", "isolated"),
+            record.get("web_wanted"),
+            getattr(runner, "web_household", False),
+        )
+        writes = record["skill"] == "onboard" and getattr(runner, "profile_writes", False)
         try:
             folder = self.run_folder(root, record["id"])
+            # The fetch cap bounds one turn, so a long conversation can keep looking up.
+            (folder / COUNTER).unlink(missing_ok=True)
             # Runners that keep state in the run folder (Codex) take it as a keyword and
             # start in its workspace; the Claude runner starts in the office.
             extra, cwd = {}, root
@@ -502,7 +653,7 @@ class RunManager:
                 extra, cwd = {"folder": folder}, runner.workspace(folder)
             argv = runner.command(
                 root,
-                runner.settings(root, web=web, **extra),
+                runner.settings(root, web=web, profile_writes=writes, **extra),
                 config["max_budget_usd"],
                 session,
                 record.get("model"),
@@ -510,7 +661,14 @@ class RunManager:
                 web=web,
                 **extra,
             )
-            env = runner.environment(root, folder, web, config["web_fetch_cap"])
+            env = runner.environment(
+                root,
+                folder,
+                web,
+                config["web_fetch_cap"],
+                web_scope=web_scope(record["level"]),
+                skill=record["skill"],
+            )
             process = subprocess.Popen(
                 argv,
                 stdin=subprocess.PIPE,
@@ -602,8 +760,17 @@ class RunManager:
         """Decision ids from successful `fo journal add` calls, confirmed in the notebook."""
         if not call or call["name"] != "Bash" or not result["ok"]:
             return
-        if REPORT_WRITE.search(call.get("command", "")) and record["report"] in call["command"]:
-            record["report_written"] = True
+        if REPORT_WRITE.search(call.get("command", "")):
+            named = REPORT_ARGUMENT.search(call["command"])
+            if record.get("mode") == "chat" and named:
+                # A conversation learns its report from the write that created it.
+                try:
+                    record["report"] = reports.report_file(root, named[1].strip("'\""))
+                    record["report_written"] = True
+                except OfficeError:
+                    pass
+            elif record["report"] and record["report"] in call["command"]:
+                record["report_written"] = True
         if not JOURNAL.search(call.get("command", "")):
             return
         known = {d["id"] for d in decisions(root)}
@@ -615,24 +782,43 @@ class RunManager:
     def finish(self, root, record, exit_code, result, error):
         try:
             self.fold(root, record)
-            record["status"] = "verifying"
-            self.emit(root, record, {"kind": "status", "status": "verifying"})
-            try:
-                reports.verify(root, record["report"])
-                record["verify"] = {"valid": True, "reason": None}
-            except OfficeError as exc:
-                record["verify"] = {"valid": False, "reason": exc.reason}
-            except (OSError, ValueError, KeyError, TypeError):
-                record["verify"] = {"valid": False, "reason": "report_unreadable"}
+            chat = record.get("mode") == "chat"
+            if record["report"]:
+                record["status"] = "verifying"
+                self.emit(root, record, {"kind": "status", "status": "verifying"})
+                try:
+                    reports.verify(root, record["report"])
+                    record["verify"] = {"valid": True, "reason": None}
+                except OfficeError as exc:
+                    record["verify"] = {"valid": False, "reason": exc.reason}
+                except (OSError, ValueError, KeyError, TypeError):
+                    record["verify"] = {"valid": False, "reason": "report_unreadable"}
+            else:
+                # A conversation that has written no report has nothing to verify.
+                record["verify"] = None
+            verified = bool(record["verify"] and record["verify"]["valid"])
             if record["id"] in self.halted and error is None:
                 error = self.halted[record["id"]]
             if error is None and result is not None and not result["ok"]:
-                error = (result.get("subtype") or "runner_failed", "The run stopped with an error.")
+                subtype = result.get("subtype") or "runner_failed"
+                error = (
+                    subtype,
+                    "This reply reached the spending limit for one turn. Send a message to "
+                    "continue."
+                    if "budget" in subtype
+                    else "The run stopped with an error.",
+                )
             if error is None and exit_code not in (0, None):
                 error = ("runner_failed", "The run ended with an error.")
             if record["id"] in self.cancelled:
                 status = "cancelled"
-            elif record["verify"]["valid"]:
+            elif chat:
+                # A conversation is judged by its reply; a report is welcome, not required.
+                if error or result is None or not result.get("text"):
+                    status = "failed"
+                else:
+                    status = "completed" if verified else "awaiting_input"
+            elif verified:
                 status = "completed"
             elif record["decisions"]:
                 status = "partial"
@@ -641,7 +827,12 @@ class RunManager:
             else:
                 status = "awaiting_input"
             if status == "failed" and error is None:
-                error = ("runner_failed", "The run ended without a report or an answer.")
+                error = (
+                    "runner_failed",
+                    "The advisor ended without an answer."
+                    if chat
+                    else "The run ended without a report or an answer.",
+                )
             record.update(
                 status=status,
                 exit_code=exit_code,

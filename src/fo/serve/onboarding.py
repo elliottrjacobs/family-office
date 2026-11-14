@@ -3,8 +3,11 @@
 The server caches ready responses for up to 25 seconds, invalidating them after
 server-side device changes or advisor launches; setup responses are never cached.
 
-The browser shows status and the exact next command; credentials, provider consent,
-setup, and sync always happen in the terminal. The server never creates an office.
+The browser shows status and the next step. Each step carries the exact command for a
+terminal and, where the Mac app can do it in its own windows, an action the page offers
+as a button there: "setup", "connect" or "connect:<provider>", "sync", and "onboard"
+(the interview, which runs as a conversation with the Onboard advisor). Credentials and
+provider consent never pass through this server, and it never creates an office.
 """
 
 import json
@@ -30,7 +33,7 @@ REASONS = {
     "stale": "The office works, and diagnostics found something to fix.",
     "ready": "The office is synced and healthy.",
 }
-ONBOARD = "Run the onboard skill from your coding agent in the office folder."
+ONBOARD = "Open the Onboard advisor; it interviews you and fills this in."
 CHECKLIST = {
     "account_connected": "Connect an account",
     "first_sync": "Run the first sync",
@@ -46,8 +49,23 @@ def fo(*args, root=None):
     return " ".join(shlex.quote(str(word)) for word in words)
 
 
-def step(command, purpose):
-    return {"command": command, "purpose": purpose}
+def step(command, purpose, action=None):
+    return {"command": command, "purpose": purpose, "action": action}
+
+
+def action(name):
+    """What the Mac app can do about a doctor check without a terminal, if anything."""
+    if name == "schwab.token":
+        return "connect:schwab"
+    if name.startswith("sync.unmapped."):
+        return "connect:" + name.removeprefix("sync.unmapped.")
+    if name.startswith("sync.age") or name == "sync.coverage":
+        return "sync"
+    if name == "providers" or name.startswith("sync.errors."):
+        return "connect"
+    if name.startswith("profile.") or name == "accounts.roles":
+        return "onboard"
+    return None
 
 
 def fix(root, name):
@@ -145,7 +163,11 @@ def derive(locator):
             "state": "uninitialized_path",
             "reason": REASONS["uninitialized_path"],
             "steps": [
-                step(fo("setup", candidate), "Create the office and connect Schwab and SimpleFIN."),
+                step(
+                    fo("setup", candidate),
+                    "Create the office and connect Schwab and SimpleFIN.",
+                    "setup",
+                ),
                 step(fo("setup", candidate, "--offline"), "Create the office without accounts."),
                 step(fo("setup", candidate, "--provider", "schwab"), "Connect only Schwab."),
                 step(fo("setup", candidate, "--provider", "simplefin"), "Connect only SimpleFIN."),
@@ -178,19 +200,27 @@ def derive(locator):
     ]
     for check in checks:
         command, hint = fix(root, check["name"])
-        result["doctor"].append({**check, "command": command, "hint": hint})
+        result["doctor"].append(
+            {**check, "command": command, "hint": hint, "action": action(check["name"])}
+        )
     if offline and not registered:
         state, steps = (
             "unconnected",
             [
-                step(fo("auth", "schwab", root=root), "Connect Schwab in the browser it opens."),
                 step(
-                    fo("auth", "simplefin", root=root), "Paste a SimpleFIN setup token when asked."
+                    fo("auth", "schwab", root=root),
+                    "Connect Schwab in the browser it opens.",
+                    "connect:schwab",
+                ),
+                step(
+                    fo("auth", "simplefin", root=root),
+                    "Paste a SimpleFIN setup token when asked.",
+                    "connect:simplefin",
                 ),
             ],
         )
         result["note"] = (
-            "To work from CSV exports instead, register accounts with the onboard skill."
+            "To work from CSV exports instead, ask the Onboard advisor to register the accounts."
         )
     elif offline and not any(r["provider"] == "csv" for r in complete):
         state, steps = (
@@ -199,6 +229,7 @@ def derive(locator):
                 step(
                     fo("sync", "--provider", "csv", root=root),
                     f"Place Monarch or Schwab CSV exports in {root / 'imports'}/, then import them.",
+                    "sync",
                 )
             ],
         )
@@ -214,8 +245,12 @@ def derive(locator):
         )
         state, steps = (
             "never_synced",
-            [step(item["command"], item["reason"]) for item in repairs if item["command"]]
-            + [step(fo("sync", root=root), purpose)],
+            [
+                step(item["command"], item["reason"], item["action"])
+                for item in repairs
+                if item["command"]
+            ]
+            + [step(fo("sync", root=root), purpose, "sync")],
         )
         writer = config.get("hosts", {}).get("writer", "")
         hostname = platform.node()
@@ -231,7 +266,9 @@ def derive(locator):
     elif result["doctor"]:
         state = "stale"
         steps = [
-            step(item["command"], item["reason"]) for item in result["doctor"] if item["command"]
+            step(item["command"], item["reason"], item["action"])
+            for item in result["doctor"]
+            if item["command"]
         ]
     else:
         state, steps = "ready", []

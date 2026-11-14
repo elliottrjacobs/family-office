@@ -108,7 +108,7 @@ daily_limit = 25
 port = 4790
 max_budget_usd = 2.0
 run_timeout_minutes = 30
-keep_runs = 50
+keep_runs = 300
 """,
     )
     ensure_credentials(root)

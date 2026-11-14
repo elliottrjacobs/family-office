@@ -17,7 +17,7 @@ from fo.init import initialize
 from fo.lock import office_lock
 from fo.office import RUN_RESTRICTED
 from fo.serve.runner import profile, scrub
-from fo.serve.runner_claude import MODE, TOOLS, ClaudeRunner
+from fo.serve.runner_claude import MODE, TOOLS, WEB, ClaudeRunner
 from fo.serve.runs import ACTIVE, RunManager, start_time
 from tests.offices import synthetic
 
@@ -80,7 +80,8 @@ def test_completed_run_records_report_decision_and_session(office, tmp_path):
     assert (folder / "prompts.txt").read_text().startswith("/research BETA --level household")
     assert "/research BETA --level household" not in " ".join(argv)
     assert argv[argv.index("--permission-mode") + 1] == MODE
-    assert argv[argv.index("--tools") + 1] == ",".join(TOOLS)
+    # Web is on by default, at every level; test_serve_web_policy.py covers the policies.
+    assert argv[argv.index("--tools") + 1] == ",".join([*TOOLS, *WEB])
     assert "--resume" not in argv and "bypassPermissions" not in argv
 
 
@@ -173,8 +174,8 @@ def test_launch_validates_the_advisor_level_and_subject(office, tmp_path):
     manager = RunManager(runner_for(tmp_path, COMPLETE)[0])
     for args, reason in (
         (("nobody", "ACME"), "unknown_skill"),
-        (("onboard", "household"), "not_in_chat"),
         (("journal", "ACME"), "not_in_chat"),
+        (("research", None), "invalid_request"),
         (("research", "ACME", "everything"), "invalid_context"),
         (("research", "../x"), "invalid_path"),
         (("lynch", "ACME", None, True), "deep_unavailable"),
@@ -418,7 +419,7 @@ def test_wait_streams_live_events_then_replays_from_the_log(office, tmp_path):
 
 def test_run_files_are_private_scrubbed_and_pruned(office, tmp_path):
     config = office / "office.toml"
-    config.write_text(config.read_text().replace("keep_runs = 50", "keep_runs = 2"))
+    config.write_text(config.read_text().replace("keep_runs = 300", "keep_runs = 2"))
     secret = "https://user:pass@example.invalid/x and account 123456789012345 worth 12345678"
     lines = [{"fake": "init"}, {"fake": "text", "text": secret}, {"fake": "result"}]
     manager = RunManager(runner_for(tmp_path, lines)[0])

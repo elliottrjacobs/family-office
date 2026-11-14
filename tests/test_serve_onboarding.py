@@ -188,7 +188,9 @@ def test_doctor_fixes_name_their_commands(tmp_path):
     assert items["skills.fresh"]["command"] == f"fo skills sync --office {quoted}"
     assert "doctor --fix" in items["credentials.perms"]["command"]
     assert items["accounts.roles"]["command"] is None
-    assert "onboard" in items["accounts.roles"]["hint"]
+    assert "Onboard advisor" in items["accounts.roles"]["hint"]
+    assert items["accounts.roles"]["action"] == "onboard"
+    assert items["skills.fresh"]["action"] is None
 
 
 def test_onboarding_route_advances_without_a_restart(tmp_path):
