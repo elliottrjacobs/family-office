@@ -44,9 +44,10 @@ from collections import deque
 
 from fo import reports
 from fo.brief import start
+from fo.commits import record as commit_paths
 from fo.config import ENGINES, read_config
 from fo.errors import OfficeError
-from fo.lock import probe
+from fo.lock import office_lock, probe
 from fo.notebook import decisions
 from fo.office import atomic_write, contained
 from fo.serve.guard import COUNTER
@@ -103,7 +104,10 @@ CHAT = (
     "- Before your first answer, run fo start {skill} <subject> --level {level} --json for "
     "the standing corrections, open decisions, and brief. The subject is the ticker when "
     "the message is about one security, otherwise household.\n"
-    "- Take the household's figures from fo commands, never from memory or a guess.\n"
+    "- Take the household's figures from fo commands, never from memory or a guess. The "
+    "shell runs only fo commands, one per call, with no pipes or redirects; read files with "
+    "the Read tool.\n"
+    "- Do not narrate your tool use or its errors; the user sees your steps already.\n"
     "- {web}\n"
     "- Write a report only when the user asks for one or the answer is an analysis they "
     "will want to keep; then follow the skill skeleton and say where it was saved. "
@@ -126,11 +130,15 @@ INTERVIEW = (
     "This is the intake interview. Greet the user in a sentence, then work through "
     "household, account roles, investment policy, goals, tax context, spending "
     "categories, and watch universes, one topic at a time, with one or two questions per "
-    "message. Read the existing file under profile/ before each topic and skip what is "
-    "already answered. Once the user confirms a topic, write its file under profile/ and "
-    "run fo doctor --json. Never ask the user to open a terminal, run a command, or edit "
-    "a file: you do that here."
+    "message. The authored files are profile/household.md, accounts.json, ips.json, "
+    "goals.json, tax.json, categories.yaml, and universes.yaml: read the one for a topic "
+    "before asking about it and skip what is already answered. Once the user confirms a "
+    "topic, write its file under profile/ and run fo doctor --json. What you write is "
+    "recorded in the office's history for you after every reply, so never mention "
+    "committing. Never ask the user to open a terminal, run a command, or edit a file: you "
+    "do that here."
 )
+PROFILE_COMMIT = "Update the profile from the onboard interview"
 WEB_CHANGED = "(Web search and fetch are now {state} for this conversation.)"
 
 
@@ -782,6 +790,9 @@ class RunManager:
     def finish(self, root, record, exit_code, result, error):
         try:
             self.fold(root, record)
+            if record["skill"] == "onboard":
+                # Before the turn settles, so the page never sees its files uncommitted.
+                self.keep_profile(root)
             chat = record.get("mode") == "chat"
             if record["report"]:
                 record["status"] = "verifying"
@@ -852,6 +863,19 @@ class RunManager:
                 self.live.pop(record["id"], None)
                 self.changed.notify_all()
         self.prune(root)
+
+    def keep_profile(self, root):
+        """Record what the onboard interview wrote under profile/ in the office's history.
+
+        A run may not commit, and uncommitted profile files would leave doctor asking the
+        owner for a terminal. Nothing but profile/ is staged; a held lock or a merge in
+        progress leaves the files as they are for doctor to report.
+        """
+        try:
+            with office_lock(root):
+                commit_paths(root, ["profile"], PROFILE_COMMIT)
+        except (OfficeError, OSError, subprocess.SubprocessError):
+            pass
 
     def reconcile(self, root):
         """Records a previous server left running are judged now, as if they had exited."""

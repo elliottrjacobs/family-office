@@ -266,6 +266,7 @@ def test_checklist_follows_the_office(tmp_path):
     assert [item["id"] for item in result["checklist"]] == [
         "account_connected",
         "first_sync",
+        "profile_started",
         "first_run",
         "device_paired",
     ]
@@ -277,9 +278,13 @@ def test_checklist_follows_the_office(tmp_path):
     assert checklist(derive(Locator(root))) == {
         "account_connected": True,
         "first_sync": False,
+        "profile_started": False,
         "first_run": False,
         "device_paired": False,
     }
+    # The interview replaces the placeholder fo init wrote.
+    (root / "profile/household.md").write_text("# Household\n\nTwo adults, one child.\n")
+    assert checklist(derive(Locator(root)))["profile_started"] is True
 
     ingest(
         root,

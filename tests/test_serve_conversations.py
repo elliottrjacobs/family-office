@@ -264,8 +264,22 @@ def test_the_onboard_interview_runs_in_the_app_and_writes_the_profile(office, tm
         {"fake": "text", "text": "Who is in the household?"},
         {"fake": "result"},
     ]
+    # What the interview leaves under profile/ is recorded once the turn ends.
+    (office / "profile/household.md").write_text("# Household\n\nTwo adults, one child.\n")
+    (office / "office.toml").write_text((office / "office.toml").read_text() + "\n# mine\n")
     manager, record, folder = conversation(office, tmp_path, lines, skill="onboard")
     assert record["status"] == "awaiting_input", record
+    status = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=office, capture_output=True, text=True
+    ).stdout
+    assert "profile/" not in status and "office.toml" in status
+    last = subprocess.run(
+        ["git", "log", "-1", "--format=%s", "--name-only"],
+        cwd=office,
+        capture_output=True,
+        text=True,
+    ).stdout.split()
+    assert last[-1] == "profile/household.md" and "interview" in last
     prompt = (folder / "prompts.txt").read_text()
     assert prompt.startswith("/onboard household --level full\n")
     assert "intake interview" in prompt and "Never ask the user to open a terminal" in prompt

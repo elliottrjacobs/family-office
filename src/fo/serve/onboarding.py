@@ -37,9 +37,12 @@ ONBOARD = "Open the Onboard advisor; it interviews you and fills this in."
 CHECKLIST = {
     "account_connected": "Connect an account",
     "first_sync": "Run the first sync",
+    "profile_started": "Tell Onboard about your household",
     "first_run": "Talk to an advisor",
     "device_paired": "Pair a phone",
 }
+# What fo init leaves in profile/household.md until the interview replaces it.
+UNANSWERED = "Complete with the onboard skill."
 RUNS = "cache/serve/runs"
 DEVICES = "devices.json"
 
@@ -126,12 +129,21 @@ def paired(root):
     return isinstance(records, list) and bool(records)
 
 
+def interviewed(root):
+    """Whether the household file holds more than the placeholder fo init wrote."""
+    try:
+        return UNANSWERED not in contained(root, "profile/household.md").read_text()
+    except (OfficeError, OSError, UnicodeDecodeError):
+        return False
+
+
 def checklist(root, connected, registry, complete):
     """Home's getting-started items, derived when the onboarding response is refreshed."""
     runs = contained(root, RUNS)
     done = {
         "account_connected": bool(connected) or bool(registry),
         "first_sync": bool(complete),
+        "profile_started": interviewed(root),
         "first_run": runs.is_dir() and any(runs.glob("*.json")),
         "device_paired": paired(root),
     }
