@@ -46,6 +46,16 @@ Requirements: Xcode 16 or later (Swift 6), macOS 14 or later, `uv`, and
 [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`) when you change the
 project.
 
+## The page-to-app bridge
+
+The dashboard page can ask the Mac app to open one of its own windows. `WebView` registers
+a script message handler named `familyOffice`; the page posts `{action: "setup"}` or
+`{action: "settings:<tab>"}` (`app/src/lib/native.ts`), `FOKit.WebAction` parses it, and
+`ContentView` opens the setup dialog or Settings on that pane. Messages are accepted only
+from the main frame of a loopback page, anything else is ignored, and nothing is returned
+to the page. In a browser and on the phone there is no handler, so the page shows where the
+step lives on the Mac, or the terminal command, instead of a button.
+
 ## Dependencies
 
 The Mac app has two third-party Swift packages; the iPhone app has none:
