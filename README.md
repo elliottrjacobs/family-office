@@ -97,9 +97,34 @@ expands compute results, and `--read-only` prevents writes and market requests.
 
 ## Use
 
-Claude Code invokes `/research ACME`; Codex invokes `$research ACME`.
-Both start from the private office. Where skill discovery is unavailable,
-`fo skill research` prints the instructions. Codex main-session skills inherit
+There are two ways to talk to the advisors, and they behave the same in both: the
+[Mac app](#mac-app), or a coding agent opened on your office folder. The app is
+optional. Nothing below needs it.
+
+### Talk to an advisor from Claude Code or Codex
+
+Open your private office folder in Claude Code or Codex and talk. Each of the 28
+skills is an advisor written for conversation: it answers the question first, takes
+every household figure from `fo`, asks back when the answer turns on something only
+you know, and looks things up on the web where the agent offers it.
+
+```text
+/tax What would it cost me to sell my BETA shares this year?     (Claude Code)
+$cfo Can we afford a $5,000 vacation next month?                 (Codex)
+Are we on track for the emergency fund?                          (either; the matching skill loads)
+```
+
+Keep going in the same session to follow up. An advisor writes a report only when
+you ask for one, when the answer is an analysis worth keeping, or when you invoke it
+with a subject and no question: `/research ACME` does the full analysis and saves a
+report under `reports/`. Invoked with nothing, as in `/estate`, it asks what you want
+to look at. It records a decision in the journal only when you make one or ask it to.
+
+`fo skills sync` renders the skills and the shared rules into the office
+(`AGENTS.md`, `.agents/skills/`, `.claude/skills/`); `fo doctor` says when they are
+out of date, and the Mac app refreshes them itself. For first-time setup, `/onboard`
+(Claude Code) or `$onboard` (Codex) runs the same intake interview the app does.
+Where skill discovery is unavailable, `fo skill research` prints the instructions. Codex main-session skills inherit
 the session model; worker models and Claude skill tiers come from `office.toml`.
 
 | Area | Skills |
