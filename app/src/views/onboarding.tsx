@@ -121,7 +121,7 @@ function Steps({ data }: { data: Onboarding }) {
           <li key={step.command} className="space-y-1.5">
             <p className="text-sm">
               {inApp && step.action?.startsWith("connect") && data.state === "unconnected"
-                ? "Connect Schwab or SimpleFIN in the Connectors settings."
+                ? "Connect Schwab, SimpleFIN, or your own Plaid account in the Connectors settings."
                 : inApp && step.action === "setup"
                   ? "Create the office with the setup guide."
                   : step.purpose}

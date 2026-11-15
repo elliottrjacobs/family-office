@@ -28,6 +28,7 @@ describe("native", () => {
     expect(stepButton("onboard")).toBeNull()
     expect(stepButton(null)).toBeNull()
     expect(stepPlace("connect:simplefin")).toMatch(/Settings > Connectors/)
+    expect(stepButton("connect:plaid")).toEqual({ action: "settings:connectors", label: "Open Connectors" })
     expect(stepPlace("onboard")).toBeNull()
   })
 })
