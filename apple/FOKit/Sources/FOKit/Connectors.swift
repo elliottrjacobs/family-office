@@ -33,6 +33,10 @@ public enum ConnectorCatalog {
             purpose: "Bank and card balances and transactions.",
             signUp: URL(string: "https://beta-bridge.simplefin.org")),
         Connector(
+            id: "plaid", label: "Plaid", kind: .account,
+            purpose: "Banks, cards and brokerages through your own Plaid developer account.",
+            signUp: URL(string: "https://dashboard.plaid.com/signup")),
+        Connector(
             id: "alphavantage", label: "Alpha Vantage", kind: .key,
             purpose: "Quotes and price history.",
             signUp: URL(string: "https://www.alphavantage.co/support/#api-key")),

@@ -11,6 +11,8 @@ final class TerminalCommandTests: XCTestCase {
         XCTAssertEqual(TerminalCommand(["setup", "--offline"]), .setupOffline)
         XCTAssertEqual(TerminalCommand(["auth", "schwab"]), .auth("schwab"))
         XCTAssertEqual(TerminalCommand(["auth", "simplefin"]), .auth("simplefin"))
+        XCTAssertEqual(TerminalCommand(["auth", "plaid"]), .auth("plaid"))
+        XCTAssertEqual(TerminalCommand(["setup", "--provider", "plaid"]), .setup(provider: "plaid"))
         XCTAssertEqual(TerminalCommand(["sync"]), .sync)
         XCTAssertEqual(TerminalCommand(["doctor"]), .doctor)
     }
@@ -18,7 +20,7 @@ final class TerminalCommandTests: XCTestCase {
     func testRefusesEverythingElse() {
         let refused: [[String]] = [
             [], ["bash"], ["/bin/zsh"], ["serve"], ["connect", "exa"], ["config", "set", "x", "y"],
-            ["auth"], ["auth", "alphavantage"], ["auth", "schwab", "--extra"], ["auth", "../schwab"],
+            ["auth"], ["auth", "alphavantage"], ["auth", "schwab", "--extra"], ["auth", "../schwab"], ["auth", "plaid", "--extra"],
             ["sync", "--office", "/elsewhere"], ["doctor", "--notify"], ["setup", "/other/path"],
             ["setup", "--provider", "csv"], ["--office", "/x", "sync"], ["sh", "-c", "fo sync"],
             ["setup", "--offline", "--provider", "schwab"], ["setup", "--offline", "/other/path"],
@@ -49,6 +51,14 @@ final class TerminalCommandTests: XCTestCase {
     func testSchwabExplainsTheBrowserConsent() {
         XCTAssertTrue(TerminalCommand.auth("schwab").explanation.contains("browser"))
         XCTAssertTrue(TerminalCommand.auth("simplefin").explanation.contains("hidden"))
+    }
+
+    func testPlaidExplainsOwnCredentialsAndLink() {
+        let text = TerminalCommand.auth("plaid").explanation
+        XCTAssertTrue(text.contains("your own Plaid client ID and secret"))
+        XCTAssertTrue(text.contains("Plaid Link"))
+        XCTAssertEqual(TerminalCommand.auth("plaid").title, "Connect Plaid")
+        XCTAssertEqual(TerminalCommand.auth("simplefin").title, "Connect SimpleFIN")
     }
 
     func testWaitStatus() {
