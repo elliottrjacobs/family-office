@@ -2,11 +2,13 @@
 
 ## Unreleased
 
-- Claude's model list adds Fable 5.2 and recommends Opus 5.5, which is also the
-  default when `office.toml` names no Claude model. An office that set a model keeps it.
+- Claude's model list offers Fable 5.2 in place of Fable 5.1 and recommends Opus 5.5,
+  which is also the default when `office.toml` names no Claude model. An office that
+  set a model keeps it; one set to Fable 5.1 shows it under Other.
 - Effort goes past High: Extra high (`xhigh`) and Max, for Claude and Codex, in the
   chat options, Settings > Engines and `fo config set serve.engines.<engine>.effort`.
-- In the chat options, Engine and Model share a row and line up; Effort sits below.
+- Engine, Model and Effort are dropdowns of one height, side by side in the chat
+  options; Settings > Engines uses dropdowns for the default engine and effort too.
 - The sidebar shows the app icon beside "Family Office", without the folder name.
 
 ## 2.0.0b3 — 2026-11-14

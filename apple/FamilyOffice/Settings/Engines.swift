@@ -220,7 +220,7 @@ struct EnginesSettings: View {
                     Text(engine.label).tag(engine.rawValue)
                 }
             }
-            .pickerStyle(.segmented)
+            .pickerStyle(.menu)
             .disabled(state.officePath == nil || model.catalog == nil)
             fieldMessage("serve.engines.default")
             if let error = model.serverError {
@@ -372,7 +372,7 @@ struct EnginesSettings: View {
                     Text(effort == "xhigh" ? "Extra high" : effort.capitalized).tag(effort)
                 }
             }
-            .pickerStyle(.segmented)
+            .pickerStyle(.menu)
             fieldMessage(model.key(engine, "effort"))
 
             textRow(engine, field: "max_budget_usd", label: "Budget per run (USD)", prompt: "2.0", text: $model.budget)

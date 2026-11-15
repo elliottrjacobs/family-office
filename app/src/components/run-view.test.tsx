@@ -23,7 +23,7 @@ const run: Run = {
   cost_usd: 0.1,
   created: "2026-11-05T00:00:00Z",
   engine: "claude",
-  model: "claude-fable-5-1",
+  model: "claude-fable-5-2",
   effort: "high",
   web: true,
   web_count: 3,

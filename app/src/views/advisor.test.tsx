@@ -34,7 +34,7 @@ const app = vi.hoisted(() => ({
 }))
 vi.mock("@/app-data", () => ({ useAppData: () => app }))
 
-const defaults = { model: "claude-fable-5-1", effort: "high", max_budget_usd: 2, enabled: true }
+const defaults = { model: "claude-fable-5-2", effort: "high", max_budget_usd: 2, enabled: true }
 const started: Run = {
   id: "01M50V918GZEEPD9WHWV3M7CH6",
   skill: "estate",
@@ -83,7 +83,7 @@ function stubServer() {
     }
     if (path === "/api/models") {
       return respond({
-        engines: { claude: { label: "Claude Code", efforts: ["low", "medium", "high"], models: [{ id: "claude-fable-5-1", label: "Fable 5.1" }] } },
+        engines: { claude: { label: "Claude Code", efforts: ["low", "medium", "high"], models: [{ id: "claude-fable-5-2", label: "Fable 5.2" }] } },
         default: "claude",
         defaults: { claude: defaults },
       })
@@ -158,7 +158,7 @@ describe("AdvisorPage", () => {
       level: "full",
       deep: false,
       engine: "claude",
-      model: "claude-fable-5-1",
+      model: "claude-fable-5-2",
       effort: "high",
     })
   })
