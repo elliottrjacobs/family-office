@@ -1,6 +1,7 @@
-"""Several advisors answering at once."""
+"""Several advisors answering at once, and account sync from the server."""
 
 import json
+import platform
 import threading
 import time
 
@@ -9,8 +10,12 @@ import pytest
 from fo.config import set_config
 from fo.errors import OfficeError
 from fo.lock import office_lock
+from fo.office import git
 from fo.serve.runner_codex import CodexRunner
-from fo.serve.runs import RunManager, run_settings
+from fo.serve.runs import ACTIVE, RunManager, run_settings
+from fo.serve.server import Locator
+from fo.serve.syncer import Syncer, settings, stamp
+from fo.store.jsonl import read_rows
 from tests.offices import synthetic
 from tests.serving import serving
 from tests.test_serve_runs import COMPLETE, runner_for, settle
@@ -27,6 +32,15 @@ QUESTION = "Where should new cash go?"
 @pytest.fixture
 def office(tmp_path):
     return synthetic(tmp_path / "office")
+
+
+def connect(office, provider="csv"):
+    """Give the synthetic office one account a sync can pull, on this writer host."""
+    accounts = json.loads((office / "profile/accounts.json").read_text())
+    accounts["accounts"][0]["provider"] = provider
+    (office / "profile/accounts.json").write_text(json.dumps(accounts))
+    git(office, "add", "-A")
+    git(office, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "csv")
 
 
 def wait_for(check, timeout=10):
@@ -143,6 +157,103 @@ def test_a_codex_run_parses_with_its_own_state():
     assert (one.thread, two.thread, runner.thread) == ("thread-one", None, None)
 
 
+# Sync ------------------------------------------------------------------------------
+
+
+def test_sync_settings_default_to_automatic_every_six_hours(office):
+    assert settings(office) == {"auto": True, "hours": 6.0}
+    set_config(office, "serve.auto_sync", "false")
+    set_config(office, "serve.auto_sync_hours", "12")
+    assert settings(office) == {"auto": False, "hours": 12.0}
+    for key, value in (("serve.parallel_runs", "9"), ("serve.auto_sync_hours", "0")):
+        with pytest.raises(OfficeError) as raised:
+            set_config(office, key, value)
+        assert raised.value.reason == "invalid_value"
+
+
+def test_automatic_sync_runs_when_the_data_is_stale(office, tmp_path):
+    clock = [time.time()]
+    syncer = Syncer(Locator(office), clock=lambda: clock[0])
+    # The synthetic accounts belong to no provider a sync pulls.
+    assert syncer.next_at(office) == (None, "no_accounts")
+    assert syncer.tick() is False
+    connect(office)
+    assert syncer.next_at(office) == (0.0, None)
+    before = len(read_rows(office, "data/sync_log.jsonl"))
+    assert syncer.tick() is True
+    rows = read_rows(office, "data/sync_log.jsonl")
+    assert len(rows) == before + 1
+    assert (rows[-1]["provider"], rows[-1]["status"]) == ("csv", "complete")
+    # What the sync wrote is recorded in the office's history.
+    assert git(office, "status", "--porcelain", "--", "data").stdout == ""
+    due, reason = syncer.next_at(office)
+    assert reason is None and due == pytest.approx(stamp(rows[-1]["as_of"]) + 6 * 3600)
+    assert syncer.tick() is False and len(read_rows(office, "data/sync_log.jsonl")) == before + 1
+    clock[0] += 6 * 3600 + 60
+    assert syncer.tick() is True and len(read_rows(office, "data/sync_log.jsonl")) == before + 2
+    set_config(office, "serve.auto_sync", "false")
+    clock[0] += 24 * 3600
+    assert syncer.next_at(office) == (None, "off") and syncer.tick() is False
+
+
+def test_automatic_sync_stays_off_another_computers_office(office, monkeypatch):
+    connect(office)
+    monkeypatch.setattr(platform, "node", lambda: "another-mac")
+    syncer = Syncer(Locator(office))
+    assert syncer.next_at(office) == (None, "not_writer") and syncer.tick() is False
+    assert syncer.state(office)["reason"] == "not_writer"
+
+
+def test_a_failing_sync_is_retried_with_a_growing_wait(office):
+    connect(office)
+    clock, calls = [1_000_000.0], []
+
+    def failing(root, *args, timeout=60):
+        calls.append(args)
+        return 1, {"reason": "missing_credentials", "message": "Run fo auth simplefin locally."}
+
+    syncer = Syncer(Locator(office), clock=lambda: clock[0], run=failing)
+    assert syncer.tick() is True and calls == [("sync", "--if-writer")]
+    assert syncer.next_at(office)[0] == clock[0] + 1800
+    clock[0] += 1700
+    assert syncer.tick() is False and len(calls) == 1
+    clock[0] += 200
+    assert syncer.tick() is True and len(calls) == 2
+    assert syncer.next_at(office)[0] == clock[0] + 3600
+    # The wait never passes the interval itself.
+    syncer.failures = 10
+    assert syncer.next_at(office)[0] == clock[0] + 6 * 3600
+
+
+def test_a_message_sent_during_a_sync_is_queued_until_it_ends(office, tmp_path):
+    connect(office)
+    started, release = threading.Event(), threading.Event()
+
+    def slow(root, *args, timeout=60):
+        started.set()
+        release.wait(10)
+        return 0, [{"provider": "csv", "status": "complete", "as_of": "2026-01-01T00:00:00Z"}]
+
+    manager = RunManager(runner_for(tmp_path, SLOW[:1] + SLOW[2:])[0])
+    syncer = Syncer(Locator(office), manager, run=slow)
+    outcome = []
+    thread = threading.Thread(target=lambda: outcome.append(syncer.sync(office)))
+    thread.start()
+    started.wait(5)
+    assert syncer.state(office)["running"] == "manual"
+    with pytest.raises(OfficeError) as raised:
+        syncer.sync(office)
+    assert raised.value.reason == "sync_active"
+    record = manager.launch(office, "cio", message=QUESTION)
+    time.sleep(0.5)
+    waiting = manager.get(office, record["id"])
+    assert waiting["status"] == "queued" and manager.active[record["id"]].process is None
+    release.set()
+    thread.join(10)
+    assert outcome[0]["complete"] is True and syncer.state(office)["running"] is None
+    assert settle(manager, office, record["id"])["status"] == "awaiting_input"
+
+
 def test_a_queued_message_can_be_stopped_before_it_starts(office, tmp_path):
     manager = RunManager(runner_for(tmp_path, SLOW)[0])
     manager.pause()
@@ -151,3 +262,21 @@ def test_a_queued_message_can_be_stopped_before_it_starts(office, tmp_path):
     done = settle(manager, office, record["id"])
     assert done["status"] == "cancelled" and done["pid"] is None
     manager.resume()
+
+
+def test_sync_waits_for_advisors_and_the_status_reports_it(office, tmp_path):
+    connect(office)
+    with serving(office, tmp_path, runs=RunManager(runner_for(tmp_path, SLOW)[0])) as (app, client):
+        state = client.get("/api/status")[1]["sync"]
+        assert state["running"] is None and state["auto"] is True and state["hours"] == 6.0
+        assert state["reason"] is None and stamp(state["next"]) is not None
+        record = client.post("/api/runs", {"skill": "cio", "message": QUESTION})[1]
+        status, data = client.post("/api/sync")
+        assert (status, data["reason"]) == (409, "run_active")
+        assert app.syncer.tick() is False
+        settle(app.runs, office, record["id"])
+        assert all(row["status"] not in ACTIVE for row in app.runs.list(office))
+        status, data = client.post("/api/sync")
+        assert status == 200 and data["complete"] is True
+    with serving(office, tmp_path, read_only=True) as (app, client):
+        assert app.syncer is None and client.get("/api/status")[1]["sync"] is None

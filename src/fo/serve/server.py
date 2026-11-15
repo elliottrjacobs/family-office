@@ -115,12 +115,18 @@ class App:
     # Started by the Mac app (fo serve --app-mode), which connects accounts and syncs in
     # its own windows; the page then points there instead of at a terminal.
     app_mode: bool = False
+    # Account sync, on request and on its own; made with runs, absent in --read-only mode.
+    syncer: object | None = None
 
     def __post_init__(self):
         if self.devices is None:
             self.devices = Devices(self.locator.root)
         if self.access.devices is None:
             self.access.devices = self.devices
+        if self.syncer is None and self.runs is not None:
+            from fo.serve.syncer import Syncer
+
+            self.syncer = Syncer(self.locator, self.runs, self.cache)
 
     def routes(self):
         # These routes answer before the response cache, so their answers are never cached.
@@ -155,6 +161,8 @@ class App:
             "remote": self.access.remote,
             "identity": self.access.identity(headers),
             "office": office,
+            # A sync in progress and when the next automatic one is due.
+            "sync": self.syncer.state(self.locator.root()) if office and self.syncer else None,
         }
 
 

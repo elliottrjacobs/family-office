@@ -226,11 +226,16 @@ def serve(
         ).start()
     if open_browser:
         webbrowser.open(link)
+    if server.app.syncer is not None:
+        # Keeps accounts current without a click or a terminal; see fo.serve.syncer.
+        server.app.syncer.start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
+        if server.app.syncer is not None:
+            server.app.syncer.stop()
         # An advisor run outliving the server would keep spending its budget unwatched.
         if server.app.runs is not None:
             server.app.runs.shutdown()

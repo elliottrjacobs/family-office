@@ -285,6 +285,8 @@ def _schema():
         "serve.run_timeout_minutes": (_positive_float, "a number greater than 0"),
         "serve.keep_runs": (_integer(0), "an integer of 0 or more"),
         "serve.parallel_runs": (_integer(1, 8), "an integer from 1 to 8"),
+        "serve.auto_sync": (_boolean, "true or false"),
+        "serve.auto_sync_hours": (_positive_float, "a number greater than 0"),
         "serve.engines.default": (_choice("claude", "codex"), "claude or codex"),
         "providers.gemini.max_tasks_per_day": (_integer(0), "an integer of 0 or more"),
         "providers.edgar.user_agent": (_text, "non-empty single-line text"),

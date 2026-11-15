@@ -7,7 +7,7 @@ server and CLI cannot disagree on version. Global flags come first, values trave
 
 Sync is fo sync with no options: it reads the credentials the owner stored with fo auth
 and pulls balances, positions, and transactions, as the same command does in a terminal.
-The answer carries each provider's status and reason, never a provider's own error text.
+The server's Syncer runs it, for this route and for the automatic sync alike.
 """
 
 import json
@@ -15,7 +15,6 @@ import os
 import re
 import subprocess
 import sys
-import threading
 
 from fo.errors import OfficeError
 from fo.office import RUN_MARKER
@@ -26,9 +25,6 @@ OUTCOMES = {"hit", "miss", "neutral", "unknown"}
 LEVELS = {"none", "household", "full"}
 CONVICTIONS = {"HIGH", "MEDIUM", "LOW"}
 SCOPE = re.compile(r"global|(?:skill|subject):[A-Za-z0-9._-]+")
-SYNC_TIMEOUT = 600
-# One sync at a time; a second request is refused rather than queued.
-syncing = threading.Lock()
 
 
 def command(root, *args, timeout=60):
@@ -145,25 +141,7 @@ def retire(handler, params, query):
 def sync(handler, params, query):
     """Refresh every connected account now; one row per provider, failures included."""
     app = handler.app
-    root = app.locator.root()
-    if app.runs is not None and app.runs.active:
-        raise OfficeError("run_active", "An advisor is working; sync when it finishes.")
-    if not syncing.acquire(blocking=False):
-        raise OfficeError("sync_active", "A sync is already running.")
-    try:
-        _, payload = command(root, "sync", timeout=SYNC_TIMEOUT)
-    except subprocess.TimeoutExpired as exc:
-        raise OfficeError("sync_timeout", "The sync took too long; try again.") from exc
-    finally:
-        syncing.release()
-        app.cache.forget(("/api/onboarding", ()))
-    if not isinstance(payload, list):
-        # An error before any provider ran: not the writer host, no accounts, a held lock.
-        payload = payload if isinstance(payload, dict) else {}
-        raise OfficeError(payload.get("reason", "operation_failed"), payload.get("message", ""))
-    keys = ("provider", "status", "reason", "message", "as_of")
-    rows = [{key: row.get(key) for key in keys} for row in payload if isinstance(row, dict)]
-    return {"complete": all(row["status"] == "complete" for row in rows), "providers": rows}
+    return app.syncer.sync(app.locator.root())
 
 
 ROUTES = [
