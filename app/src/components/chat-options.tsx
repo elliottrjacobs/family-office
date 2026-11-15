@@ -28,7 +28,8 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { titleCase } from "@/lib/format"
 
-const EFFORTS: Effort[] = ["low", "medium", "high"]
+const EFFORTS: Effort[] = ["low", "medium", "high", "xhigh", "max"]
+const EFFORT_LABELS: Partial<Record<Effort, string>> = { xhigh: "Extra high" }
 const OTHER = "__other__"
 const STORAGE = "fo.launch.v1."
 
@@ -94,7 +95,8 @@ function EngineFields({
   const blocked = engines.filter((e) => !e.usable && e.message)
   return (
     <div className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-[auto_1fr_auto]">
+      {/* Engine and model share a row; effort has five levels, so it takes the row below. */}
+      <div className="grid gap-3 sm:grid-cols-[auto_1fr]">
         <div className="space-y-1.5">
           <p className="text-sm font-medium">Engine</p>
           <Segmented
@@ -113,9 +115,10 @@ function EngineFields({
           />
         </div>
         <div className="min-w-0 space-y-1.5">
-          <label htmlFor="run-model" className="text-sm font-medium">
+          <label htmlFor="run-model" className="block text-sm font-medium">
             Model
           </label>
+          {/* 34px is the segmented controls' height, so the select lines up with Engine. */}
           <select
             id="run-model"
             value={custom ? OTHER : choice.model}
@@ -129,7 +132,7 @@ function EngineFields({
                 onChange({ ...choice, model: value })
               }
             }}
-            className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+            className="h-[34px] w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
           >
             {curated.map((m) => (
               <option key={m.id} value={m.id}>
@@ -150,15 +153,15 @@ function EngineFields({
             />
           )}
         </div>
-        <div className="space-y-1.5">
-          <p className="text-sm font-medium">Effort</p>
-          <Segmented
-            label="Effort"
-            options={efforts.map((value) => ({ value, label: titleCase(value) }))}
-            value={choice.effort}
-            onChange={(effort) => onChange({ ...choice, effort })}
-          />
-        </div>
+      </div>
+      <div className="space-y-1.5">
+        <p className="text-sm font-medium">Effort</p>
+        <Segmented
+          label="Effort"
+          options={efforts.map((value) => ({ value, label: EFFORT_LABELS[value] ?? titleCase(value) }))}
+          value={choice.effort}
+          onChange={(effort) => onChange({ ...choice, effort })}
+        />
       </div>
       {blocked.map((e) => (
         <p key={e.name} className="text-xs text-muted-foreground">
