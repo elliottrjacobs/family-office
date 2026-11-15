@@ -5,6 +5,9 @@ from fo.errors import OfficeError
 from fo.office import contained, write_json
 from fo.store.authored import load
 
+# Providers whose accounts are matched by an opaque provider id rather than the last four.
+REFERENCED = {"simplefin", "plaid"}
+
 
 def register(root, provider, discovered):
     """Persist discovered identities and record them while the caller holds office_lock."""
@@ -14,7 +17,7 @@ def register(root, provider, discovered):
     rows = registry["accounts"]
     assigned = []
     for item in discovered:
-        key = "provider_ref" if provider == "simplefin" else "last4"
+        key = "provider_ref" if provider in REFERENCED else "last4"
         matches = [r for r in rows if r["provider"] == provider and r.get(key) == item[key]]
         if len(matches) > 1 or (
             provider == "schwab" and sum(d["last4"] == item["last4"] for d in discovered) > 1
@@ -30,8 +33,12 @@ def register(root, provider, discovered):
         while any(r["id"] == f"{provider}-{number}" for r in rows):
             number += 1
         entry = {"id": f"{provider}-{number}", "provider": provider, "last4": item.get("last4", "")}
-        if provider == "simplefin":
+        if provider in REFERENCED:
             entry["provider_ref"] = item["provider_ref"]
+        # A provider that knows the account kind seeds it; later edits are never overwritten.
+        for field in ("type", "role"):
+            if item.get(field):
+                entry[field] = item[field]
         rows.append(entry)
         assigned.append(entry["id"])
     write_json(contained(root, "profile/accounts.json"), registry)

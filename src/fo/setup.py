@@ -15,8 +15,8 @@ from fo.sync import synchronize
 
 def setup(path: Path, providers=None, offline=False):
     providers = list(dict.fromkeys(providers or ("schwab", "simplefin")))
-    if set(providers) - {"schwab", "simplefin"}:
-        raise OfficeError("unknown_provider", "Setup supports schwab and simplefin.")
+    if set(providers) - {"schwab", "simplefin", "plaid"}:
+        raise OfficeError("unknown_provider", "Setup supports schwab, simplefin, and plaid.")
     initialize(path)
     root = path.expanduser().resolve()
     if offline:
@@ -35,6 +35,12 @@ def setup(path: Path, providers=None, offline=False):
                 keys = read_secrets(root)
                 if provider == "simplefin" and keys.get("simplefin", {}).get("access_url"):
                     register(root, provider, SimpleFIN(keys["simplefin"]["access_url"]).discover())
+                elif provider == "plaid" and keys.get("plaid"):
+                    from fo.providers.plaid import discover
+
+                    # Linked institutions are registered again; fo auth plaid adds more.
+                    if not discover(root):
+                        authenticate(root, provider)
                 elif provider == "schwab":
                     from fo.providers.schwab import Schwab
 

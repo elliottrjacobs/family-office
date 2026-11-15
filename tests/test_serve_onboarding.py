@@ -56,6 +56,7 @@ def test_uninitialized_path_shows_setup_then_unconnected(tmp_path):
         f"fo setup {quoted} --offline",
         f"fo setup {quoted} --provider schwab",
         f"fo setup {quoted} --provider simplefin",
+        f"fo setup {quoted} --provider plaid",
     ]
     initialize(folder)
     result = derive(Locator(folder))
