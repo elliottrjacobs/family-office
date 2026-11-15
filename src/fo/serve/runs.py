@@ -1,9 +1,14 @@
-"""Advisor runs: one at a time, recorded under cache/serve/runs/, judged by the verifier.
+"""Advisor runs: recorded under cache/serve/runs/, judged by the verifier.
 
-The office lock is command-scoped and cannot serialize a run, so a server mutex does,
-and the lock is probed only when a run launches. Each run keeps a JSON record and an
-append-only event log, both 0600 in a 0700 directory; neither holds environment, cookie,
-or token values. Durable results stay in reports/ and notebook/.
+Several runs answer at once, each its own engine process, up to [serve] parallel_runs
+(three unless office.toml says otherwise); one conversation still takes one turn at a
+time. The office lock is command-scoped, so the fo commands of concurrent runs take it
+in turn: every run starts with FO_LOCK_WAIT set, which makes a command wait for the lock
+instead of refusing. The lock is probed when a run launches, to refuse while a command
+outside the server holds it. While the server's own account sync holds the office
+(pause, resume), a run that launches is queued and starts when the sync ends. Each run
+keeps a JSON record and an append-only event log, both 0600 in a 0700 directory; neither
+holds environment, cookie, or token values. Durable results stay in reports/ and notebook/.
 
 Completion follows the report, not the exit code: a verified report is completed;
 otherwise recorded decisions make it partial; otherwise an error or nonzero exit is
@@ -41,12 +46,14 @@ import subprocess
 import threading
 import time
 from collections import deque
+from dataclasses import dataclass
 
 from fo import reports
 from fo.brief import start
 from fo.commits import record as commit_paths
 from fo.config import ENGINES, read_config
 from fo.errors import OfficeError
+from fo.lock import WAIT as LOCK_WAIT
 from fo.lock import office_lock, probe
 from fo.notebook import decisions
 from fo.office import atomic_write, contained
@@ -61,7 +68,20 @@ NOT_IN_CHAT = {
     "journal": "Record a decision with the form on the Decisions page.",
 }
 # keep_runs is the conversation history the app can list, across every advisor.
-DEFAULTS = {"max_budget_usd": 2.0, "run_timeout_minutes": 30.0, "keep_runs": 300}
+# parallel_runs is how many advisors may answer at once.
+DEFAULTS = {
+    "max_budget_usd": 2.0,
+    "run_timeout_minutes": 30.0,
+    "keep_runs": 300,
+    "parallel_runs": 3,
+}
+PARALLEL_LIMIT = 8
+# How long a run's fo command waits for the office lock another run's command holds.
+RUN_LOCK_WAIT = 20.0
+# How long a launch waits out a lock held for a moment before refusing as office_locked.
+PROBE_WAIT = 2.0
+# How long a queued run waits for the server's own sync before starting anyway.
+SYNC_WAIT = 900.0
 WEB_FETCH_CAP = 20
 WEB_POLICIES = ("on", "isolated", "off")
 DEFAULT_WEB = "on"
@@ -108,6 +128,8 @@ CHAT = (
     "shell runs only fo commands, one per call, with no pipes or redirects; read files with "
     "the Read tool.\n"
     "- Do not narrate your tool use or its errors; the user sees your steps already.\n"
+    "- End with your answer or your question. The closing line a written report carries "
+    "belongs in the report file only, never in a chat reply.\n"
     "- {web}\n"
     "- Write a report only when the user asks for one or the answer is an analysis they "
     "will want to keep; then follow the skill skeleton and say where it was saved. "
@@ -153,6 +175,7 @@ def run_settings(root):
     cap = value.get("web_fetch_cap", WEB_FETCH_CAP) if isinstance(value, dict) else WEB_FETCH_CAP
     if isinstance(cap, bool) or not isinstance(cap, int) or cap < 0:
         raise OfficeError("invalid_config", "[serve] web_fetch_cap must be 0 or more.")
+    result["parallel_runs"] = min(result["parallel_runs"], PARALLEL_LIMIT)
     result["web_fetch_cap"] = cap
     result["web"] = web_policy(root)
     return result
@@ -271,6 +294,16 @@ def stop(pid, grace):
     threading.Thread(target=finish, daemon=True).start()
 
 
+@dataclass
+class Slot:
+    """One run in progress: its office, the report it writes, its process and its thread."""
+
+    root: object
+    report: str = ""
+    process: object | None = None
+    thread: object | None = None
+
+
 class RunManager:
     def __init__(self, runners: dict[str, Runner] | Runner, grace=5.0, deep=False):
         # Engines by name; one runner alone registers under its own name.
@@ -281,9 +314,11 @@ class RunManager:
         self.deep = deep
         self.mutex = threading.Lock()
         self.changed = threading.Condition()
-        self.active = None
-        self.process = None
-        self.thread = None
+        # Runs in progress by id; empty when no advisor is answering.
+        self.active: dict[str, Slot] = {}
+        # Cleared while the server's own sync holds the office; queued runs wait on it.
+        self.clear = threading.Event()
+        self.clear.set()
         self.live = {}
         self.cancelled = set()
         # Runs stopped for a reason the record keeps: the time limit or the server stopping.
@@ -327,7 +362,13 @@ class RunManager:
 
     def list(self, root):
         self.reconcile(root)
-        rows = [json.loads(p.read_text()) for p in self.folder(root).glob("*.json")]
+        rows = []
+        for path in self.folder(root).glob("*.json"):
+            try:
+                rows.append(json.loads(path.read_text()))
+            except FileNotFoundError:
+                # Another run finishing pruned or deleted it between the listing and the read.
+                continue
         return sorted(rows, key=lambda r: r["created"], reverse=True)
 
     def events(self, root, run_id, after=0):
@@ -394,6 +435,7 @@ class RunManager:
             "default": office["default"],
             "deep": self.deep,
             "web": web_policy(root),
+            "parallel_runs": run_settings(root)["parallel_runs"],
             "engines": engines,
         }
         if not usable:
@@ -404,7 +446,7 @@ class RunManager:
         return status
 
     def running(self, run_id):
-        return self.active is not None and self.active[1] == run_id
+        return run_id in self.active
 
     def wait(self, root, run_id, after, timeout):
         """New events after `after`, waiting up to timeout while the run is active."""
@@ -475,8 +517,10 @@ class RunManager:
                 "engine_unsupported", f"The onboard interview is not available with {name}."
             )
         household = getattr(runner, "web_household", False)
+        self.settle(root)
         with self.mutex:
-            self.claim(root)
+            self.room(config)
+            run_id = identifier()
             try:
                 report = ""
                 if not chat:
@@ -486,8 +530,12 @@ class RunManager:
                             started["report"]["reason"], "No report path is available."
                         )
                     report = started["report"]["data"]["path"]
+                    if any(slot.report == report for slot in self.active.values()):
+                        raise OfficeError(
+                            "run_active", "A run is already writing this report; wait for it."
+                        )
                 record = {
-                    "id": identifier(),
+                    "id": run_id,
                     "skill": skill,
                     "subject": subject,
                     "mode": "chat" if chat else "report",
@@ -524,9 +572,9 @@ class RunManager:
                 # The folder comes first: a Codex run's home and workspace live in it.
                 folder = self.run_folder(root, record["id"])
             except Exception:
-                self.active = None
+                self.active.pop(run_id, None)
                 raise
-            self.active = (root, record["id"])
+            self.active[run_id] = Slot(root, report)
         prompt = f"/{skill} {subject} --level {level}" + (" --deep" if deep else "")
         if chat:
             rules = CHAT.format(skill=skill, level=level, web=WEB_ON if record["web"] else WEB_OFF)
@@ -560,12 +608,15 @@ class RunManager:
         if web is not None:
             record["web_wanted"] = web
         after = web_allowed(record["level"], config["web"], record.get("web_wanted"), household)
+        self.settle(root)
         with self.mutex:
-            self.claim(root)
+            if self.running(run_id):
+                raise OfficeError("run_active", "This run is still in progress.")
+            self.room(config)
             record["status"] = "queued"
             record["error"] = None
             self.save(root, record)
-            self.active = (root, record["id"])
+            self.active[run_id] = Slot(root, record["report"])
         prompt = text
         if after != before:
             # The session was told the other state when it began.
@@ -590,21 +641,55 @@ class RunManager:
             shutil.rmtree(self.path(root, run_id, ""), ignore_errors=True)
         return {"deleted": run_id}
 
-    def claim(self, root):
-        """Hold the mutex: refuse while a run is active or another command holds the lock."""
-        if self.active:
-            raise OfficeError("run_active", "An advisor run is in progress; wait or cancel it.")
-        if probe(root):
-            raise OfficeError("office_locked", "Another fo command holds the office lock; retry.")
+    def room(self, config):
+        """Hold the mutex: refuse when as many advisors as the office allows are answering."""
+        limit = config["parallel_runs"]
+        if len(self.active) >= limit:
+            raise OfficeError(
+                "run_limit",
+                f"{limit} advisors are already answering, the most this office runs at once. "
+                "Wait for one to finish or stop one.",
+            )
+
+    def settle(self, root):
+        """Refuse a launch while a command outside the server holds the office lock.
+
+        Another run's fo command holds it for a moment, so a held lock is probed again for
+        a short while first. During the server's own sync the launch goes ahead: the run
+        is queued and starts when the sync ends.
+        """
+        if not self.clear.is_set():
+            return
+        deadline = time.monotonic() + PROBE_WAIT
+        while probe(root):
+            if not self.clear.is_set():
+                return
+            if time.monotonic() >= deadline:
+                raise OfficeError(
+                    "office_locked", "Another fo command holds the office lock; retry."
+                )
+            time.sleep(0.05)
+
+    def pause(self):
+        """Take the office for the server's own sync; refused while an advisor is answering."""
+        with self.mutex:
+            if self.active:
+                raise OfficeError("run_active", "An advisor is working; sync when it finishes.")
+            self.clear.clear()
+
+    def resume(self):
+        """The sync is over; queued runs start."""
+        self.clear.set()
 
     def cancel(self, root, run_id):
         with self.mutex:
-            if not self.running(run_id):
+            slot = self.active.get(run_id)
+            if slot is None:
                 raise OfficeError("not_running", "That run is not in progress.")
             self.cancelled.add(run_id)
             # A queued run has no process yet; run() stops it as soon as it starts.
-            if self.process is not None:
-                stop(self.process.pid, self.grace)
+            if slot.process is not None:
+                stop(slot.process.pid, self.grace)
         return self.get(root, run_id)
 
     def expire(self, run_id):
@@ -612,20 +697,25 @@ class RunManager:
 
     def halt(self, run_id, error):
         with self.mutex:
-            if self.running(run_id):
+            slot = self.active.get(run_id)
+            if slot is not None:
                 self.halted[run_id] = error
                 # A queued run has no process yet; run() stops it as soon as it starts.
-                if self.process is not None:
-                    stop(self.process.pid, self.grace)
+                if slot.process is not None:
+                    stop(slot.process.pid, self.grace)
 
     def shutdown(self):
-        """Stop the active run as the server stops, and wait for its record to settle."""
-        active, thread = self.active, self.thread
-        if active is None:
-            return
-        self.halt(active[1], ("server_stopped", "fo serve stopped mid-run."))
-        if thread is not None:
-            thread.join(self.grace + 5)
+        """Stop every run as the server stops, and wait for their records to settle."""
+        with self.mutex:
+            slots = dict(self.active)
+        for run_id in slots:
+            self.halt(run_id, ("server_stopped", "fo serve stopped mid-run."))
+        # Queued runs waiting on a sync see the halt once they stop waiting.
+        self.clear.set()
+        deadline = time.monotonic() + self.grace + 5
+        for slot in slots.values():
+            if slot.thread is not None:
+                slot.thread.join(max(0.0, deadline - time.monotonic()))
 
     def begin(self, root, record, prompt, session, config, shown=None):
         """Log the user's turn and start the engine; shown is what the user typed."""
@@ -634,10 +724,27 @@ class RunManager:
         record["seq"] = max([record["seq"], *(e["seq"] for e in logged)])
         self.live[record["id"]] = []
         self.emit(root, record, {"kind": "user", "text": shown or prompt})
-        self.thread = threading.Thread(
+        thread = threading.Thread(
             target=self.run, args=(root, record, prompt, session, config), daemon=True
         )
-        self.thread.start()
+        with self.mutex:
+            slot = self.active.get(record["id"])
+            if slot is not None:
+                slot.thread = thread
+        thread.start()
+
+    def stopped(self, run_id):
+        return run_id in self.cancelled or run_id in self.halted
+
+    def queue(self, record):
+        """Wait out the server's own sync; False when the run was stopped while it waited."""
+        deadline = time.monotonic() + SYNC_WAIT
+        while not self.clear.wait(0.2):
+            if self.stopped(record["id"]):
+                return False
+            if time.monotonic() >= deadline:
+                break
+        return not self.stopped(record["id"])
 
     def run(self, root, record, prompt, session, config):
         runner = self.runners.get(record.get("engine") or record.get("runner"))
@@ -649,6 +756,11 @@ class RunManager:
             getattr(runner, "web_household", False),
         )
         writes = record["skill"] == "onboard" and getattr(runner, "profile_writes", False)
+        if not self.queue(record):
+            self.finish(root, record, None, None, None)
+            return
+        # Engines that keep parse state (Codex) hand out one parser per run.
+        parser = runner.parser() if hasattr(runner, "parser") else runner
         try:
             folder = self.run_folder(root, record["id"])
             # The fetch cap bounds one turn, so a long conversation can keep looking up.
@@ -677,6 +789,8 @@ class RunManager:
                 web_scope=web_scope(record["level"]),
                 skill=record["skill"],
             )
+            # Other conversations run fo commands too; wait for the lock instead of failing.
+            env[LOCK_WAIT] = str(RUN_LOCK_WAIT)
             process = subprocess.Popen(
                 argv,
                 stdin=subprocess.PIPE,
@@ -692,8 +806,10 @@ class RunManager:
             self.finish(root, record, None, None, ("runner_missing", "The runner could not start."))
             return
         with self.mutex:
-            self.process = process
-            if record["id"] in self.cancelled or record["id"] in self.halted:
+            slot = self.active.get(record["id"])
+            if slot is not None:
+                slot.process = process
+            if self.stopped(record["id"]):
                 stop(process.pid, self.grace)
         timer = threading.Timer(config["run_timeout_minutes"] * 60, self.expire, [record["id"]])
         timer.daemon = True
@@ -712,7 +828,7 @@ class RunManager:
             except OSError:
                 pass
             for line in process.stdout:
-                for event in runner.parse(line, root):
+                for event in parser.parse(line, root):
                     kind = event["kind"]
                     if kind == "init":
                         record["session_id"] = event.get("session_id") or record["session_id"]
@@ -854,9 +970,7 @@ class RunManager:
             self.save(root, record)
         finally:
             with self.mutex:
-                if self.running(record["id"]):
-                    self.active = None
-                    self.process = None
+                self.active.pop(record["id"], None)
                 self.cancelled.discard(record["id"])
                 self.halted.pop(record["id"], None)
             with self.changed:
@@ -872,7 +986,8 @@ class RunManager:
         progress leaves the files as they are for doctor to report.
         """
         try:
-            with office_lock(root):
+            # Another conversation's fo command may hold the lock for a moment.
+            with office_lock(root, wait=RUN_LOCK_WAIT):
                 commit_paths(root, ["profile"], PROFILE_COMMIT)
         except (OfficeError, OSError, subprocess.SubprocessError):
             pass

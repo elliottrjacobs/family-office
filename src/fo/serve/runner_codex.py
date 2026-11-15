@@ -23,6 +23,7 @@ The prompt goes on stdin. Codex has no budget flag: a run is bounded by the serv
 and the budget is recorded for information only.
 """
 
+import copy
 import json
 import os
 import re
@@ -288,8 +289,14 @@ class CodexRunner:
         self.executable = list(executable)
         self.python = python or sys.executable
         self.auth_home = auth_home
-        # The thread and last reply of the run being parsed; runs are one at a time.
+        # The thread and last reply of the run being parsed; see parser().
         self.thread, self.reply = None, ""
+
+    def parser(self):
+        """A copy that parses one run, so concurrent runs never share a thread or reply."""
+        clone = copy.copy(self)
+        clone.thread, clone.reply = None, ""
+        return clone
 
     def auth(self):
         """The user's Codex sign-in, which every run links to and never copies."""

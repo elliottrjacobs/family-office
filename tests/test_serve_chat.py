@@ -5,6 +5,7 @@ import sys
 import pytest
 
 from fo import notebook
+from fo.config import set_config
 from fo.lock import office_lock
 from fo.serve.runs import RunManager
 from tests.offices import synthetic
@@ -80,6 +81,7 @@ def test_runner_status_is_reported_and_cached(office, tmp_path):
             "default": "claude",
             "deep": True,
             "web": "on",
+            "parallel_runs": 3,
             "engines": [
                 {
                     "name": "claude",
@@ -151,10 +153,11 @@ def test_follow_up_and_cancel_through_the_api(office, tmp_path):
         {"fake": "sleep", "seconds": 0.3},
         {"fake": "result"},
     ]
+    set_config(office, "serve.parallel_runs", "1")
     with chat(office, tmp_path, lines, grace=0.5) as (app, client):
         record = client.post("/api/runs", {"skill": "research", "subject": "BETA"})[1]
         status, data = client.post("/api/runs", {"skill": "lynch", "subject": "ACME"})
-        assert (status, data["reason"]) == (409, "run_active")
+        assert (status, data["reason"]) == (409, "run_limit")
         settle(app.runs, office, record["id"])
         status, data = client.post(f"/api/runs/{record['id']}/message", {"text": "BETA, please."})
         assert status == 200
@@ -287,7 +290,8 @@ def test_ui_decisions_match_terminal_ones(office, tmp_path):
     assert len({tuple(d) for d in briefed}) == 1
 
 
-def test_a_held_lock_gives_a_retry_hint(office, tmp_path):
+def test_a_held_lock_gives_a_retry_hint(office, tmp_path, monkeypatch):
+    monkeypatch.setattr("fo.serve.runs.PROBE_WAIT", 0.2)
     decision = notebook.decisions(office)[0]["id"]
     with chat(office, tmp_path) as (_, client):
         with office_lock(office):

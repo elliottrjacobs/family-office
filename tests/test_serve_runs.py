@@ -135,7 +135,8 @@ def test_completion_follows_the_report_then_decisions_then_exit(
     assert (record["error"] or {}).get("reason") == reason
 
 
-def test_a_second_launch_waits_for_the_first(office, tmp_path):
+def test_an_office_set_to_one_advisor_at_a_time_refuses_a_second(office, tmp_path):
+    set_config(office, "serve.parallel_runs", "1")
     runner, _ = runner_for(
         tmp_path,
         [
@@ -149,7 +150,7 @@ def test_a_second_launch_waits_for_the_first(office, tmp_path):
     first = manager.launch(office, "research", "BETA")
     with pytest.raises(OfficeError) as raised:
         manager.launch(office, "lynch", "ACME")
-    assert raised.value.reason == "run_active"
+    assert raised.value.reason == "run_limit"
     settle(manager, office, first["id"])
     second = manager.launch(office, "lynch", "ACME")
     settle(manager, office, second["id"])
@@ -157,11 +158,12 @@ def test_a_second_launch_waits_for_the_first(office, tmp_path):
 
 def test_a_held_lock_refuses_launch_and_reads_never_probe(office, tmp_path, monkeypatch):
     manager = RunManager(runner_for(tmp_path, COMPLETE)[0])
+    monkeypatch.setattr("fo.serve.runs.PROBE_WAIT", 0.2)
     with office_lock(office):
         with pytest.raises(OfficeError) as raised:
             manager.launch(office, "research", "BETA")
     assert raised.value.reason == "office_locked"
-    assert manager.active is None and manager.list(office) == []
+    assert not manager.active and manager.list(office) == []
     probes = []
     monkeypatch.setattr("fo.serve.runs.probe", lambda root: probes.append(root) or False)
     record = settle(manager, office, manager.launch(office, "research", "BETA")["id"])
@@ -184,7 +186,7 @@ def test_launch_validates_the_advisor_level_and_subject(office, tmp_path):
         with pytest.raises(OfficeError) as raised:
             manager.launch(office, *args)
         assert raised.value.reason == reason, args
-    assert manager.active is None
+    assert not manager.active
 
 
 def test_an_unisolated_session_is_stopped(office, tmp_path):
@@ -540,7 +542,7 @@ def test_a_launch_with_a_bad_engine_model_or_effort_is_refused(office, tmp_path,
     with pytest.raises(OfficeError) as raised:
         manager.launch(office, "research", "BETA", **options)
     assert raised.value.reason == reason
-    assert manager.active is None and manager.list(office) == []
+    assert not manager.active and manager.list(office) == []
 
 
 def test_a_default_engine_that_is_not_registered_is_refused(office, tmp_path):
@@ -559,7 +561,7 @@ def test_a_failed_preflight_never_starts_a_run(office, tmp_path):
     manager = RunManager(runner)
     with pytest.raises(OfficeError):
         manager.launch(office, "research", "BETA")
-    assert manager.active is None and manager.list(office) == []
+    assert not manager.active and manager.list(office) == []
 
 
 def test_environment_is_scrubbed_and_pins_the_office(office, monkeypatch):

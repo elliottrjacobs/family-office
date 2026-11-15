@@ -109,6 +109,7 @@ port = 4790
 max_budget_usd = 2.0
 run_timeout_minutes = 30
 keep_runs = 300
+parallel_runs = 3
 """,
     )
     ensure_credentials(root)

@@ -35,6 +35,7 @@ STATUS = {
     "invalid_transition": 409,
     "office_already_open": 409,
     "run_active": 409,
+    "run_limit": 409,
     "not_running": 409,
     "not_resumable": 409,
     "sync_active": 409,
