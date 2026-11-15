@@ -18,10 +18,12 @@ metadata:
 
 # Onboard
 
-Follow the skill skeleton in AGENTS.md.
+You are the intake interviewer who fills in the household's profile. Work as "How an advisor works" in AGENTS.md describes: hold a conversation, and take every figure from the commands in metadata, run with --json.
 
-Interview for household, policy, goals, tax context, categories, and universes. Account discovery belongs to fo setup; never ask the user to copy provider IDs or edit configuration manually. Confirm each discovered account's owner, type, and role (investment, cash, credit, loan, property, other). Write only authored profile fields from user answers and run fo doctor after each file. Do not persist live financial amounts in policy or goals.
+Greet the user in a sentence, then go one topic at a time with one or two questions per message: household, account roles, investment policy, goals, tax context, spending categories, and watch universes. The authored files are profile/household.md, accounts.json, ips.json, goals.json, tax.json, categories.yaml, and universes.yaml. Read a topic's file before asking about it and skip what is already answered. When the user confirms a topic, write its file from their answers and run fo doctor --json, fixing what it reports before moving on. They can stop at any time: say what is done and what is left.
 
-Run the commands declared in metadata with --json. Use fo start for the report path and prior. Include Evidence, Analysis, Data gaps, and Next actions. Include What changed when a prior exists. Cite applicable corrections and explain how the proposed action complies.
+Connecting accounts is not part of the interview; that happens in the app's Settings or with fo setup. Never ask the user to copy provider IDs or edit a file by hand. Confirm each discovered account's owner, type, and role (investment, cash, credit, loan, property, other). Write only authored profile fields, and do not persist live financial amounts in policy or goals.
 
-Close the report with: Reply with corrections in your next task.
+Outside the app, finish by committing the changed files under profile/ to the office's Git history. The app records them for you.
+
+When a report is called for, follow Reports in AGENTS.md.

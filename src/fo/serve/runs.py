@@ -116,49 +116,33 @@ MODEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/@\[\]-]{0,199}")
 MESSAGE_LIMIT = 8000
 TITLE_LIMIT = 80
 REPORT_ARGUMENT = re.compile(r"--report[=\s]+(\S+)")
-# What a conversation's first turn tells the advisor, after the skill invocation.
+# What the app adds to a conversation's first turn, after the skill invocation. How an
+# advisor converses, cites the web, and writes a report is in the skills and the office's
+# AGENTS.md, so a coding agent opened on the office folder behaves the same; this note
+# carries only what is particular to a run started by the app.
 CHAT = (
-    "This is a conversation in the Family Office app, not a one-shot report task. Answer "
-    "the user's message below directly and in plain language, and ask a short question "
-    "back when you need something only they know.\n"
-    "- Before your first answer, run fo start {skill} <subject> --level {level} --json for "
-    "the standing corrections, open decisions, and brief. The subject is the ticker when "
-    "the message is about one security, otherwise household.\n"
-    "- Take the household's figures from fo commands, never from memory or a guess. The "
-    "shell runs only fo commands, one per call, with no pipes or redirects; read files with "
-    "the Read tool.\n"
-    "- Do not narrate your tool use or its errors; the user sees your steps already.\n"
-    "- End with your answer or your question. The closing line a written report carries "
-    "belongs in the report file only, never in a chat reply.\n"
-    "- {web}\n"
-    "- Write a report only when the user asks for one or the answer is an analysis they "
-    "will want to keep; then follow the skill skeleton and say where it was saved. "
-    "Otherwise just answer.\n"
-    "- Record a decision with fo journal add only when the user makes one or asks you to."
+    "You are in the Family Office app. This is the conversation your skill and AGENTS.md "
+    "describe, and the user's message is below. What is particular to the app:\n"
+    "- Open with fo start {skill} <subject> --level {level} --json.\n"
+    "- The shell here runs only fo commands, one per call, with no pipes or redirects; read "
+    "files with the file-reading tool instead.\n"
+    "- The user watches your steps as you work, so do not narrate tool use or its errors.\n"
+    "- The user has no terminal here. Never ask them to run a command or edit a file: do it "
+    "yourself, or name the place in the app's Settings.\n"
+    "- {web}"
 )
 WEB_ON = (
-    "Web search and fetch are on. Use them to check anything that changes: current law, "
-    "limits, rates, deadlines, prices, and news. Cite each source with its URL and the "
-    "date you retrieved it, and say so when you could not confirm something. Never put "
-    "names, account numbers, or exact balances in a search or a URL."
+    "Web search and fetch are on in this chat. Use them as Web evidence in AGENTS.md says, "
+    "and never put names, account numbers, or exact balances in a search or a URL."
 )
 WEB_OFF = (
-    "Web search and fetch are off in this conversation. Say so when an answer depends on "
-    "current rules or prices you cannot check; the user can turn web access on below the "
-    "message box."
+    "Web search and fetch are off in this chat. Say so when an answer depends on current "
+    "rules or prices you cannot check; the user can turn web access on below the message box."
 )
-# The onboard interview happens in the conversation and writes the authored profile.
+# The onboard skill carries the interview itself; the app only records what it writes.
 INTERVIEW = (
-    "This is the intake interview. Greet the user in a sentence, then work through "
-    "household, account roles, investment policy, goals, tax context, spending "
-    "categories, and watch universes, one topic at a time, with one or two questions per "
-    "message. The authored files are profile/household.md, accounts.json, ips.json, "
-    "goals.json, tax.json, categories.yaml, and universes.yaml: read the one for a topic "
-    "before asking about it and skip what is already answered. Once the user confirms a "
-    "topic, write its file under profile/ and run fo doctor --json. What you write is "
-    "recorded in the office's history for you after every reply, so never mention "
-    "committing. Never ask the user to open a terminal, run a command, or edit a file: you "
-    "do that here."
+    "What you write under profile/ is recorded in the office's history for you after every "
+    "reply, so do not commit and never mention committing."
 )
 PROFILE_COMMIT = "Update the profile from the onboard interview"
 WEB_CHANGED = "(Web search and fetch are now {state} for this conversation.)"

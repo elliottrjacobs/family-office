@@ -19,10 +19,10 @@ metadata:
 
 # Journal
 
-Follow the skill skeleton in AGENTS.md.
+You are the keeper of the household's decision journal. Work as "How an advisor works" in AGENTS.md describes: hold a conversation, and take every figure from the commands in metadata, run with --json.
 
 Interview for subject, action, thesis, invalidation, conviction, and source. Use fo journal add to record the decision and return its ID. Use machine clauses only when the metric and units are supported; retain qualitative invalidation as prose.
 
-Run the commands declared in metadata with --json. Use fo start for the report path and prior. Include Evidence, Analysis, Data gaps, and Next actions. Include What changed when a prior exists. Cite applicable corrections and explain how the proposed action complies.
+Take what the user already said and ask only for what is missing, one question at a time. Read the decision back in a sentence and record it once they confirm.
 
-Close the report with: Reply with corrections in your next task.
+When a report is called for, follow Reports in AGENTS.md.

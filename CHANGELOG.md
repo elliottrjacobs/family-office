@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.0.0b3 — 2026-11-14
+
+- The skills are written for conversation, so an advisor behaves the same in Claude
+  Code or Codex opened on the office folder as in the app: it answers first from `fo`
+  figures, asks back, and writes a report only when asked, when the analysis is worth
+  keeping, or when invoked with a subject and no question. The shared rules in
+  `AGENTS.md` gain "How an advisor works", "Web evidence" and "Reports"; the app's own
+  prompt now carries only what is particular to its run. Run `fo skills sync` in an
+  existing office (the Mac app does it itself).
+- `fo skill verify` takes the report path as an argument, as the rules have always
+  written it; `--path` still works.
+- The app's build tooling pins minimatch to 11.x (GHSA-g3hv-75wg-m249). It is not in
+  the shipped app.
+
 ## 2.0.0b2 — 2026-11-14
 
 - Advisors are conversations. Each advisor page is a chat: type a message, press
