@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Plaid is an optional account connector you use with your own Plaid developer
+  account: `fo auth plaid` (or Settings > Connectors > Plaid in the Mac app) asks for
+  your client ID and secret, keeps them in the per-machine credentials folder, and
+  opens Plaid Link on a one-time local page. Sync brings Plaid accounts, balances,
+  holdings and transactions into the same records as the other providers. Run it
+  again to add an institution or reconnect one that needs attention. SimpleFIN and
+  Schwab are unchanged, and setup still connects them by default.
 - Claude's model list offers Fable 5.2 in place of Fable 5.1 and recommends Opus 5.5,
   which is also the default when `office.toml` names no Claude model. An office that
   set a model keeps it; one set to Fable 5.1 shows it under Other.

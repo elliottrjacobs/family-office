@@ -31,14 +31,26 @@ repository. A private Git remote is optional; setup does not create one.
 - **SimpleFIN:** connect your institutions through SimpleFIN, then enter its setup
   token at the hidden local prompt. The CLI exchanges it for an access credential.
   Institution coverage and available data depend on the connection.
+- **Plaid (optional, your own account):** each user signs up for their own Plaid
+  developer account and uses their own client ID and secret; Family Office has no
+  shared Plaid account, embedded keys, or hosted service. `fo auth plaid` asks for
+  the keys at hidden prompts and for their environment (`sandbox` to try it with
+  Plaid's test institutions, `production` for real ones), then opens Plaid Link on a
+  one-time page served from `127.0.0.1` so you sign in to your institution with
+  Plaid, not the agent. Run it once per institution; it also offers to reconnect an
+  institution that needs attention, which does not use another Plaid Item. Sync
+  reads accounts, cached balances, holdings, investment transactions and
+  transactions, and never calls Plaid's money-movement products. Plaid's free Trial
+  allows a fixed number of Items in total, and removing one does not return its
+  slot. SimpleFIN and Schwab stay available; using Plaid is your choice.
 - **Other brokerages:** the calculations and advisor skills use normalized account
   data, but direct authentication and synchronization currently support Schwab
   only. Fidelity or another brokerage requires a new read-only adapter if it
   offers an accessible developer API; changing a broker name or API key is not
   enough. Supported CSV imports are another path; other export formats need mapping.
 
-Choose `--provider schwab` or `--provider simplefin` to connect only that provider;
-without this option, setup attempts both. Use `--offline` to prepare an office
+Choose `--provider schwab`, `--provider simplefin` or `--provider plaid` to connect
+only that provider; without this option, setup attempts Schwab and SimpleFIN. Use `--offline` to prepare an office
 without either connection. Optional market-data API keys are separate from
 brokerage credentials.
 
@@ -49,7 +61,8 @@ you may still need to identify account owners or clarify account labels.
 If a sync returns no registered account, `fo doctor` and onboarding show the repair
 before retrying. Institution errors require repairing the connection at the provider.
 Without institution errors, register the returned accounts with `fo auth <provider>`.
-For SimpleFIN, get a new setup token first, then run `fo auth simplefin`.
+For SimpleFIN, get a new setup token first, then run `fo auth simplefin`. For Plaid,
+run `fo auth plaid`; it offers to reconnect each institution in error.
 The office may live in iCloud Drive or another synced folder. Credentials stay in
 an outside, per-machine folder keyed by `[office].id` in `office.toml`: on macOS,
 `~/Library/Application Support/FamilyOffice/credentials/<office-id>/`; elsewhere,
