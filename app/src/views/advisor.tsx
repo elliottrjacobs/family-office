@@ -92,9 +92,13 @@ function Welcome({
 
 /** Why web access is unavailable for this conversation, or undefined when it can be on. */
 function webBlocked(policy: string, level: string, engine: string | undefined) {
-  if (policy === "off") return "Web access is turned off for this office."
+  // The Mac app's Settings window holds the office's web policy.
+  const change = hasNative() ? " Change it in Settings > Advanced." : ""
+  if (policy === "off") return "Web access is turned off for this office." + change
   if (level === "none") return undefined
-  if (policy === "isolated") return "This office allows web access only in chats that read no household data."
+  if (policy === "isolated") {
+    return "This office allows web access only in chats that read no household data." + change
+  }
   if (engine === "codex") return "Codex cannot use the web in a chat that reads household data."
   return undefined
 }
@@ -111,7 +115,7 @@ function Conversation({
   runner: RunnerStatus
   history: Loaded<Run[]>
 }) {
-  const { refresh } = useAppData()
+  const { refresh, status: office } = useAppData()
   const name = advisorName(advisor.name)
   const journal = useApi("decisions", decisions)
   const record = useApi(`run:${runId ?? "none"}`, () => (runId ? fetchRun(runId) : Promise.resolve(undefined)))
@@ -158,7 +162,6 @@ function Conversation({
   const run = runId ? record.data : undefined
   const status = transcript.status ?? run?.status
   const working = (status !== undefined && ACTIVE.includes(status)) || pending !== undefined
-  const elsewhere = history.data?.find((r) => ACTIVE.includes(r.status) && r.id !== runId)
   const text = draft.chat === runId ? draft.text : ""
 
   const level = run?.level ?? settings.level
@@ -207,8 +210,10 @@ function Conversation({
 
   const fresh = !runId && !pending
   const unusable = Boolean(runId) && !record.loading && run !== undefined && !run.session_id && !working
-  const notice = elsewhere
-    ? undefined
+  // A message sent during an account sync starts when the sync ends.
+  const waiting = status === "queued" && Boolean(office?.sync?.running)
+  const notice = waiting
+    ? "Waiting for the account sync to finish…"
     : working
       ? `${name} is answering…`
       : unusable
@@ -254,16 +259,6 @@ function Conversation({
             {error}
           </p>
         )}
-        {elsewhere && (
-          <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-            <span className="min-w-0 flex-1">
-              {advisorName(elsewhere.skill)} is answering in “{chatTitle(elsewhere)}”. One advisor works at a time.
-            </span>
-            <Button variant="outline" size="sm" render={<Link to={chatHref(elsewhere)} />}>
-              Open that chat
-            </Button>
-          </p>
-        )}
         <Composer
           key={runId ?? "new"}
           placeholder={
@@ -274,7 +269,7 @@ function Conversation({
           onSend={send}
           onStop={runId ? () => void stop() : undefined}
           working={working}
-          disabled={Boolean(elsewhere) || unusable}
+          disabled={unusable}
           notice={notice}
           focusSignal={focus}
           autoFocus
@@ -424,8 +419,11 @@ export function AdvisorPage({ name }: { name: string }) {
   const { registry, status } = useAppData()
   const { query } = useLocation()
   const current = query.get("chat")
-  const runner = useApi(status?.chat ? "runner" : "runner-off", () =>
-    status?.chat ? runnerStatus() : Promise.resolve(undefined)
+  // Polled so a change in Settings, such as the web policy, shows without a reload.
+  const runner = useApi(
+    status?.chat ? "runner" : "runner-off",
+    () => (status?.chat ? runnerStatus() : Promise.resolve(undefined)),
+    10_000
   )
   // Polled so a chat answering elsewhere, or finished on another device, shows up here.
   const history = useApi(status?.chat ? "runs" : "runs-off", () => (status?.chat ? runs() : Promise.resolve([])), 5_000)

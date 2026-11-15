@@ -63,6 +63,17 @@ function SyncStatus() {
   const lastSync = status?.office?.last_sync
   const label = lastSync ? `Synced ${moment(lastSync.as_of)}` : "Not synced"
   if (!status?.chat) return <span className="hidden sm:inline">{label}</span>
+  const plan = status.sync
+  // The server's own sync, automatic or started on another device, shows here too.
+  const busy = syncing.busy || Boolean(plan?.running)
+  const schedule =
+    plan?.auto && !plan.reason && plan.hours
+      ? `Accounts sync automatically about every ${plan.hours === 1 ? "hour" : `${plan.hours} hours`} while the app is open.`
+      : plan?.reason === "not_writer"
+        ? "Another computer syncs this office."
+        : plan?.reason === "off"
+          ? "Automatic sync is off."
+          : undefined
   const failed =
     syncing.error ?? syncing.outcomes?.find((row) => row.status !== "complete" && row.status !== "skipped")?.message
   return (
@@ -76,13 +87,13 @@ function SyncStatus() {
       <button
         type="button"
         onClick={() => void syncing.run()}
-        disabled={syncing.busy}
-        title="Sync accounts now"
-        aria-label={syncing.busy ? "Syncing accounts" : `${label}. Sync accounts now.`}
+        disabled={busy}
+        title={[schedule, "Press to sync now."].filter(Boolean).join(" ")}
+        aria-label={busy ? "Syncing accounts" : `${label}. Sync accounts now.`}
         className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-70"
       >
-        {syncing.busy ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
-        <span className="hidden sm:inline">{syncing.busy ? "Syncing…" : label}</span>
+        {busy ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+        <span className="hidden sm:inline">{busy ? "Syncing…" : label}</span>
       </button>
     </>
   )

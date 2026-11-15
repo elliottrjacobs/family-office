@@ -21,6 +21,17 @@ export interface SyncRow {
   account_ids?: string[]
 }
 
+/** Account sync as the server sees it: one in progress, and the automatic schedule. */
+export interface SyncState {
+  running: "manual" | "auto" | null
+  /** [serve] auto_sync: the server syncs on its own when the data is older than `hours`. */
+  auto: boolean
+  hours: number | null
+  /** Why no automatic sync is planned: off, not_writer, or no_accounts. */
+  reason?: string | null
+  next: string | null
+}
+
 export interface Status {
   version: string
   mode: "office" | "onboarding"
@@ -36,6 +47,7 @@ export interface Status {
     writer_host: boolean
     last_sync: SyncRow | null
   } | null
+  sync?: SyncState | null
 }
 
 export type OnboardingState =

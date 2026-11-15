@@ -1,7 +1,7 @@
 import { act, cleanup, render, screen } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { useApi } from "@/api/use-api"
+import { refreshAll, useApi } from "@/api/use-api"
 
 afterEach(cleanup)
 
@@ -11,6 +11,18 @@ function Figure({ load }: { load: () => Promise<number> }) {
 }
 
 describe("useApi", () => {
+  it("refreshAll asks again for everything on screen, as after a sync", async () => {
+    const load = vi.fn().mockResolvedValueOnce(1).mockResolvedValueOnce(2)
+    render(<Figure load={load} />)
+    await act(async () => {})
+    expect(screen.getByText("value 1")).toBeTruthy()
+    await act(async () => {
+      refreshAll()
+    })
+    expect(screen.getByText("value 2")).toBeTruthy()
+    expect(load).toHaveBeenCalledTimes(2)
+  })
+
   it("a view that mounts again shows the last answer at once, with no loading state", async () => {
     const load = vi.fn().mockResolvedValue(7)
     const first = render(<Figure load={load} />)

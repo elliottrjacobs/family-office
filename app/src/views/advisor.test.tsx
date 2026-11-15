@@ -182,17 +182,23 @@ describe("AdvisorPage", () => {
     expect(toggle.title).toMatch(/only in chats that read no household data/)
   })
 
-  it("lists earlier chats with this advisor only, and another advisor answering blocks sending", async () => {
+  it("lists earlier chats with this advisor only, and another advisor answering does not block sending", async () => {
     history = [
       { ...started, id: "01M50V918GZEEPD9WHWV3M7CH7", status: "awaiting_input", title: "Beneficiaries on the IRA" },
       { ...started, id: "01M50V918GZEEPD9WHWV3M7CH8", skill: "tax", status: "running", title: "Roth conversion" },
     ]
-    await page()
+    const fetch = await page()
     const list = within(await screen.findByRole("navigation", { name: "Chat history" }))
     expect(list.getByRole("link", { name: /Beneficiaries on the IRA/ })).toBeTruthy()
     expect(list.queryByText("Roth conversion")).toBeNull()
-    expect(screen.getByText(/Tax is answering in “Roth conversion”/)).toBeTruthy()
-    expect((screen.getByRole("textbox", { name: "Message" }) as HTMLTextAreaElement).disabled).toBe(true)
+    expect(screen.queryByText(/One advisor works at a time/)).toBeNull()
+    const box = screen.getByRole("textbox", { name: "Message" }) as HTMLTextAreaElement
+    expect(box.disabled).toBe(false)
+    fireEvent.change(box, { target: { value: "Who inherits the house?" } })
+    await act(async () => {
+      fireEvent.keyDown(box, { key: "Enter" })
+    })
+    await waitFor(() => expect(posted(fetch).message).toBe("Who inherits the house?"))
   })
 
   it("Onboard interviews in the app: one button starts it, and nothing mentions a terminal", async () => {

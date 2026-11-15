@@ -31,10 +31,19 @@ const answers = new Map<string, { data: unknown; at: number }>()
 const asking = new Map<string, Promise<unknown>>()
 const FRESH = 2_000
 
+// Every mounted useApi, so new office data can be asked for everywhere at once.
+const mounted = new Set<() => void>()
+
 /** Forget every remembered answer; tests call this between cases. */
 export function resetApiCache() {
   answers.clear()
   asking.clear()
+}
+
+/** Ask again for everything on screen, such as after a sync brought new data. */
+export function refreshAll() {
+  answers.clear()
+  for (const reload of mounted) reload()
 }
 
 function ask<T>(key: string, load: () => Promise<T>): Promise<T> {
@@ -106,6 +115,12 @@ export function useApi<T>(key: string, load: () => Promise<T>, interval?: number
   }, [interval])
 
   const reload = React.useCallback(() => setTick((t) => t + 1), [])
+  React.useEffect(() => {
+    mounted.add(reload)
+    return () => {
+      mounted.delete(reload)
+    }
+  }, [reload])
   const current = result.key === key
   // Between a key change and its effect, the remembered answer stands in.
   const known = current ? undefined : answers.get(key)
