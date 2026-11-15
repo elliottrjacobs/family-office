@@ -54,16 +54,18 @@ def test_uninitialized_path_shows_setup_then_unconnected(tmp_path):
     assert commands(result) == [
         f"fo setup {quoted}",
         f"fo setup {quoted} --offline",
-        f"fo setup {quoted} --provider schwab",
-        f"fo setup {quoted} --provider simplefin",
         f"fo setup {quoted} --provider plaid",
+        f"fo setup {quoted} --provider simplefin",
+        f"fo setup {quoted} --provider schwab",
     ]
     initialize(folder)
     result = derive(Locator(folder))
     assert result["state"] == "unconnected"
-    assert commands(result)[:2] == [
-        f"fo auth schwab --office {quoted}",
+    # Every provider is offered, none preselected.
+    assert commands(result) == [
+        f"fo auth plaid --office {quoted}",
         f"fo auth simplefin --office {quoted}",
+        f"fo auth schwab --office {quoted}",
     ]
 
 

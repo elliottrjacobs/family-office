@@ -23,7 +23,7 @@ from fo.office import contained
 from fo.store.authored import load
 from fo.store.jsonl import read_rows
 
-LIVE = ("schwab", "simplefin", "plaid")
+LIVE = ("plaid", "simplefin", "schwab")
 REASONS = {
     "no_office": "No office is open yet. Choose a folder for a new office.",
     "uninitialized_path": "This folder has no office yet. Create one in a terminal.",
@@ -84,9 +84,10 @@ def fix(root, name):
     if name.startswith("sync.age") or name == "sync.coverage":
         return fo("sync", root=root), None
     if name == "providers":
-        return (
-            fo("auth", "simplefin", root=root),
-            "Or connect Schwab with fo auth schwab, or your own Plaid account with fo auth plaid.",
+        # No provider is preferred; the user picks one.
+        return None, (
+            "Connect an account provider of your choice: fo auth plaid (your own Plaid keys, "
+            "broad bank and brokerage coverage), fo auth simplefin, or fo auth schwab."
         )
     if name == "sync.errors.plaid":
         return fo("auth", "plaid", root=root), "It offers to reconnect each institution in error."
@@ -184,15 +185,20 @@ def derive(locator):
             "steps": [
                 step(
                     fo("setup", candidate),
-                    "Create the office and connect Schwab and SimpleFIN.",
+                    "Create the office; it asks which account provider to connect, if any.",
                     "setup",
                 ),
                 step(fo("setup", candidate, "--offline"), "Create the office without accounts."),
-                step(fo("setup", candidate, "--provider", "schwab"), "Connect only Schwab."),
-                step(fo("setup", candidate, "--provider", "simplefin"), "Connect only SimpleFIN."),
                 step(
                     fo("setup", candidate, "--provider", "plaid"),
-                    "Connect only Plaid, with your own Plaid developer keys.",
+                    "Create it and connect Plaid with your own Plaid developer keys.",
+                ),
+                step(
+                    fo("setup", candidate, "--provider", "simplefin"),
+                    "Create it and connect SimpleFIN.",
+                ),
+                step(
+                    fo("setup", candidate, "--provider", "schwab"), "Create it and connect Schwab."
                 ),
             ],
         }
@@ -231,9 +237,9 @@ def derive(locator):
             "unconnected",
             [
                 step(
-                    fo("auth", "schwab", root=root),
-                    "Connect Schwab in the browser it opens.",
-                    "connect:schwab",
+                    fo("auth", "plaid", root=root),
+                    "Enter your own Plaid client ID and secret, then link in Plaid Link.",
+                    "connect:plaid",
                 ),
                 step(
                     fo("auth", "simplefin", root=root),
@@ -241,14 +247,15 @@ def derive(locator):
                     "connect:simplefin",
                 ),
                 step(
-                    fo("auth", "plaid", root=root),
-                    "Enter your own Plaid client ID and secret, then link in Plaid Link.",
-                    "connect:plaid",
+                    fo("auth", "schwab", root=root),
+                    "Connect Schwab in the browser it opens.",
+                    "connect:schwab",
                 ),
             ],
         )
         result["note"] = (
-            "To work from CSV exports instead, ask the Onboard advisor to register the accounts."
+            "Choose any one of these, or more. To work from CSV exports instead, ask the "
+            "Onboard advisor to register the accounts."
         )
     elif offline and not any(r["provider"] == "csv" for r in complete):
         state, steps = (

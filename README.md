@@ -21,20 +21,15 @@ repository. A private Git remote is optional; setup does not create one.
 
 ### Connections and credentials
 
-- **Schwab:** the current direct brokerage integration requires your developer
-  application's app key, app secret, and registered callback URL. Setup prompts
-  for the key and secret with hidden terminal input. It opens the browser so you
-  can sign in directly to Schwab and authorize account access. The local callback
-  receives the authorization result and saves tokens; you do not give your
-  brokerage password to the agent. An approved developer application is a
-  prerequisite that setup cannot create for you.
-- **SimpleFIN:** connect your institutions through SimpleFIN, then enter its setup
-  token at the hidden local prompt. The CLI exchanges it for an access credential.
-  Institution coverage and available data depend on the connection.
-- **Plaid (optional, your own account):** each user signs up for their own Plaid
-  developer account and uses their own client ID and secret; Family Office has no
-  shared Plaid account, embedded keys, or hosted service. `fo auth plaid` asks for
-  the keys at hidden prompts and for their environment (`sandbox` to try it with
+No account provider is connected by default. You choose one or more of the providers
+below, or none and import CSV exports instead. `fo setup` asks which; `fo auth
+<provider>` connects one at any time, and each user connects their own.
+
+- **Plaid (your own Plaid account):** broad coverage of banks, cards and
+  brokerages, so it is usually the one to try first. Each user signs up for their
+  own Plaid developer account and uses their own client ID and secret; Family Office
+  has no shared Plaid account, embedded keys, or hosted service. `fo auth plaid` asks
+  for the keys at hidden prompts and for their environment (`sandbox` to try it with
   Plaid's test institutions, `production` for real ones), then opens Plaid Link on a
   one-time page served from `127.0.0.1` so you sign in to your institution with
   Plaid, not the agent. Run it once per institution; it also offers to reconnect an
@@ -42,16 +37,28 @@ repository. A private Git remote is optional; setup does not create one.
   reads accounts, cached balances, holdings, investment transactions and
   transactions, and never calls Plaid's money-movement products. Plaid's free Trial
   allows a fixed number of Items in total, and removing one does not return its
-  slot. SimpleFIN and Schwab stay available; using Plaid is your choice.
-- **Other brokerages:** the calculations and advisor skills use normalized account
-  data, but direct authentication and synchronization currently support Schwab
-  only. Fidelity or another brokerage requires a new read-only adapter if it
-  offers an accessible developer API; changing a broker name or API key is not
-  enough. Supported CSV imports are another path; other export formats need mapping.
+  slot.
+- **SimpleFIN:** connect your institutions through SimpleFIN, then enter its setup
+  token at the hidden local prompt. The CLI exchanges it for an access credential.
+  Institution coverage and available data depend on the connection.
+- **Schwab (direct):** requires your own Schwab developer application's app key,
+  app secret, and registered callback URL. `fo auth schwab` prompts for the key and
+  secret with hidden terminal input and opens the browser so you can sign in
+  directly to Schwab and authorize account access. The local callback receives the
+  authorization result and saves tokens; you do not give your brokerage password to
+  the agent. An approved developer application is a prerequisite that setup cannot
+  create for you.
+- **Fidelity and other institutions:** use Plaid or SimpleFIN if they cover the
+  institution. Coverage differs by institution and changes over time, so check
+  Plaid's coverage or simply try linking it. Schwab is the only direct brokerage
+  adapter; another direct one needs a new read-only adapter for an institution that
+  offers a developer API. CSV imports are another path; formats other than the
+  supported exports need mapping.
 
-Choose `--provider schwab`, `--provider simplefin` or `--provider plaid` to connect
-only that provider; without this option, setup attempts Schwab and SimpleFIN. Use `--offline` to prepare an office
-without either connection. Optional market-data API keys are separate from
+Pass `--provider plaid`, `--provider simplefin` or `--provider schwab` (repeatable)
+to `fo setup` to connect without being asked, or `--offline` to create the office
+with no connection. Without a terminal to ask in, setup connects nothing and says
+how to connect later. Optional market-data API keys are separate from
 brokerage credentials.
 
 After authorization, supported providers return account identifiers automatically.
@@ -91,8 +98,9 @@ uv sync --locked
 uv run fo setup ~/office
 ```
 
-`setup` creates a separate private repository, reuses valid credentials, connects
-Schwab and SimpleFIN, discovers accounts, syncs them, and runs diagnostics. To
+`setup` creates a separate private repository, asks which account provider to
+connect (Plaid, SimpleFIN, Schwab, or none), reuses valid credentials, discovers
+accounts, syncs them, and runs diagnostics. To
 prepare an unconnected office, the agent uses `fo setup ~/office --offline`.
 Provider availability and consent determine connection time; no live timing claim
 has been verified. Market keys are optional. SEC requests require a configured
