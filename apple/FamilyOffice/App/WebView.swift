@@ -10,20 +10,28 @@ import WebKit
 /// - It loads the handshake's landing URL, which sets the cookie the normal way, and loads it
 ///   again whenever `generation` changes (a new server after a restart, or View > Reload).
 /// - Only loopback pages load inside; any other link opens in the default browser.
+/// - The page can ask the app to open one of its own windows through the `familyOffice`
+///   message handler (`WebAction`): the setup dialog or a Settings pane. Nothing else is
+///   reachable from the page, and no value passes back to it.
 struct WebView: NSViewRepresentable {
     let handshake: Handshake
     let generation: Int
     let dataStore: WKWebsiteDataStore
     let onLoad: @MainActor ([HTTPCookie]) -> Void
+    let onAction: @MainActor (WebAction) -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onLoad: onLoad)
+        Coordinator(onLoad: onLoad, onAction: onAction)
     }
 
     func makeNSView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = dataStore
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
+        // A weak proxy: the content controller retains its handler, and the coordinator
+        // must be free to go away with the view.
+        configuration.userContentController.add(
+            WeakMessageHandler(context.coordinator), name: WebAction.handlerName)
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
@@ -33,18 +41,37 @@ struct WebView: NSViewRepresentable {
 
     func updateNSView(_ webView: WKWebView, context: Context) {
         context.coordinator.onLoad = onLoad
+        context.coordinator.onAction = onAction
         guard context.coordinator.loadedGeneration != generation else { return }
         context.coordinator.loadedGeneration = generation
         webView.load(URLRequest(url: handshake.landingURL))
     }
 
     @MainActor
-    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
         var loadedGeneration: Int?
         var onLoad: @MainActor ([HTTPCookie]) -> Void
+        var onAction: @MainActor (WebAction) -> Void
 
-        init(onLoad: @escaping @MainActor ([HTTPCookie]) -> Void) {
+        init(
+            onLoad: @escaping @MainActor ([HTTPCookie]) -> Void,
+            onAction: @escaping @MainActor (WebAction) -> Void
+        ) {
             self.onLoad = onLoad
+            self.onAction = onAction
+        }
+
+        /// A request from the page: only from the main frame of a loopback page, and only
+        /// one of the actions `WebAction` knows.
+        func userContentController(
+            _ userContentController: WKUserContentController, didReceive message: WKScriptMessage
+        ) {
+            guard message.frameInfo.isMainFrame,
+                let url = message.frameInfo.request.url, Self.isLoopback(url),
+                let body = message.body as? [String: Any],
+                let action = WebAction(body["action"] as? String)
+            else { return }
+            onAction(action)
         }
 
         static func isLoopback(_ url: URL) -> Bool {
@@ -94,5 +121,20 @@ struct WebView: NSViewRepresentable {
                 self?.onLoad(cookies)
             }
         }
+    }
+}
+
+/// Keeps the content controller from retaining the coordinator.
+private final class WeakMessageHandler: NSObject, WKScriptMessageHandler {
+    weak var target: (any WKScriptMessageHandler)?
+
+    init(_ target: any WKScriptMessageHandler) {
+        self.target = target
+    }
+
+    func userContentController(
+        _ userContentController: WKUserContentController, didReceive message: WKScriptMessage
+    ) {
+        target?.userContentController(userContentController, didReceive: message)
     }
 }

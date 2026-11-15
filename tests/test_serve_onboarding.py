@@ -188,7 +188,9 @@ def test_doctor_fixes_name_their_commands(tmp_path):
     assert items["skills.fresh"]["command"] == f"fo skills sync --office {quoted}"
     assert "doctor --fix" in items["credentials.perms"]["command"]
     assert items["accounts.roles"]["command"] is None
-    assert "onboard" in items["accounts.roles"]["hint"]
+    assert "Onboard advisor" in items["accounts.roles"]["hint"]
+    assert items["accounts.roles"]["action"] == "onboard"
+    assert items["skills.fresh"]["action"] is None
 
 
 def test_onboarding_route_advances_without_a_restart(tmp_path):
@@ -264,6 +266,7 @@ def test_checklist_follows_the_office(tmp_path):
     assert [item["id"] for item in result["checklist"]] == [
         "account_connected",
         "first_sync",
+        "profile_started",
         "first_run",
         "device_paired",
     ]
@@ -275,9 +278,13 @@ def test_checklist_follows_the_office(tmp_path):
     assert checklist(derive(Locator(root))) == {
         "account_connected": True,
         "first_sync": False,
+        "profile_started": False,
         "first_run": False,
         "device_paired": False,
     }
+    # The interview replaces the placeholder fo init wrote.
+    (root / "profile/household.md").write_text("# Household\n\nTwo adults, one child.\n")
+    assert checklist(derive(Locator(root)))["profile_started"] is True
 
     ingest(
         root,

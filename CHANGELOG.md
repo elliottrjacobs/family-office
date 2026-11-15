@@ -1,5 +1,38 @@
 # Changelog
 
+## 2.0.0b2 — 2026-11-14
+
+- Advisors are conversations. Each advisor page is a chat: type a message, press
+  Enter, follow up as often as you like. The subject field is gone. Earlier chats are
+  listed beside each advisor and on a new Chats page, and can be deleted. A chat
+  writes a report only when asked or when the answer is worth keeping.
+- Web search and fetch are on by default in every chat, including ones that read
+  household data, with a switch beside the message box. `[serve] web` sets the
+  policy: `on`, `isolated` (the previous rule: only where no household data is read),
+  or `off`. The fetch cap now counts one reply. SECURITY.md describes the trade-off
+  and the limits that apply.
+- Onboarding happens in the app. The Onboard advisor interviews you in a chat and
+  writes `profile/`, committing each change; Home lists it under Getting started.
+  Setup steps offer buttons that open the Mac app's Connectors settings or setup
+  dialog instead of terminal commands.
+- Sync now, in the header and in setup steps, runs `fo sync` from the page.
+- Several advisors can answer at once, each in its own conversation, up to
+  `[serve] parallel_runs` (three by default). The sidebar shows which are answering
+  and marks one that finished while you were reading another. Their `fo` commands
+  wait for the office lock instead of failing.
+- Accounts sync automatically while the app is open, when the data is more than
+  `[serve] auto_sync_hours` old (six by default), on the writer host and never while
+  an advisor is answering; `[serve] auto_sync = false` turns it off. A message sent
+  during a sync is queued until it ends, and a sync from the app is recorded in the
+  office's history.
+- Settings > Advanced in the Mac app has the web access policy, automatic sync and
+  its interval, and how many advisors answer at once.
+- The app renders the office's skills itself when a new version changes them, so an
+  update no longer leaves "Run fo skills sync" for a terminal.
+- Pages remember their last figures, so switching Finances tabs, or returning to a
+  page, no longer flashes a loading skeleton.
+- `keep_runs` defaults to 300 for new offices.
+
 ## 2.0.0b1 — 2026-11-13
 
 - The Mac app is Apple Silicon only. cryptography, a locked dependency of the bundled

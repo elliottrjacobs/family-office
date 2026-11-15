@@ -25,7 +25,9 @@ Exposures the Mac and phone apps add, each described in full below:
 
 | Exposure | Where it is described |
 |---|---|
-| Web search and fetch for runs at context level `none` | [Advisor runs](#advisor-runs), "Web access at context level `none`" |
+| Web search and fetch in advisor chats, on by default, including chats that read household data | [Advisor runs](#advisor-runs), "Web access" |
+| The onboard interview writing `profile/` from a chat | [Advisor runs](#advisor-runs), "The onboard interview" |
+| Sync started from the page (`POST /api/sync`) | [Advisor runs](#advisor-runs), "Sync from the app" |
 | Research provider keys in the per-machine credentials folder | [Third parties](#third-parties), "Research provider keys" |
 | Device tokens held by a paired phone, used over the tailnet | [Device tokens](#device-tokens) |
 | Codex read confinement is command-based, so the engine ships disabled | [Advisor runs](#advisor-runs), "Codex engine" |
@@ -81,10 +83,16 @@ in its one handshake line.
 
 ### Advisor runs
 
-Chat starts one headless Claude Code run at a time in the office directory. A run
+Chat starts a headless Claude Code run in the office directory for each conversation
+that is answering, up to `[serve] parallel_runs` at once (three by default, eight at
+most); one conversation takes one turn at a time. Each run is its own process with
+its own budget cap, time limit, fetch counter, and web log, and the rules below apply
+to each alike. Their `fo` commands take the office lock in turn: a run starts with
+`FO_LOCK_WAIT` set, so a command waits up to twenty seconds for the lock instead of
+failing, and two runs are never given the same report to write. A run
 loads only the office's project settings plus a run profile: no user settings or
 hooks, an empty strict MCP configuration, only the Bash, Read, Write, Edit, and
-Task tools (plus WebSearch and WebFetch at level `none`, below), `--permission-mode dontAsk` with every permission prompt denied, and a
+Task tools (plus WebSearch and WebFetch when web is on for the chat, below), `--permission-mode dontAsk` with every permission prompt denied, and a
 budget cap and time limit. Its environment carries only what login needs, with
 `FO_SERVE_RUN` set so `fo` refuses other offices and the setup, `config set`,
 credential, sync, commit, schedule, notify, migrate, reindex, and serve commands,
@@ -94,33 +102,74 @@ or settle the owner's. A PreToolUse hook (`fo.serve.guard`) is the last word on
 every tool call, worker agents included: only plain `fo` commands with no pipes,
 redirects, or substitution; reads inside the office outside `secrets/`, `cache/`,
 `imports/`, `medical/`, `.git/`, the store, and the lock; and writes only under
-`reports/`, never to a hidden file or folder there, which `fo commit` also refuses
-to publish.
+`reports/` (and `profile/` for the onboard interview, below), never to a hidden file
+or folder there, which `fo commit` also refuses to publish.
 It exists because a skill's own `Read` permission and read-only shell commands
 otherwise reach files outside the office. The runner never passes
 `bypassPermissions`. Run records and event logs live in `cache/serve/runs/` at
 0600 in a 0700 directory and never hold environment, cookie, or token values.
 
-Web access at context level `none`: the hook denies reads of `data/`, `profile/`,
-and `notebook/`, including symlink targets. Skills, instructions, and reports stay
-readable. Known residual: earlier reports may contain household figures, which a
-web run can read and disclose. User prompts and mandatory context can also contain
-household information; the guard does not scrub these inputs.
+Web access. `[serve] web` in `office.toml` sets the policy, and each chat has its
+own switch beside the message box:
 
-Web runs allow market commands, research, and scoped report/journal/correction
-bookkeeping; `fo start` and `fo brief` require explicit `--level none` (or
-`--level=none`). Other household commands remain denied. Reports can be read and
-written for drafting, parts, and verification. WebSearch and WebFetch are offered
-only at level `none`; the hook denies them in non-web runs. The CLI enforces the
-same command allowlist and research gate for both runners whenever `FO_SERVE_RUN`
-is set, refusing every `fo research` subcommand outside web runs. Research queries
+| `web` | Chats at level `none` | Chats at `household` or `full` |
+|---|---|---|
+| `on` (the default) | web on, isolated from household data | web on, with the limits below |
+| `isolated` (the only rule through 2.0.0b1) | web on, isolated from household data | web off |
+| `off` | web off | web off |
+
+The default changed because an advisor that answers tax, estate, or planning
+questions from the household's own figures also has to check current law, limits,
+and prices; without the web those answers rest on what the model remembers. The
+cost is real and stated here: in a chat that reads household data with web on,
+web and household data meet in one run. A page the advisor fetches, or text planted
+in provider data or an earlier report, could instruct the model to put household
+facts into a later search query or URL, where the search provider or the fetched
+site would see them. The run cannot send data any other way: it has no shell
+network commands, no MCP server, and no other tool. What limits this path:
+
+- Every search query and fetch URL is logged before it is sent and listed in the
+  chat ("Looked up on the web"), so a disclosure is visible afterward.
+- In a chat that reads the household, a search query is refused when it holds nine
+  or more digits in a row or a Social Security number as written
+  (`web_identifier`), and a query over 400 characters or a URL over 600 is refused
+  (`web_too_long`), so one request cannot carry a file.
+- Fetches stop at `web_fetch_cap` per turn (default 20) and pass the same deny list
+  as `fo research fetch`.
+- The advisor is told to treat fetched text as untrusted evidence, never as
+  instructions, and never to put names, account numbers, or exact balances in a
+  search or URL. This is an instruction to a model, not an enforcement.
+- Only the Claude Code engine gets web in a chat that reads the household. Codex
+  confines reads by command rather than by path, so there the previous rule holds.
+
+To go back to the previous rule, choose "Only without household data" under Web
+access in the Mac app's Settings > Advanced, or run `fo config set serve.web
+isolated`; to turn web off everywhere, choose "Never" there or run `fo config set
+serve.web off`. The Settings control writes the same key through `fo config set`.
+Either takes effect on the next message.
+
+At level `none` a web chat stays isolated as before: the hook denies reads of
+`data/`, `profile/`, and `notebook/`, including symlink targets. Skills,
+instructions, and reports stay readable. Known residual: earlier reports may
+contain household figures, which a web run can read and disclose. User prompts and
+mandatory context can also contain household information; the guard does not scrub
+these inputs.
+
+Isolated web runs allow market commands, research, and scoped
+report/journal/correction bookkeeping; `fo start` and `fo brief` require explicit
+`--level none` (or `--level=none`). Other household commands remain denied. Reports
+can be read and written for drafting, parts, and verification. The hook denies
+WebSearch and WebFetch in non-web runs. The CLI enforces the same command allowlist
+and research gate for both runners whenever `FO_SERVE_RUN` is set, refusing every
+`fo research` subcommand outside web runs. Research queries
 (including deep questions) and URLs use the same logging boundary as
 WebSearch/WebFetch; a missing run folder denies access. Put the research query or
 URL before subcommand options.
 
 The hook and CLI check fetch URLs against `fo.netguard`: HTTP(S) only, no credentials,
 localhost, tailnet names, or hosts resolving to non-public addresses. WebFetch and
-`fo research fetch` share the per-run `web_fetch_cap` (default 20). Its counter
+`fo research fetch` share `web_fetch_cap` (default 20), counted per turn of a chat
+so a long conversation can keep looking things up. Its counter
 and scrubbed query/URL log, `web.jsonl`, live in the run folder, which the run
 cannot read or write. The run log shows accepted queries and URLs; each refusal
 has a stable reason code. Hostile web evidence can shape reports, which later
@@ -130,6 +179,39 @@ Claude sets `FO_SERVE_HOOK_ACTIVE=1`: its hook counts and logs research calls, a
 the CLI validates them without counting or logging again. Codex leaves that flag
 unset, so the CLI counts and logs its research calls. The hook validates every
 `&&` segment before any segment consumes a fetch or logs web use.
+
+The onboard interview. The Onboard advisor runs as a chat and is the one run that
+may write under `profile/`, because filling in the authored profile from the
+owner's answers is its purpose: its permission rules allow edits there, and the hook
+allows `profile/` writes only when the run's advisor is `onboard`. It still cannot
+write `office.toml`, `data/`, `notebook/`, hidden files, or anything outside the
+office, and cannot run setup, auth, sync, or commit. After each reply the server
+commits `profile/` alone to the office's local Git history ("Update the profile from
+the onboard interview"), so every change the interview made can be reviewed and
+reverted. The interview is not available with Codex.
+
+Sync from the app. `POST /api/sync` runs `fo sync` with no options as a child of the
+server, exactly as the command runs in a terminal: it uses the credentials `fo auth`
+stored, holds the office lock, and obeys the writer-host rule. The request needs the
+same session and same-origin checks as every other write, does not exist under
+`--read-only`, is refused while an advisor is working, and answers with each
+provider's status and `fo`'s own reason text, never a provider's error. A message
+sent to an advisor while a sync runs is queued and starts when the sync ends. After
+a sync the server commits `notebook/`, `reports/`, and `data/` to the office's local
+Git history, as the scheduled job's `--commit` does; unrelated uncommitted changes
+leave that commit undone.
+
+Automatic sync. While `fo serve` runs without `--read-only`, it syncs on its own when
+any connected provider's last complete sync is older than `[serve] auto_sync_hours`
+(six by default). This is the same `fo sync --if-writer` child process, so it calls
+providers with the stored read-only credentials without a click, only on the writer
+host, and never while an advisor is answering. A sync that fails or ends incomplete
+is retried after half an hour, then one hour, doubling up to the interval, so a broken
+connection is not called repeatedly. Turn it off under Account sync in the Mac app's
+Settings > Advanced or with `fo config set serve.auto_sync false`; Sync now still
+works. A paired
+phone can start it. It reads from providers only; nothing in family-office can trade
+or move money.
 
 Codex engine. A Codex run (`codex exec --json`) is isolated differently, and more
 weakly. It gets its own Codex home and `HOME` in its run folder, so no user config,
@@ -148,6 +230,7 @@ says otherwise), and Claude Code stays the recommended engine. Codex has no budg
 flag: its runs are bounded only by `run_timeout_minutes`, and the budget is recorded
 for information. The gate is in
 [research providers](docs/development/research-providers.md#codex-isolation).
+Codex never gets web in a chat that reads the household, whatever `[serve] web` says.
 Codex's built-in web search at level `none` appears as `web` events in the run log,
 but it bypasses `web.jsonl`, the fetch cap, and the netguard URL checks; this remains
 a residual limitation alongside the read limitations.
@@ -155,8 +238,9 @@ a residual limitation alongside the read limitations.
 Accepted risk: reports, corrections, and decisions are fed back into later briefs,
 so text planted in provider data or an earlier report can steer later advice. The
 Claude run boundary blocks MCP servers, arbitrary network commands, reads outside
-the office, and web tools and `fo research` in non-web runs. Web runs instead
-block household folders and commands as described above. The Codex limitations
+the office, and web tools and `fo research` in non-web runs. Isolated web runs
+instead block household folders and commands as described above; a web chat that
+reads the household relies on the limits under "Web access". The Codex limitations
 above still apply. The page renders report text as elements,
 never HTML, so stored text cannot run in the browser. Market commands reach only
 their fixed provider hosts.

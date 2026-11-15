@@ -6,7 +6,7 @@ A private family office built around the `fo` command. Python computes the facts
 package. For example, `fo positions` shows holdings and `fo networth` calculates
 net worth. Your coding agent uses these same commands to retrieve facts.
 
-This is a beta prerelease (`2.0.0b1`). Automated tests use synthetic accounts;
+This is a beta prerelease (`2.0.0b2`). Automated tests use synthetic accounts;
 end-to-end live account reconciliation and scheduled operation have not yet been
 validated. Check imported balances and holdings against your institution before
 relying on the results.
@@ -87,7 +87,7 @@ identifying User-Agent in `office.toml`; the agent configures it from the user's
 contact information. The agent must not invent a contact address.
 
 The packaged prerelease is installed with
-`uv tool install "family-office @ git+https://github.com/elliottrjacobs/family-office.git@v2.0.0b1"`.
+`uv tool install "family-office @ git+https://github.com/elliottrjacobs/family-office.git@v2.0.0b2"`.
 New offices pin that same package version. Version numbers identify releases;
 the installed command and product name remain `fo` and family-office.
 
@@ -164,8 +164,11 @@ The Family Office Mac app wraps everything below in one window: the dashboard, t
 advisors, and a terminal for `fo`, with no Python or Node to install. Download the
 latest `.dmg` from the GitHub Releases page, drag the app to Applications, and open
 it. A setup dialog walks you through choosing or creating your office folder, picking
-an engine, and connecting accounts; credentials and provider consent stay in the
-terminal pane. New versions arrive as new signed releases.
+an engine, and connecting accounts; credentials are typed into the app's own
+windows, never into the dashboard page. After that everything happens in the app:
+the Onboard advisor interviews you and fills in your profile, each advisor is a chat
+with its own history, and Sync now refreshes your accounts. New versions arrive as
+new signed releases.
 
 It needs an Apple Silicon Mac with macOS 14 or later, and Claude Code or Codex
 installed and signed in (Codex ships disabled until you turn it on in Settings).
@@ -193,7 +196,11 @@ The server listens on 127.0.0.1:4790 (`--port`, or `port` under `[serve]` in
 that browser in until the server stops; press Enter to print it again and Ctrl-C
 to stop. Every start issues a new link. Run it before an office exists and the
 page walks you through `fo setup`, connecting accounts, and the first sync, one
-exact command at a time. Credentials and provider consent stay in the terminal.
+exact command at a time. Credentials and provider consent stay in the terminal;
+Sync now at the top of the page refreshes connected accounts. While the server is
+running it also syncs on its own when account data is more than six hours old
+(`auto_sync` and `auto_sync_hours` under `[serve]`), on the writer host only, and
+never while an advisor is answering.
 
 The dashboard reads the office in read-only mode: no provider calls, no cache or
 index writes, and no lock. It reads only `profile/`, `reports/`, `notebook/`, and
@@ -204,30 +211,48 @@ each asks first, names its undo, and runs the matching `fo journal` or
 
 ### Chat with an advisor
 
-Each advisor page can start that skill on a subject and stream its work: commands
-it ran, its answer, decisions it recorded, and the verified report. Chat runs
-Claude Code on this machine, so install it and sign in once in a terminal. A run
-reads at the context level you pick (the page shows what that includes first),
-loads only the office's settings, and may run only `fo` commands, read inside the
-office, and write under `reports/`; a refused call is listed in the run, never
-asked about. Runs are capped in `office.toml`:
+Each advisor page is a conversation. Type a message, press Enter, and the advisor
+answers: you see its steps, what it looked up, decisions it recorded, and a link to
+a report when it saves one. Keep going back and forth for as long as you like; the
+advisor writes a report only when you ask for one or the answer is worth keeping.
+Earlier conversations are listed beside the chat, by advisor, and the Chats page
+lists them all; delete one from either list. Chat runs Claude Code on this machine,
+signed in to your own account. Before the first message you can choose what the
+advisor may read (no household data, a short household brief, or the full profile),
+the model, and the effort; they stay with that conversation. A run loads only the
+office's settings, and may run only `fo` commands, read inside the office, and
+write under `reports/`; a refused call is listed in the chat, never asked about.
+Several advisors can answer at once, each in its own conversation; the sidebar
+shows which are answering and marks one that finished while you were elsewhere.
+Limits are in `office.toml`, and the Mac app's Settings > Advanced edits the same
+keys:
 
 ```toml
 [serve]
-max_budget_usd = 2.0       # per run, in Claude usage
+max_budget_usd = 2.0       # per reply, in Claude usage
 run_timeout_minutes = 30
-keep_runs = 50             # run logs kept under cache/serve/runs/
-web_fetch_cap = 20         # web fetches per run at level none
+keep_runs = 300            # conversations kept under cache/serve/runs/
+parallel_runs = 3          # advisors answering at once, 1 to 8
+web_fetch_cap = 20         # web fetches per reply
+web = "on"                 # on, isolated, or off
+auto_sync = true           # sync accounts when they are older than auto_sync_hours
+auto_sync_hours = 6
 ```
 
-Web search and fetch follow the context level. At level `none`, where a run reads
-no household data, the advisor may search the web and fetch pages; at `household`
-and `full` both are off, and the launch panel says which applies before you start.
-Every fetch is checked against the same deny list as `fo research fetch` (nothing
-on this machine, the local network, or the tailnet, and no URL carrying a password),
-fetches stop at `web_fetch_cap`, and the run view lists the sites visited, searches
-by query and fetches by host with the full URL on hover. See
-[SECURITY.md](SECURITY.md) for what this exposes.
+Web search and fetch are on by default, so an advisor can check current law,
+limits, rates, and prices and cite where it found them; the switch beside the
+message box turns web off or on for one conversation. `web = "isolated"` allows web
+only in conversations that read no household data, and `web = "off"` never. Every
+fetch is checked against the same deny list as `fo research fetch` (nothing on this
+machine, the local network, or the tailnet, and no URL carrying a password),
+fetches stop at `web_fetch_cap` per reply, and the chat lists everything looked up,
+searches by query and pages by host with the full URL on hover. Web in a
+conversation that also reads your household data is a trade-off; read
+[SECURITY.md](SECURITY.md) for what it exposes and how to change it.
+
+The Onboard advisor is the setup interview: it asks about your household, account
+roles, investment policy, goals, taxes, spending categories, and watch lists, and
+fills in `profile/` as you confirm each answer.
 
 Each run goes to an engine: Claude Code (the default and the recommended one) or
 Codex. The
@@ -269,8 +294,8 @@ finished message.
 
 A run that recorded decisions but stopped before its report verified shows as
 partial; Resume continues the same report. Stopping `fo serve` stops a run in
-progress and keeps what it recorded. Onboarding stays an interview in the
-terminal, and the journal skill is replaced by the record-decision form.
+progress and keeps what it recorded. The journal skill is replaced by the
+record-decision form.
 
 ### Reach it from your phone
 
@@ -333,8 +358,10 @@ lock, keeps every other line and comment as it was, and refuses anything outside
 this list with `invalid_key`, or a value of the wrong type with `invalid_value`:
 `hosts.writer` (the writer hostname), `office.timezone` (an IANA timezone key),
 `serve.port` (1 to 65535, not 8182), `serve.tailnet_name`, `serve.allowed_logins`
-(a JSON array or comma-separated), `serve.web_fetch_cap`, `serve.max_budget_usd`,
-`serve.run_timeout_minutes`, `serve.keep_runs`, `serve.engines.default`
+(a JSON array or comma-separated), `serve.web_fetch_cap`, `serve.web` (`on`,
+`isolated`, or `off`), `serve.max_budget_usd`,
+`serve.run_timeout_minutes`, `serve.keep_runs`, `serve.parallel_runs` (1 to 8),
+`serve.auto_sync` (`true` or `false`), `serve.auto_sync_hours`, `serve.engines.default`
 (`claude` or `codex`), and for each engine `serve.engines.<claude|codex>.model`,
 `.effort` (`low`, `medium`, `high`), `.max_budget_usd`, and `.enabled`; then
 `providers.<name>.daily_limit` for `alphavantage`, `fred`, `edgar`, `exa`,

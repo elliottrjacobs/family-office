@@ -1,4 +1,4 @@
-import { Check, Terminal } from "lucide-react"
+import { Check, MessageSquare } from "lucide-react"
 
 import { type Level, levels, profile, profileFiles, type ProfileFile } from "@/api/office"
 import { useApi } from "@/api/use-api"
@@ -6,11 +6,13 @@ import { useAppData } from "@/app-data"
 import { AdvisorIcon, advisorName } from "@/components/advisor-icon"
 import { ErrorNotice, Loading, Page, PageTitle, SectionTitle } from "@/components/page"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { percent, titleCase } from "@/lib/format"
 import { Markdown } from "@/lib/markdown"
+import { Link } from "@/lib/router"
 
 const LEVELS: Level[] = ["none", "household", "full"]
 const LABELS: Record<string, string> = {
@@ -171,14 +173,14 @@ export function Profile() {
     <Page>
       <PageTitle
         title="What your advisors read"
-        description="These files describe the household. Advisors read them at the context level each one is set to; only the onboard skill changes them, from your answers in a terminal."
+        description="These files describe the household. Advisors read them at the context level each chat is set to. Onboard fills them in from your answers; nothing else changes them."
       />
       <LevelCards />
       <SectionTitle
         aside={
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Terminal className="size-3.5" /> Edit with the onboard skill
-          </span>
+          <Button variant="outline" size="sm" render={<Link to="/advisors/onboard" />}>
+            <MessageSquare /> Update with Onboard
+          </Button>
         }
       >
         Authored files

@@ -7,6 +7,7 @@ import ipaddress
 import json
 import os
 import signal
+import subprocess
 import sys
 import threading
 import time
@@ -44,6 +45,31 @@ def loopback(host):
         return host == "localhost"
 
 
+def refresh_skills(root):
+    """Render the office's skills and rules again when this version's differ.
+
+    The advisors run from the rendered copies, and an update to the app changes them; a
+    person using the app has no terminal open to run fo skills sync in. It runs as the
+    fo command, so the office lock and the writable gate apply, and a failure is left for
+    doctor to report.
+    """
+    from fo.skills import freshness
+
+    try:
+        if all(check["status"] == "pass" for check in freshness(root)):
+            return False
+        result = subprocess.run(
+            [sys.executable, "-m", "fo.cli", "--json", "--office", str(root), "skills", "sync"],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            env={k: v for k, v in os.environ.items() if k != "FO_SERVE_RUN"},
+        )
+    except (OfficeError, OSError, subprocess.SubprocessError, ValueError, KeyError):
+        return False
+    return result.returncode == 0
+
+
 def prepare(office=None, port=None, host=None, remote=False, read_only=False, app_mode=False):
     """Validate options and bind; returns the server and the lines to print."""
     # Imported here so the run guard hook, also in this package, starts quickly.
@@ -73,6 +99,7 @@ def prepare(office=None, port=None, host=None, remote=False, read_only=False, ap
             ensure_credentials(root)
         except OfficeError:
             pass  # Start so the app can show doctor's repair command.
+        refresh_skills(root)
     config = settings(root)
     port = port if port is not None else config.get("port", DEFAULT_PORT)
     # Port 0 asks the system for any free port.
@@ -94,7 +121,7 @@ def prepare(office=None, port=None, host=None, remote=False, read_only=False, ap
         if read_only
         else RunManager({"claude": ClaudeRunner(), "codex": CodexRunner()}, deep=DEEP)
     )
-    app = App(locator, access, read_only, runs=runs)
+    app = App(locator, access, read_only, runs=runs, app_mode=app_mode)
     try:
         server = make_server(app, bind, port)
     except OSError as exc:
@@ -199,11 +226,16 @@ def serve(
         ).start()
     if open_browser:
         webbrowser.open(link)
+    if server.app.syncer is not None:
+        # Keeps accounts current without a click or a terminal; see fo.serve.syncer.
+        server.app.syncer.start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
+        if server.app.syncer is not None:
+            server.app.syncer.stop()
         # An advisor run outliving the server would keep spending its budget unwatched.
         if server.app.runs is not None:
             server.app.runs.shutdown()

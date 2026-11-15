@@ -2,9 +2,10 @@
 
 Every run loads only the office's own project settings plus a run profile passed with
 --settings: no user settings, no MCP server (an empty strict config), only the Bash,
-Read, Write, Edit, and Task tools, and permission prompts answered "deny". A run at
-context level none, which reads no household data, also gets WebSearch and WebFetch; at
-every other level both stay disallowed. The profile
+Read, Write, Edit, and Task tools, and permission prompts answered "deny". A run with
+web on (the office's [serve] web policy and the conversation's own switch decide; see
+fo.serve.runs.web_allowed) also gets WebSearch and WebFetch; otherwise both stay
+disallowed. The onboard interview alone may also write under profile/. The profile
 carries the fo.serve.guard PreToolUse hook, which confines each tool call to fo
 commands, reads inside the office, and writes under reports/. The environment is
 scrubbed to what login needs, with FO_SERVE_RUN set so fo refuses other offices and
@@ -31,7 +32,16 @@ from pathlib import Path
 
 from fo.errors import OfficeError
 from fo.office import RUN_MARKER
-from fo.serve.runner import FETCH_CAP, HOOK_FLAG, OUTPUT_LIMIT, RUN_FOLDER, WEB_FLAG, profile
+from fo.serve.runner import (
+    FETCH_CAP,
+    HOOK_FLAG,
+    OUTPUT_LIMIT,
+    RUN_FOLDER,
+    RUN_SKILL,
+    WEB_FLAG,
+    WEB_SCOPE,
+    profile,
+)
 
 MINIMUM = (2, 1, 283)
 # Every flag here is part of the isolation; a version that lacks one may not run.
@@ -57,8 +67,11 @@ MODE = "dontAsk"
 # A --deep research run on a synthetic office completed with all five workers confined.
 DEEP = True
 TOOLS = ("Bash", "Read", "Write", "Edit", "Task")
-# Offered only to runs at context level none; the guard hook checks every call.
+# Offered only to runs with web on; the guard hook checks every call.
 WEB = ("WebSearch", "WebFetch")
+# The onboard interview writes the authored profile; every other run leaves it alone.
+PROFILE_ALLOW = ("Edit(./profile/**)", "Write(./profile/**)")
+PROFILE_DENY = "Edit(profile/**)"
 DISALLOWED = ("WebFetch", "WebSearch", "NotebookEdit")
 # Login needs these; nothing else from the server's environment reaches the run.
 PASSED = (
@@ -88,6 +101,10 @@ def version(text):
 
 class ClaudeRunner:
     name = "claude"
+    # The hook confines reads by path, so web may be on in a run that reads the office.
+    web_household = True
+    # The hook confines writes by path, so the onboard interview may write profile/.
+    profile_writes = True
 
     def __init__(self, executable=None, python=None):
         if executable is None:
@@ -147,15 +164,19 @@ class ClaudeRunner:
             ("The run did not start isolated: " + "; ".join(problems) + ".") if problems else None
         )
 
-    def settings(self, office, web=False):
+    def settings(self, office, web=False, profile_writes=False):
         """The run profile plus the guard hook, as the JSON --settings takes."""
         hook = shlex.join([self.python, "-I", "-m", "fo.serve.guard", str(office)])
         rules = profile()
         # dontAsk refuses a tool no rule allows; the hook still checks every web call.
         allow = [*rules["allow"], *(WEB if web else ())]
+        deny = rules["deny"]
+        if profile_writes:
+            allow += PROFILE_ALLOW
+            deny = [rule for rule in deny if rule != PROFILE_DENY]
         return json.dumps(
             {
-                "permissions": {"allow": allow, "deny": rules["deny"]},
+                "permissions": {"allow": allow, "deny": deny},
                 "hooks": {
                     "PreToolUse": [
                         {"matcher": "*", "hooks": [{"type": "command", "command": hook}]}
@@ -200,8 +221,10 @@ class ClaudeRunner:
             argv += ["--resume", session]
         return argv
 
-    def environment(self, office, folder=None, web=False, web_fetch_cap=0):
-        """The scrubbed environment; folder, web, and the cap are read by the guard hook."""
+    def environment(
+        self, office, folder=None, web=False, web_fetch_cap=0, web_scope="isolated", skill=None
+    ):
+        """The scrubbed environment; the guard hook reads the folder, web, scope, and cap."""
         env = {key: os.environ[key] for key in PASSED if key in os.environ}
         # fo resolves to this server's own interpreter, so a run cannot reach another version.
         paths = [str(Path(self.python).parent)]
@@ -212,6 +235,9 @@ class ClaudeRunner:
         if folder is not None:
             env[RUN_FOLDER] = str(folder)
         env[WEB_FLAG] = "1" if web else "0"
+        env[WEB_SCOPE] = "household" if web_scope == "household" else "isolated"
+        if skill:
+            env[RUN_SKILL] = skill
         env[FETCH_CAP] = str(int(web_fetch_cap))
         env[HOOK_FLAG] = "1"
         return env

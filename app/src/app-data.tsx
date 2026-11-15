@@ -12,7 +12,7 @@ import {
   status,
   type Status,
 } from "@/api/office"
-import { useApi } from "@/api/use-api"
+import { refreshAll, useApi } from "@/api/use-api"
 
 interface AppData {
   status: Status | undefined
@@ -58,6 +58,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     if (officePath) reloadStatus()
   }, [officePath, reloadStatus])
+
+  // A sync, automatic or from any device, brings new figures: every view asks again.
+  const synced = server.data?.office?.last_sync?.as_of
+  const seenSync = React.useRef(synced)
+  React.useEffect(() => {
+    if (synced && seenSync.current && synced !== seenSync.current) refreshAll()
+    if (synced) seenSync.current = synced
+  }, [synced])
 
   const reloadSetup = setup.reload
   const reloadReview = decisions.reload

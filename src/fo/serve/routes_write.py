@@ -1,9 +1,13 @@
-"""Journal and correction actions from the browser, each a thin call to the fo command.
+"""Journal, correction, and sync actions from the browser, each a thin call to the fo command.
 
 Writes run as subprocesses of this server's own interpreter, so the office lock, the
 writable gate, and the notebook's validation apply exactly as in a terminal, and the
 server and CLI cannot disagree on version. Global flags come first, values travel as
 --key=value, and free text follows --, so nothing a user types can become a flag.
+
+Sync is fo sync with no options: it reads the credentials the owner stored with fo auth
+and pulls balances, positions, and transactions, as the same command does in a terminal.
+The server's Syncer runs it, for this route and for the automatic sync alike.
 """
 
 import json
@@ -23,20 +27,25 @@ CONVICTIONS = {"HIGH", "MEDIUM", "LOW"}
 SCOPE = re.compile(r"global|(?:skill|subject):[A-Za-z0-9._-]+")
 
 
-def fo(root, *args):
+def command(root, *args, timeout=60):
+    """Run fo as this server's interpreter; the exit code and its parsed JSON answer."""
     env = {key: value for key, value in os.environ.items() if key not in (RUN_MARKER, "FO_OFFICE")}
     result = subprocess.run(
         [sys.executable, "-m", "fo.cli", "--json", "--office", str(root), *args],
         capture_output=True,
         text=True,
-        timeout=60,
+        timeout=timeout,
         env=env,
     )
     try:
-        payload = json.loads(result.stdout)
+        return result.returncode, json.loads(result.stdout)
     except ValueError as exc:
         raise OfficeError("operation_failed", "The fo command gave no readable answer.") from exc
-    if result.returncode:
+
+
+def fo(root, *args):
+    code, payload = command(root, *args)
+    if code:
         if payload.get("reason") == "office_locked":
             raise OfficeError(
                 "office_locked", "Another fo command holds the office lock; try again."
@@ -129,7 +138,14 @@ def retire(handler, params, query):
     return fo(handler.app.locator.root(), "corrections", "retire", "--", params["id"])
 
 
+def sync(handler, params, query):
+    """Refresh every connected account now; one row per provider, failures included."""
+    app = handler.app
+    return app.syncer.sync(app.locator.root())
+
+
 ROUTES = [
+    ("POST", r"/api/sync", sync),
     ("POST", r"/api/decisions", record),
     ("POST", r"/api/decisions/(?P<id>[0-9A-Z]{26})/close", close),
     ("POST", r"/api/decisions/(?P<id>[0-9A-Z]{26})/reopen", reopen),

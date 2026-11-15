@@ -5,6 +5,8 @@ import {
   FileText,
   House,
   IdCard,
+  Loader2,
+  MessagesSquare,
   Monitor,
   Moon,
   Scale,
@@ -13,6 +15,8 @@ import {
 } from "lucide-react"
 
 import type { Advisor } from "@/api/office"
+import { runs } from "@/api/runs"
+import { useApi } from "@/api/use-api"
 import { needsVerdict, useAppData } from "@/app-data"
 import {
   AdvisorIcon,
@@ -21,6 +25,7 @@ import {
   GROUP_LABELS,
   GROUP_ORDER,
 } from "@/components/advisor-icon"
+import { chatHref } from "@/components/chat-history"
 import { useTheme } from "@/components/theme-provider"
 import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -40,11 +45,13 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { useChatActivity } from "@/lib/chat-activity"
 import { moment } from "@/lib/format"
 import { Link, useLocation } from "@/lib/router"
 
 const NAV = [
   { to: "/", label: "Home", icon: House },
+  { to: "/chats", label: "Chats", icon: MessagesSquare },
   { to: "/finances", label: "Finances", icon: ChartPie },
   { to: "/reports", label: "Reports", icon: FileText },
   { to: "/decisions", label: "Decisions", icon: Scale },
@@ -87,9 +94,13 @@ function ThemeSwitch() {
 }
 
 export function AppSidebar() {
-  const { path } = useLocation()
+  const { path, query: location } = useLocation()
   const { status, registry, review } = useAppData()
   const [query, setQuery] = React.useState("")
+  // Several advisors can answer at once; the list shows which, and which have finished.
+  const history = useApi(status?.chat ? "runs" : "runs-off", () => (status?.chat ? runs() : Promise.resolve([])), 5_000)
+  const { answering, finished } = useChatActivity(history.data, location.get("chat"))
+  const busy = Object.keys(answering).length
   const office = status?.office
   const verdicts = needsVerdict(review).length
   const folder = office?.office.split("/").filter(Boolean).pop() ?? "Family Office"
@@ -139,6 +150,11 @@ export function AppSidebar() {
                     <span>{label}</span>
                   </SidebarMenuButton>
                   {to === "/decisions" && verdicts > 0 && <SidebarMenuBadge>{verdicts}</SidebarMenuBadge>}
+                  {to === "/chats" && busy > 0 && (
+                    <SidebarMenuBadge aria-label={`${busy} answering`} title={`${busy} answering`}>
+                      <Loader2 className="size-3.5 animate-spin" />
+                    </SidebarMenuBadge>
+                  )}
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
@@ -157,17 +173,34 @@ export function AppSidebar() {
               <CollapsibleContent>
                 <SidebarGroupContent>
                   <SidebarMenu>
-                    {advisors.map((advisor: Advisor) => (
-                      <SidebarMenuItem key={advisor.name}>
-                        <SidebarMenuButton
-                          isActive={path === `/advisors/${advisor.name}`}
-                          render={<NavLink to={`/advisors/${advisor.name}`} />}
-                        >
-                          <AdvisorIcon name={advisor.name} group={advisor.group} className="size-5" />
-                          <span>{advisorName(advisor.name)}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
+                    {advisors.map((advisor: Advisor) => {
+                      // An advisor that is answering, or has answered unseen, opens that chat.
+                      const live = answering[advisor.name]
+                      const done = finished[advisor.name]
+                      const chat = live ?? done
+                      return (
+                        <SidebarMenuItem key={advisor.name}>
+                          <SidebarMenuButton
+                            isActive={path === `/advisors/${advisor.name}`}
+                            render={<NavLink to={chat ? chatHref(chat) : `/advisors/${advisor.name}`} />}
+                          >
+                            <AdvisorIcon name={advisor.name} group={advisor.group} className="size-5" />
+                            <span>{advisorName(advisor.name)}</span>
+                          </SidebarMenuButton>
+                          {live ? (
+                            <SidebarMenuBadge aria-label="Answering" title="Answering">
+                              <Loader2 className="size-3.5 animate-spin" />
+                            </SidebarMenuBadge>
+                          ) : (
+                            done && (
+                              <SidebarMenuBadge aria-label="New answer" title="New answer">
+                                <span className="size-2 rounded-full bg-info" />
+                              </SidebarMenuBadge>
+                            )
+                          )}
+                        </SidebarMenuItem>
+                      )
+                    })}
                   </SidebarMenu>
                 </SidebarGroupContent>
               </CollapsibleContent>

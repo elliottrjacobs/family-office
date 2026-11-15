@@ -55,7 +55,8 @@ counted as USD. This is a known limitation, kept on purpose.
 `fo serve` reads an optional `[serve]` table in `office.toml`: `port` (default
 4790), `tailnet_name` (the name `tailscale serve` answers on, required for
 `--remote`), `allowed_logins` (Tailscale logins allowed with `--remote`), and for
-chat `max_budget_usd`, `run_timeout_minutes`, and `keep_runs`. The dashboard reads
+chat `max_budget_usd`, `run_timeout_minutes`, `keep_runs`, `parallel_runs`, `web`,
+`web_fetch_cap`, `auto_sync`, and `auto_sync_hours`. The dashboard reads
 profiles, reports, notebook events, and canonical data in read-only mode. Writes
 from the page go through `fo journal` and `fo corrections`. Advisor runs write
 reports under `reports/` and notebook events through `fo`, and keep their records

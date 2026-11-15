@@ -16,7 +16,7 @@ import {
 const CONFLICTS: Record<string, string> = {
   invalid_transition: "This decision was already closed or reopened, perhaps in another tab.",
   office_locked: "Another fo command holds the office lock. Wait a moment and try again.",
-  run_active: "An advisor run is in progress. Wait for it to finish, then try again.",
+  run_active: "This is still in progress. Wait for it to finish, then try again.",
 }
 
 export function message(error: unknown) {
