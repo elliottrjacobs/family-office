@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.0.0b3 — 2026-11-14
 
 - The skills are written for conversation, so an advisor behaves the same in Claude
   Code or Codex opened on the office folder as in the app: it answers first from `fo`
@@ -11,6 +11,8 @@
   existing office (the Mac app does it itself).
 - `fo skill verify` takes the report path as an argument, as the rules have always
   written it; `--path` still works.
+- The app's build tooling pins minimatch to 11.x (GHSA-g3hv-75wg-m249). It is not in
+  the shipped app.
 
 ## 2.0.0b2 — 2026-11-14
 
