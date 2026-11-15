@@ -75,6 +75,21 @@ export function initialChoice(
   return defaultsFor(preferred && usable.includes(preferred) ? preferred : usable[0], catalog, engines)
 }
 
+const SELECT =
+  "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+
+/** A labelled control in the engine row. */
+function Field({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
+  return (
+    <div className="min-w-0 space-y-1.5">
+      <label htmlFor={id} className="block text-sm font-medium">
+        {label}
+      </label>
+      {children}
+    </div>
+  )
+}
+
 /** Engine, model, and effort for this run; unusable engines show why and cannot be chosen. */
 function EngineFields({
   choice,
@@ -95,30 +110,27 @@ function EngineFields({
   const blocked = engines.filter((e) => !e.usable && e.message)
   return (
     <div className="space-y-3">
-      {/* Engine and model share a row; effort has five levels, so it takes the row below. */}
-      <div className="grid gap-3 sm:grid-cols-[auto_1fr]">
-        <div className="space-y-1.5">
-          <p className="text-sm font-medium">Engine</p>
-          <Segmented
-            label="Engine"
-            options={engines.map((e) => ({
-              value: e.name,
-              label: catalog?.engines[e.name]?.label ?? engineLabel(e.name),
-              disabled: !e.usable,
-              title: e.usable ? undefined : (e.message ?? undefined),
-            }))}
+      {/* Three dropdowns of one height in one row, so the labels and controls line up. */}
+      <div className="grid gap-3 sm:grid-cols-[1fr_1.4fr_1fr]">
+        <Field id="run-engine" label="Engine">
+          <select
+            id="run-engine"
             value={choice.engine}
-            onChange={(engine) => {
+            onChange={(event) => {
               setOther(false)
-              onChange(defaultsFor(engine, catalog, engines))
+              onChange(defaultsFor(event.target.value, catalog, engines))
             }}
-          />
-        </div>
-        <div className="min-w-0 space-y-1.5">
-          <label htmlFor="run-model" className="block text-sm font-medium">
-            Model
-          </label>
-          {/* 34px is the segmented controls' height, so the select lines up with Engine. */}
+            className={SELECT}
+          >
+            {engines.map((e) => (
+              <option key={e.name} value={e.name} disabled={!e.usable}>
+                {catalog?.engines[e.name]?.label ?? engineLabel(e.name)}
+                {e.usable ? "" : " (unavailable)"}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field id="run-model" label="Model">
           <select
             id="run-model"
             value={custom ? OTHER : choice.model}
@@ -132,7 +144,7 @@ function EngineFields({
                 onChange({ ...choice, model: value })
               }
             }}
-            className="h-[34px] w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+            className={SELECT}
           >
             {curated.map((m) => (
               <option key={m.id} value={m.id}>
@@ -142,27 +154,32 @@ function EngineFields({
             ))}
             <option value={OTHER}>Other…</option>
           </select>
-          {custom && (
-            <Input
-              aria-label="Model id"
-              value={choice.model}
-              onChange={(event) => onChange({ ...choice, model: event.target.value.trim() })}
-              placeholder="Model id, as the engine names it"
-              autoComplete="off"
-              spellCheck={false}
-            />
-          )}
-        </div>
+        </Field>
+        <Field id="run-effort" label="Effort">
+          <select
+            id="run-effort"
+            value={choice.effort}
+            onChange={(event) => onChange({ ...choice, effort: event.target.value as Effort })}
+            className={SELECT}
+          >
+            {efforts.map((value) => (
+              <option key={value} value={value}>
+                {EFFORT_LABELS[value] ?? titleCase(value)}
+              </option>
+            ))}
+          </select>
+        </Field>
       </div>
-      <div className="space-y-1.5">
-        <p className="text-sm font-medium">Effort</p>
-        <Segmented
-          label="Effort"
-          options={efforts.map((value) => ({ value, label: EFFORT_LABELS[value] ?? titleCase(value) }))}
-          value={choice.effort}
-          onChange={(effort) => onChange({ ...choice, effort })}
+      {custom && (
+        <Input
+          aria-label="Model id"
+          value={choice.model}
+          onChange={(event) => onChange({ ...choice, model: event.target.value.trim() })}
+          placeholder="Model id, as the engine names it"
+          autoComplete="off"
+          spellCheck={false}
         />
-      </div>
+      )}
       {blocked.map((e) => (
         <p key={e.name} className="text-xs text-muted-foreground">
           {catalog?.engines[e.name]?.label ?? engineLabel(e.name)} is unavailable: {e.message}

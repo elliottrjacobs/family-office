@@ -466,7 +466,6 @@ def test_models_route_serves_the_curated_list_and_live_office_defaults(office, t
         assert [m["id"] for m in claude["models"]] == [
             "claude-opus-5-5",
             "claude-fable-5-2",
-            "claude-fable-5-1",
             "claude-sonnet-5-5",
             "claude-haiku-5-5",
         ]
