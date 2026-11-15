@@ -36,6 +36,9 @@ def test_write_at_the_path_fo_start_returned_passes_verify(office):
     assert (office / started["path"]).read_text() == text
     code, verified = cli(office, "skill", "verify", "--path", started["path"])
     assert (code, verified["valid"]) == (0, True)
+    # As the rules write it: the report is an argument.
+    code, verified = cli(office, "skill", "verify", started["path"])
+    assert (code, verified) == (0, {"valid": True, "path": started["path"]})
 
 
 def test_write_allocates_like_fo_report_path_without_a_pin(office):

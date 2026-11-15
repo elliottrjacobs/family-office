@@ -255,13 +255,21 @@ def list_skills(ctx: typer.Context):
 
 
 @app.command("skill")
-def print_skill(ctx: typer.Context, name: str, path: Path | None = None):
+def print_skill(
+    ctx: typer.Context,
+    name: str,
+    report: Path | None = typer.Argument(None, help="With verify: the report to check."),
+    path: Path | None = None,
+):
+    """Print a skill's instructions, or check a report with `fo skill verify <report>`."""
     from fo.skills import skill_body
 
-    if name == "verify" and path:
+    # The rules write the report as an argument; --path is the older spelling.
+    target = report or path
+    if name == "verify" and target:
         from fo.reports import verify
 
-        run(ctx, lambda: verify(root(ctx), path))
+        run(ctx, lambda: verify(root(ctx), target))
     else:
         run(ctx, lambda: skill_body(name))
 
