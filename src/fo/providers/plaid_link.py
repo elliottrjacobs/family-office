@@ -28,7 +28,7 @@ PAGE = """<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Family Office: link an institution</title>
-<style nonce="{nonce}">
+<style>
 body {{ font: 16px/1.5 -apple-system, BlinkMacSystemFont, sans-serif; margin: 3rem auto;
   max-width: 32rem; padding: 0 1rem; color: #1d1d1f; background: #fff; }}
 @media (prefers-color-scheme: dark) {{ body {{ color: #f5f5f7; background: #1d1d1f; }} }}
@@ -61,10 +61,12 @@ const handler = Plaid.create({{
     {{status: "success", public_token, institution: metadata.institution || null}},
     "Linked. You can close this tab and return to Family Office.",
   ),
-  onExit: (error) => {{
-    if (error) {{ status.textContent = "Link closed with an error. Try again, or close this tab."; return; }}
-    send({{status: "exit"}}, "Link closed. Nothing was connected; you can close this tab.");
-  }},
+  onExit: (error) => send(
+    {{status: "exit"}},
+    error
+      ? "Link closed with an error. Nothing was connected; run fo auth plaid again to retry."
+      : "Link closed. Nothing was connected; you can close this tab.",
+  ),
 }});
 document.getElementById("open").addEventListener("click", () => handler.open());
 handler.open();
@@ -129,8 +131,10 @@ def run_link(link_token, environment, opener=webbrowser.open, announce=None, tim
                 (
                     "default-src https://cdn.plaid.com/",
                     f"script-src 'nonce-{nonce}' {SDK}",
-                    f"style-src 'nonce-{nonce}'",
-                    f"style-src-elem 'nonce-{nonce}'",
+                    # Link injects its own style element without the nonce, so styles use
+                    # Plaid's documented 'unsafe-inline' variant; scripts stay nonce-only.
+                    "style-src 'unsafe-inline'",
+                    "style-src-elem 'unsafe-inline'",
                     "style-src-attr 'unsafe-inline'",
                     "frame-src https://cdn.plaid.com/",
                     f"connect-src 'self' {ENVIRONMENTS[environment]}/",

@@ -637,6 +637,9 @@ def test_link_page_returns_public_token_once():
     assert page.status_code == 200 and "link-sandbox-TOKEN" in page.text
     policy = page.headers["content-security-policy"]
     assert "connect-src 'self' https://sandbox.plaid.com/" in policy
+    # Scripts need the page's nonce; Link's injected style element must not be blocked.
+    assert "script-src 'nonce-" in policy and "'unsafe-inline'" not in policy.split(";")[1]
+    assert "style-src-elem 'unsafe-inline'" in policy
     assert "https://cdn.plaid.com/link/v2/stable/link-initialize.js" in page.text
     assert seen["foreign"].status_code == 404 and seen["rebind"].status_code == 404
     assert seen["ok"].status_code == 204

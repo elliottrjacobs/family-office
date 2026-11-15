@@ -291,7 +291,8 @@ credentials belongs in a cloud environment.
 
 Plaid Link runs on a page that `fo auth plaid` serves at a random path on
 `127.0.0.1`. The page answers only its own host and origin, loads Link from
-`cdn.plaid.com` under a nonce Content Security Policy, accepts one result, logs no
+`cdn.plaid.com` under a Content Security Policy that admits only nonce-tagged scripts
+(styles are inline, as Plaid's injected styles require), accepts one result, logs no
 requests, and stops when Link finishes, closes, or after 15 minutes. The public
 token it receives is exchanged with Plaid directly and never stored or printed.
 
