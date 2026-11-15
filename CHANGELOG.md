@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.0.0b2 — 2026-11-14
 
 - Advisors are conversations. Each advisor page is a chat: type a message, press
   Enter, follow up as often as you like. The subject field is gone. Earlier chats are
