@@ -27,7 +27,7 @@ public enum TerminalCommand: Sendable, Equatable, Identifiable {
 
     /// Providers `fo auth` connects in the terminal. Key-based providers use native fields
     /// and `fo connect` instead.
-    public static let authProviders = ["schwab", "simplefin", "plaid"]
+    public static let authProviders = ["plaid", "simplefin", "schwab"]
 
     public var id: String { words.joined(separator: " ") }
 

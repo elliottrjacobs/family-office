@@ -15,7 +15,7 @@ final class ConnectorsTests: XCTestCase {
     func testCatalogListsEveryProviderOnce() {
         XCTAssertEqual(
             ConnectorCatalog.all.map(\.id),
-            ["schwab", "simplefin", "plaid", "alphavantage", "fred", "exa", "firecrawl", "gemini", "edgar"])
+            ["plaid", "simplefin", "schwab", "alphavantage", "fred", "exa", "firecrawl", "gemini", "edgar"])
         XCTAssertEqual(ConnectCommand.keyProviders, ["alphavantage", "fred", "exa", "firecrawl", "gemini"])
         XCTAssertEqual(Set(ConnectorCatalog.all.filter { $0.kind == .account }.map(\.id)), Set(TerminalCommand.authProviders))
     }

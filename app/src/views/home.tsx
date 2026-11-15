@@ -17,7 +17,7 @@ const CHECKLIST_DISMISSED = "fo.checklist.dismissed.v1"
 
 /** Where each getting-started item is done, and what does it from here; the server says whether it is. */
 const HOW: Record<string, { text: string; action?: StepAction }> = {
-  account_connected: { text: "Connect Schwab, SimpleFIN, or your own Plaid account in the Mac app's Settings > Connectors.", action: "connect" },
+  account_connected: { text: "Connect a provider of your choice (Plaid with your own keys, SimpleFIN, or Schwab) in the Mac app's Settings > Connectors.", action: "connect" },
   first_sync: { text: "Pull balances, positions, and transactions from your accounts.", action: "sync" },
   profile_started: {
     text: "Onboard interviews you about your household, goals, and taxes so advisors know your situation.",
