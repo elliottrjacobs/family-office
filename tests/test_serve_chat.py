@@ -90,7 +90,7 @@ def test_runner_status_is_reported_and_cached(office, tmp_path):
                     "reason": None,
                     "message": None,
                     "defaults": {
-                        "model": "claude-fable-5-1",
+                        "model": "claude-opus-5-5",
                         "effort": "high",
                         "max_budget_usd": 2.0,
                         "enabled": True,

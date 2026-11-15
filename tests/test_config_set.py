@@ -56,7 +56,10 @@ def test_engine_effort_round_trips_through_the_reader(office):
         "max_budget_usd": 1.5,
         "enabled": False,
     }
-    code, data = cli(office, "config", "set", "serve.engines.codex.effort", "max")
+    for effort in ("xhigh", "max"):
+        set_config(office, "serve.engines.codex.effort", effort)
+        assert read_config(office)["serve"]["engines"]["codex"]["effort"] == effort
+    code, data = cli(office, "config", "set", "serve.engines.codex.effort", "extreme")
     assert (code, data["reason"]) == (1, "invalid_value")
 
 

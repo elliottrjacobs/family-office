@@ -487,13 +487,13 @@ def test_a_launch_without_engine_uses_the_office_default(office, tmp_path):
     record = manager.launch(office, "research", "BETA", "household")
     assert (record["engine"], record["model"], record["effort"]) == (
         "claude",
-        "claude-fable-5-1",
+        "claude-opus-5-5",
         "high",
     )
     done = settle(manager, office, record["id"])
     assert done["reported_model"] == "fake-model"
     argv = json.loads((folder / "argv.json").read_text())
-    assert argv[argv.index("--model") + 1] == "claude-fable-5-1"
+    assert argv[argv.index("--model") + 1] == "claude-opus-5-5"
     assert argv[argv.index("--effort") + 1] == "high"
     assert argv[argv.index("--max-budget-usd") + 1] == "2.00"
 
@@ -534,7 +534,7 @@ def test_model_effort_and_the_engine_budget_reach_the_command(office, tmp_path):
         ({"model": ""}, "invalid_model"),
         ({"model": "--dangerously-skip-permissions"}, "invalid_model"),
         ({"model": "two words"}, "invalid_model"),
-        ({"effort": "max"}, "invalid_effort"),
+        ({"effort": "extreme"}, "invalid_effort"),
     ],
 )
 def test_a_launch_with_a_bad_engine_model_or_effort_is_refused(office, tmp_path, options, reason):

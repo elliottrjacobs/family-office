@@ -114,7 +114,7 @@ final class EnginesModel {
     }
 
     func efforts(_ engine: EngineKind) -> [String] {
-        catalog?.engines[engine.rawValue]?.efforts ?? ["low", "medium", "high"]
+        catalog?.engines[engine.rawValue]?.efforts ?? ["low", "medium", "high", "xhigh", "max"]
     }
 
     func key(_ engine: EngineKind, _ field: String) -> String {
@@ -369,7 +369,7 @@ struct EnginesSettings: View {
                     })
             ) {
                 ForEach(model.efforts(engine), id: \.self) { effort in
-                    Text(effort.capitalized).tag(effort)
+                    Text(effort == "xhigh" ? "Extra high" : effort.capitalized).tag(effort)
                 }
             }
             .pickerStyle(.segmented)

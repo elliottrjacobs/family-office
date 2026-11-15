@@ -294,7 +294,10 @@ def _schema():
     for engine in ENGINES:
         prefix = f"serve.engines.{engine}."
         schema[prefix + "model"] = (_token, "a non-empty model name without spaces")
-        schema[prefix + "effort"] = (_choice("low", "medium", "high"), "low, medium, or high")
+        schema[prefix + "effort"] = (
+            _choice("low", "medium", "high", "xhigh", "max"),
+            "low, medium, high, xhigh, or max",
+        )
         schema[prefix + "max_budget_usd"] = (_positive_float, "a number greater than 0")
         schema[prefix + "enabled"] = (_boolean, "true or false")
     for provider in PROVIDERS:
