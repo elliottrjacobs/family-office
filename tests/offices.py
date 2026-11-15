@@ -61,6 +61,10 @@ def write_report(root, kind, subject, body, summary):
 def commit_all(root):
     """Commit the fixture the way a set-up office would be committed."""
     git(root, "add", "-A")
+    # A commit starts Git's detached maintenance, which repacks .git while a test compares
+    # the office tree before and after; the fixture turns it off.
+    git(root, "config", "maintenance.auto", "false")
+    git(root, "config", "gc.auto", "0")
     git(root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "fixture")
 
 
