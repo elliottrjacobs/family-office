@@ -83,7 +83,13 @@ in its one handshake line.
 
 ### Advisor runs
 
-Chat starts one headless Claude Code run at a time in the office directory. A run
+Chat starts a headless Claude Code run in the office directory for each conversation
+that is answering, up to `[serve] parallel_runs` at once (three by default, eight at
+most); one conversation takes one turn at a time. Each run is its own process with
+its own budget cap, time limit, fetch counter, and web log, and the rules below apply
+to each alike. Their `fo` commands take the office lock in turn: a run starts with
+`FO_LOCK_WAIT` set, so a command waits up to twenty seconds for the lock instead of
+failing, and two runs are never given the same report to write. A run
 loads only the office's project settings plus a run profile: no user settings or
 hooks, an empty strict MCP configuration, only the Bash, Read, Write, Edit, and
 Task tools (plus WebSearch and WebFetch when web is on for the chat, below), `--permission-mode dontAsk` with every permission prompt denied, and a
@@ -136,9 +142,11 @@ network commands, no MCP server, and no other tool. What limits this path:
 - Only the Claude Code engine gets web in a chat that reads the household. Codex
   confines reads by command rather than by path, so there the previous rule holds.
 
-To go back to the previous rule, run `fo config set serve.web isolated`; to turn
-web off everywhere, `fo config set serve.web off`. Either takes effect on the next
-message.
+To go back to the previous rule, choose "Only without household data" under Web
+access in the Mac app's Settings > Advanced, or run `fo config set serve.web
+isolated`; to turn web off everywhere, choose "Never" there or run `fo config set
+serve.web off`. The Settings control writes the same key through `fo config set`.
+Either takes effect on the next message.
 
 At level `none` a web chat stays isolated as before: the hook denies reads of
 `data/`, `profile/`, and `notebook/`, including symlink targets. Skills,
@@ -187,7 +195,21 @@ server, exactly as the command runs in a terminal: it uses the credentials `fo a
 stored, holds the office lock, and obeys the writer-host rule. The request needs the
 same session and same-origin checks as every other write, does not exist under
 `--read-only`, is refused while an advisor is working, and answers with each
-provider's status and `fo`'s own reason text, never a provider's error. A paired
+provider's status and `fo`'s own reason text, never a provider's error. A message
+sent to an advisor while a sync runs is queued and starts when the sync ends. After
+a sync the server commits `notebook/`, `reports/`, and `data/` to the office's local
+Git history, as the scheduled job's `--commit` does; unrelated uncommitted changes
+leave that commit undone.
+
+Automatic sync. While `fo serve` runs without `--read-only`, it syncs on its own when
+any connected provider's last complete sync is older than `[serve] auto_sync_hours`
+(six by default). This is the same `fo sync --if-writer` child process, so it calls
+providers with the stored read-only credentials without a click, only on the writer
+host, and never while an advisor is answering. A sync that fails or ends incomplete
+is retried after half an hour, then one hour, doubling up to the interval, so a broken
+connection is not called repeatedly. Turn it off under Account sync in the Mac app's
+Settings > Advanced or with `fo config set serve.auto_sync false`; Sync now still
+works. A paired
 phone can start it. It reads from providers only; nothing in family-office can trade
 or move money.
 

@@ -365,14 +365,19 @@ is non-empty, and releases it when either changes and on quit. `pmset -g asserti
   unavailable.
 - **Engines** and **Connectors.** See below.
 - **Devices.** See below.
-- **Advanced.** Port (`serve.port`; a change restarts the server), Run budget
-  (`serve.max_budget_usd`), Run timeout (`serve.run_timeout_minutes`), Runs kept
-  (`serve.keep_runs`) and Web fetch cap (`serve.web_fetch_cap`). Each Set runs
+- **Advanced.** Three sections. Web access is a picker for `serve.web` (In every chat,
+  Only without household data, Never) that saves when a value is chosen and shows what that
+  value means. Account sync is a switch for `serve.auto_sync` and the interval
+  `serve.auto_sync_hours`. Limits has Advisors at once (`serve.parallel_runs`), Reply budget
+  (`serve.max_budget_usd`), Reply timeout (`serve.run_timeout_minutes`), Chats kept
+  (`serve.keep_runs`), Web fetch cap (`serve.web_fetch_cap`) and Port (`serve.port`; a change
+  restarts the server). Every write runs
   `fo --json --office PATH config set KEY VALUE` with the server's scrubbed environment; a
   refusal shows the CLI's `message` (for example `serve.port expects an integer from 1 to
   65535 other than 8182.`). A key the installed `fo config set` rejects with `invalid_key` is
-  shown as not settable instead of being written another way; all five keys are settable
-  on the current server.
+  shown as not settable instead of being written another way; all nine keys are settable
+  on the current server. The server reads every key but the port on each request, so a
+  change applies to the next message or the next sync check without a restart.
 
 ## Engines
 

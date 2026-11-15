@@ -197,7 +197,10 @@ that browser in until the server stops; press Enter to print it again and Ctrl-C
 to stop. Every start issues a new link. Run it before an office exists and the
 page walks you through `fo setup`, connecting accounts, and the first sync, one
 exact command at a time. Credentials and provider consent stay in the terminal;
-Sync now at the top of the page refreshes connected accounts.
+Sync now at the top of the page refreshes connected accounts. While the server is
+running it also syncs on its own when account data is more than six hours old
+(`auto_sync` and `auto_sync_hours` under `[serve]`), on the writer host only, and
+never while an advisor is answering.
 
 The dashboard reads the office in read-only mode: no provider calls, no cache or
 index writes, and no lock. It reads only `profile/`, `reports/`, `notebook/`, and
@@ -219,15 +222,21 @@ advisor may read (no household data, a short household brief, or the full profil
 the model, and the effort; they stay with that conversation. A run loads only the
 office's settings, and may run only `fo` commands, read inside the office, and
 write under `reports/`; a refused call is listed in the chat, never asked about.
-One advisor answers at a time. Limits are in `office.toml`:
+Several advisors can answer at once, each in its own conversation; the sidebar
+shows which are answering and marks one that finished while you were elsewhere.
+Limits are in `office.toml`, and the Mac app's Settings > Advanced edits the same
+keys:
 
 ```toml
 [serve]
 max_budget_usd = 2.0       # per reply, in Claude usage
 run_timeout_minutes = 30
 keep_runs = 300            # conversations kept under cache/serve/runs/
+parallel_runs = 3          # advisors answering at once, 1 to 8
 web_fetch_cap = 20         # web fetches per reply
 web = "on"                 # on, isolated, or off
+auto_sync = true           # sync accounts when they are older than auto_sync_hours
+auto_sync_hours = 6
 ```
 
 Web search and fetch are on by default, so an advisor can check current law,
@@ -351,7 +360,8 @@ this list with `invalid_key`, or a value of the wrong type with `invalid_value`:
 `serve.port` (1 to 65535, not 8182), `serve.tailnet_name`, `serve.allowed_logins`
 (a JSON array or comma-separated), `serve.web_fetch_cap`, `serve.web` (`on`,
 `isolated`, or `off`), `serve.max_budget_usd`,
-`serve.run_timeout_minutes`, `serve.keep_runs`, `serve.engines.default`
+`serve.run_timeout_minutes`, `serve.keep_runs`, `serve.parallel_runs` (1 to 8),
+`serve.auto_sync` (`true` or `false`), `serve.auto_sync_hours`, `serve.engines.default`
 (`claude` or `codex`), and for each engine `serve.engines.<claude|codex>.model`,
 `.effort` (`low`, `medium`, `high`), `.max_budget_usd`, and `.enabled`; then
 `providers.<name>.daily_limit` for `alphavantage`, `fred`, `edgar`, `exa`,
