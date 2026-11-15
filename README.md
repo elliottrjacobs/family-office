@@ -285,7 +285,7 @@ launch panel lists the engines `fo serve` can run, with one that is missing,
 outdated, or turned off shown disabled and the reason beside it. Model and effort are
 chosen per run: the panel offers a curated list of model ids for the engine
 (shipped in the package, so it can change in a patch release), an Other field
-for any id the engine accepts, and an effort of low, medium, or high. A model
+for any id the engine accepts, and an effort of low, medium, high, xhigh (extra high), or max. A model
 fo does not list is passed through as is; an id the engine rejects fails the
 run with the engine's message. The panel starts from the office's defaults and
 remembers your last choice per advisor for the browser session, and the run
@@ -298,8 +298,8 @@ without restarting `fo serve`:
 default = "claude"         # the engine a run uses when the launch names none
 
 [serve.engines.claude]
-model = "claude-fable-5-1"  # the curated recommendation when unset
-effort = "high"            # low, medium, or high
+model = "claude-opus-5-5"   # the curated recommendation when unset
+effort = "high"            # low, medium, high, xhigh, or max
 max_budget_usd = 2.0       # per run on this engine; [serve] max_budget_usd when unset
 enabled = true             # false turns the engine off for chat
 ```

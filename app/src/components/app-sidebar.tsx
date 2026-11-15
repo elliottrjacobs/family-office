@@ -15,6 +15,7 @@ import {
 } from "lucide-react"
 
 import type { Advisor } from "@/api/office"
+import appIcon from "@/assets/app-icon.png"
 import { runs } from "@/api/runs"
 import { useApi } from "@/api/use-api"
 import { needsVerdict, useAppData } from "@/app-data"
@@ -103,7 +104,6 @@ export function AppSidebar() {
   const busy = Object.keys(answering).length
   const office = status?.office
   const verdicts = needsVerdict(review).length
-  const folder = office?.office.split("/").filter(Boolean).pop() ?? "Family Office"
   const lastSync = office?.last_sync
   const advisors = (registry?.skills ?? []).filter((a) => {
     const q = query.trim().toLowerCase()
@@ -117,16 +117,9 @@ export function AppSidebar() {
   return (
     <Sidebar variant="inset" collapsible="offcanvas">
       <SidebarHeader>
-        <div className="flex items-center gap-2 px-1 py-1">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-primary font-heading text-sm text-primary-foreground">
-            {folder[0]?.toUpperCase() ?? "F"}
-          </span>
-          <div className="min-w-0 leading-tight">
-            <p className="truncate text-sm font-semibold">Family Office</p>
-            <p className="truncate text-xs text-muted-foreground" title={office?.office}>
-              {office ? folder : "No office open"}
-            </p>
-          </div>
+        <div className="flex items-center gap-2 px-1 py-1" title={office?.office}>
+          <img src={appIcon} alt="" className="size-8 shrink-0 rounded-lg" />
+          <p className="truncate text-sm font-semibold">Family Office</p>
         </div>
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />

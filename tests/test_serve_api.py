@@ -464,13 +464,14 @@ def test_models_route_serves_the_curated_list_and_live_office_defaults(office, t
         assert data["default"] == "claude"
         claude = data["engines"]["claude"]
         assert [m["id"] for m in claude["models"]] == [
-            "claude-fable-5-1",
             "claude-opus-5-5",
+            "claude-fable-5-2",
+            "claude-fable-5-1",
             "claude-sonnet-5-5",
             "claude-haiku-5-5",
         ]
-        assert claude["efforts"] == ["low", "medium", "high"]
-        assert data["defaults"]["claude"]["model"] == "claude-fable-5-1"
+        assert claude["efforts"] == ["low", "medium", "high", "xhigh", "max"]
+        assert data["defaults"]["claude"]["model"] == "claude-opus-5-5"
         assert_unchanged(before, tree(office))
         set_config(office, "serve.engines.default", "codex")
         set_config(office, "serve.engines.codex.effort", "medium")

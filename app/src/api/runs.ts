@@ -15,7 +15,7 @@ export type RunStatus =
 
 export const ACTIVE: RunStatus[] = ["queued", "running", "verifying"]
 
-export type Effort = "low" | "medium" | "high"
+export type Effort = "low" | "medium" | "high" | "xhigh" | "max"
 
 export const ENGINE_LABELS: Record<string, string> = { claude: "Claude Code", codex: "Codex" }
 

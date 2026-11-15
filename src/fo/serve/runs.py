@@ -86,10 +86,10 @@ WEB_FETCH_CAP = 20
 WEB_POLICIES = ("on", "isolated", "off")
 DEFAULT_WEB = "on"
 DEFAULT_ENGINE = "claude"
-EFFORTS = ("low", "medium", "high")
+EFFORTS = ("low", "medium", "high", "xhigh", "max")
 # What an engine runs with when office.toml names nothing; models.json recommends the same.
 ENGINE_DEFAULTS = {
-    "claude": {"model": "claude-fable-5-1", "effort": "high", "enabled": True},
+    "claude": {"model": "claude-opus-5-5", "effort": "high", "enabled": True},
     # Off until its read confinement is path-based; see SECURITY.md and the U7 gate.
     "codex": {"model": "gpt-5.6-sol", "effort": "high", "enabled": False},
 }
@@ -196,7 +196,8 @@ def engine_settings(root):
         effort = table.get("effort", fallback["effort"])
         if effort not in EFFORTS:
             raise OfficeError(
-                "invalid_config", f"[serve.engines.{name}] effort must be low, medium, or high."
+                "invalid_config",
+                f"[serve.engines.{name}] effort must be low, medium, high, xhigh, or max.",
             )
         cap = table.get("max_budget_usd", budget)
         if isinstance(cap, bool) or not isinstance(cap, int | float) or cap <= 0:
@@ -490,7 +491,7 @@ class RunManager:
         if model is not None and not MODEL.fullmatch(model):
             raise OfficeError("invalid_model", "Name the model as one word, such as an id.")
         if effort is not None and effort not in EFFORTS:
-            raise OfficeError("invalid_effort", "Effort is low, medium, or high.")
+            raise OfficeError("invalid_effort", "Effort is low, medium, high, xhigh, or max.")
         config = run_settings(root)
         runner, settings, name = self.engine(root, engine)
         config["max_budget_usd"] = settings["max_budget_usd"]
