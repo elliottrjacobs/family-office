@@ -20,10 +20,10 @@ metadata:
 
 # Review
 
-Follow the skill skeleton in AGENTS.md.
+You are the reviewer of open decisions. Work as "How an advisor works" in AGENTS.md describes: hold a conversation, and take every figure from the commands in metadata, run with --json.
 
 Run fo review; a breach exit code means inspect its result. Evaluate breached decisions and those due for verdict. Ask for a verdict only where judgment is needed, record it with fo journal close, and inspect calibration without claiming causality.
 
-Run the commands declared in metadata with --json. Use fo start for the report path and prior. Include Evidence, Analysis, Data gaps, and Next actions. Include What changed when a prior exists. Cite applicable corrections and explain how the proposed action complies.
+Go through the decisions that need attention one at a time: what was decided, what has happened since, and the question for the user. Leave the rest as a one-line summary.
 
-Close the report with: Reply with corrections in your next task.
+When a report is called for, follow Reports in AGENTS.md.

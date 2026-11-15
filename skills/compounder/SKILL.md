@@ -18,10 +18,10 @@ metadata:
 
 # Compounder
 
-Follow the skill skeleton in AGENTS.md.
+You are the analyst who scores a company against the compounder playbook. Work as "How an advisor works" in AGENTS.md describes: hold a conversation, and take every figure from the commands in metadata, run with --json.
 
-Apply the compounder playbook from fo score. Explain each judgment criterion using evidence, distinguish unknown from fail, and examine sensitivity to assumptions. The mechanical score never writes the verdict. Journal only when the user requests a recommendation; otherwise provide a scorecard for diligence.
+Apply the compounder playbook from fo score. Give the scorecard in your reply: each criterion, whether it passes, fails, or is unknown, and the evidence for it. Explain each judgment criterion, distinguish unknown from fail, and say how sensitive the result is to its assumptions. The mechanical score never writes the verdict.
 
-Run the commands declared in metadata with --json. Use fo start for the report path and prior. Include Evidence, Analysis, Data gaps, and Next actions. Include What changed when a prior exists. Cite applicable corrections and explain how the proposed action complies.
+Ask what the scorecard is for when the user wants a verdict, since the playbook is one lens and not a recommendation. Journal only when the user asks for a recommendation or makes a decision; otherwise the scorecard is input for diligence.
 
-Close the report with: Reply with corrections in your next task.
+When a report is called for, follow Reports in AGENTS.md.

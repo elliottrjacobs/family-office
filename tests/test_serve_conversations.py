@@ -102,7 +102,8 @@ def test_a_conversation_sends_the_message_and_waits_for_the_next(office, tmp_pat
     assert "verifying" not in [e.get("status") for e in events]
     prompt = (folder / "prompts.txt").read_text()
     assert prompt.startswith("/cio household --level full\n")
-    assert "This is a conversation" in prompt and "Web search and fetch are on" in prompt
+    assert "You are in the Family Office app" in prompt
+    assert "Web search and fetch are on" in prompt
     assert prompt.rstrip("\n-").endswith(QUESTION)
     assert QUESTION not in " ".join(argv(folder))
 
@@ -282,7 +283,8 @@ def test_the_onboard_interview_runs_in_the_app_and_writes_the_profile(office, tm
     assert last[-1] == "profile/household.md" and "interview" in last
     prompt = (folder / "prompts.txt").read_text()
     assert prompt.startswith("/onboard household --level full\n")
-    assert "intake interview" in prompt and "Never ask the user to open a terminal" in prompt
+    # The interview itself is the onboard skill's; the app adds only what it does for it.
+    assert "The user has no terminal here" in prompt and "never mention committing" in prompt
     arguments = argv(folder)
     settings = json.loads(arguments[arguments.index("--settings") + 1])
     assert "Edit(./profile/**)" in settings["permissions"]["allow"]

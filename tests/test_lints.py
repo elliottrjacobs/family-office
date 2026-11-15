@@ -21,7 +21,8 @@ def test_skill_lint_requires_a_sidebar_group(tmp_path):
         (source / name).mkdir(parents=True)
         metadata = "  commands:\n  - doctor\n" + (f"  group: {group}\n" if group else "")
         (source / name / "SKILL.md").write_text(
-            f"---\nname: {name}\ndescription: Fixture.\nmetadata:\n{metadata}---\nBody.\n"
+            f"---\nname: {name}\ndescription: Fixture.\nmetadata:\n{metadata}---\n"
+            f"Work as {module.CONVERSATION} describes.\n"
         )
         for host in (".claude", ".agents"):
             link = tmp_path / host / "skills" / name
@@ -68,7 +69,7 @@ def test_skill_lint_ties_the_research_command_to_the_untrusted_text_phrase(tmp_p
         (source / name).mkdir(parents=True)
         (source / name / "SKILL.md").write_text(
             f"---\nname: {name}\ndescription: Fixture.\nmetadata:\n  group: routine\n"
-            f"  commands:\n  - {command}\n---\n{body}\n"
+            f"  commands:\n  - {command}\n---\nWork as {module.CONVERSATION} describes. {body}\n"
         )
         for host in (".claude", ".agents"):
             link = tmp_path / host / "skills" / name
@@ -109,3 +110,30 @@ def test_identifier_lint(tmp_path):
     allowed = module.scan_text("SECURITY.md", f"range {cgnat}\n")
     assert allowed == []
     assert module.scan_text("docs/x.md", cgnat)
+
+
+def test_skill_lint_requires_the_conversational_form(tmp_path):
+    module = script("lint_skills")
+    source = tmp_path / "skills"
+    instructions = tmp_path / "AGENTS.md"
+    instructions.write_text("# Rules\n")
+    bodies = {
+        "chat": f"Work as {module.CONVERSATION} describes.",
+        "report": "Follow the skill skeleton in AGENTS.md.",
+        "sign-off": f"Work as {module.CONVERSATION} describes. Close the report with: thanks.",
+    }
+    for name, body in bodies.items():
+        (source / name).mkdir(parents=True)
+        (source / name / "SKILL.md").write_text(
+            f"---\nname: {name}\ndescription: Fixture.\nmetadata:\n  group: routine\n"
+            f"  commands:\n  - doctor\n---\n{body}\n"
+        )
+        for host in (".claude", ".agents"):
+            link = tmp_path / host / "skills" / name
+            link.parent.mkdir(parents=True, exist_ok=True)
+            link.symlink_to(Path("../../skills") / name, target_is_directory=True)
+    assert module.lint(source, instructions) == [
+        f"{source / 'report' / 'SKILL.md'}: must refer to {module.CONVERSATION}",
+        f"{source / 'sign-off' / 'SKILL.md'}: the report's closing line belongs in the rules, "
+        "not a skill",
+    ]

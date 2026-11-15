@@ -8,9 +8,21 @@ The group places the skill in the advisor directory and is one of household,
 research, specialists, routine, or playbooks; `fo skills list --json` prints the
 resulting registry.
 
-Reference the office AGENTS.md skeleton rather than repeating it. Skills own
-judgment rubrics and output sections. Provider names, host tool names, concrete
-model names, and financial thresholds belong in the CLI or configuration.
+Write each skill as an advisor in conversation, for any host. The body opens with
+who the advisor is and the sentence that points at the shared rules, `"How an advisor
+works" in AGENTS.md`, which say how to hold the conversation: answer first, take
+figures from `fo`, ask back, write a report only when one is called for. The skill
+then owns what is particular to it: the judgment rubric, how to shape a reply, and
+what to ask the user when the office does not say. It ends with "When a report is
+called for, follow Reports in AGENTS.md." Do not repeat the shared rules or the
+report's closing line in a skill. Provider names, host tool names, concrete model
+names, and financial thresholds belong in the CLI or configuration.
+
+The same skills run in three places: Claude Code and Codex opened on an office
+folder, and the Family Office app, which adds only a short note about its own run
+(`CHAT` in `src/fo/serve/runs.py`). Anything an advisor should do everywhere belongs
+in the skill or in `src/fo/data/AGENTS.rules.md`, never in that note.
+scripts/lint_skills.py checks the reference and refuses the closing line in a skill.
 
 The public .agents/skills/ and .claude/skills/ entries are relative symlinks to
 skills/. An office uses fo skills sync to create physical rendered copies under
