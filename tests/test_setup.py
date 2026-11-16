@@ -97,3 +97,54 @@ def test_offline_setup_never_authenticates(tmp_path, monkeypatch):
     result = setup(tmp_path / "office", offline=True)
     assert result["status"] == "offline_ready"
     assert result["live_validation"] == "pending"
+
+
+def test_setup_connects_no_provider_unless_chosen(tmp_path, monkeypatch):
+    from fo import setup as workflow
+
+    monkeypatch.setattr(
+        workflow, "authenticate", lambda *args: pytest.fail("No provider was chosen")
+    )
+    result = setup(tmp_path / "office")
+    assert result["status"] == "offline_ready"
+    assert "fo auth plaid" in result["next"] and "fo auth schwab" in result["next"]
+    assert "connections" not in result
+
+
+@pytest.mark.parametrize(
+    ("answer", "providers"),
+    [
+        ("plaid", ["plaid"]),
+        ("Plaid, schwab", ["plaid", "schwab"]),
+        ("simplefin simplefin", ["simplefin"]),
+        ("none", []),
+    ],
+)
+def test_setup_choice_parses_the_users_answer(answer, providers):
+    from fo.setup import choose
+
+    assert choose(answer) == providers
+
+
+@pytest.mark.parametrize("answer", ["", "fidelity", "none plaid"])
+def test_setup_choice_refuses_unknown_answers(answer):
+    from fo.errors import OfficeError
+    from fo.setup import choose
+
+    with pytest.raises(OfficeError) as caught:
+        choose(answer)
+    assert caught.value.reason == "unknown_provider"
+
+
+def test_cli_setup_without_a_terminal_connects_nothing(tmp_path, monkeypatch):
+    from typer.testing import CliRunner
+
+    from fo import setup as workflow
+    from fo.cli import app
+
+    monkeypatch.setattr(
+        workflow, "authenticate", lambda *args: pytest.fail("No provider was chosen")
+    )
+    result = CliRunner().invoke(app, ["--json", "setup", str(tmp_path / "office")])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.stdout)["status"] == "offline_ready"

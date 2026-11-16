@@ -129,9 +129,31 @@ def authenticate(root, provider):
                 "authentication_failed",
                 "Schwab browser authentication failed; no credential details are displayed.",
             ) from exc
+    elif provider == "plaid":
+        from fo.providers.plaid import connect
+        from fo.providers.plaid_link import run_link
+
+        try:
+            return connect(
+                root,
+                keys,
+                typer.prompt,
+                typer.confirm,
+                run_link,
+                announce=lambda text: typer.echo(text, err=True),
+            )
+        except OfficeError:
+            raise
+        except Exception as exc:
+            raise OfficeError(
+                "authentication_failed",
+                "Plaid linking failed; no credential details are displayed.",
+            ) from exc
     elif provider in {"alphavantage", "fred"}:
         keys[provider] = {"api_key": typer.prompt(provider + " API key", hide_input=True)}
         save_keys(root, keys)
     else:
-        raise OfficeError("unknown_provider", "Use schwab, simplefin, alphavantage, or fred.")
+        raise OfficeError(
+            "unknown_provider", "Use schwab, simplefin, plaid, alphavantage, or fred."
+        )
     return {"provider": provider, "authenticated": True}

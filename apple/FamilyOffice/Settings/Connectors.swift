@@ -263,6 +263,12 @@ struct ConnectorsSettings: View {
     }
 
     @ViewBuilder
+    /// Plaid links one institution per run, so a connected Plaid row adds or repairs one.
+    private func accountAction(_ connector: Connector) -> String {
+        guard model.state(connector) == .connected else { return "Connect…" }
+        return connector.id == "plaid" ? "Link or Repair…" : "Reconnect…"
+    }
+
     private func accountRow(_ connector: Connector) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             header(connector)
@@ -271,7 +277,7 @@ struct ConnectorsSettings: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
-                Button(model.state(connector) == .connected ? "Reconnect…" : "Connect…") {
+                Button(accountAction(connector)) {
                     let session = FoTerminalSession(command: .auth(connector.id), office: state.officePath)
                     session.onExit = { status in
                         Task { await model.authFinished(connector.id, status: status, api: state.api) }

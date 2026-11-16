@@ -19,15 +19,15 @@ public enum TerminalCommand: Sendable, Equatable, Identifiable {
     /// `fo --office PATH setup PATH --offline`: creates the office with no accounts connected,
     /// for the setup dialog, which connects them in a later step.
     case setupOffline
-    /// `fo --office PATH auth PROVIDER`: the CLI's hidden prompts and, for Schwab, the
-    /// browser consent page.
+    /// `fo --office PATH auth PROVIDER`: the CLI's hidden prompts and, for Schwab and Plaid,
+    /// a page in the browser.
     case auth(String)
     case sync
     case doctor
 
     /// Providers `fo auth` connects in the terminal. Key-based providers use native fields
     /// and `fo connect` instead.
-    public static let authProviders = ["schwab", "simplefin"]
+    public static let authProviders = ["plaid", "simplefin", "schwab"]
 
     public var id: String { words.joined(separator: " ") }
 
@@ -86,7 +86,7 @@ public enum TerminalCommand: Sendable, Equatable, Identifiable {
         switch self {
         case .setup: return "Set up the office"
         case .setupOffline: return "Create the office"
-        case .auth(let provider): return "Connect \(provider == "schwab" ? "Schwab" : provider == "simplefin" ? "SimpleFIN" : provider)"
+        case .auth(let provider): return "Connect \(ConnectorCatalog.label(provider))"
         case .sync: return "Sync accounts"
         case .doctor: return "Check the office"
         }
@@ -104,6 +104,12 @@ public enum TerminalCommand: Sendable, Equatable, Identifiable {
             return
                 "fo auth simplefin asks for a SimpleFIN setup token (typing stays hidden) and "
                 + "exchanges it for an access link stored in the per-machine credentials folder outside the office."
+        case .auth("plaid"):
+            return
+                "fo auth plaid asks once for your own Plaid client ID and secret (typing stays "
+                + "hidden) and which environment they belong to, then opens Plaid Link in your "
+                + "browser. Link an institution there and it finishes here on its own; run it again "
+                + "to add another institution or reconnect one that needs attention."
         case .auth(let provider):
             return "fo auth \(provider) asks for its credentials; typing stays hidden."
         case .setup:

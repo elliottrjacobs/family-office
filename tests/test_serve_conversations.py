@@ -365,7 +365,11 @@ def test_onboarding_steps_name_what_the_app_can_do(tmp_path):
     initialize(root)
     data = derive(Locator(root))
     assert data["state"] == "unconnected"
-    assert [step["action"] for step in data["steps"]] == ["connect:schwab", "connect:simplefin"]
+    assert [step["action"] for step in data["steps"]] == [
+        "connect:plaid",
+        "connect:simplefin",
+        "connect:schwab",
+    ]
     assert "Onboard advisor" in data["note"]
     data = derive(Locator(tmp_path / "empty"))
     assert data["state"] == "uninitialized_path" and data["steps"][0]["action"] == "setup"

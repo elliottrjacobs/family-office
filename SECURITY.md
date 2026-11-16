@@ -255,6 +255,7 @@ their fixed provider hosts.
 | OpenAI cloud agents | The entire tracked office checkout when connected |
 | Schwab | Authentication information and account or market-data requests |
 | SimpleFIN | Access credentials and requested account time windows |
+| Plaid (only if you connect it) | Your own client ID and secret, Item access tokens, an opaque per-office user id, and account, holdings and transactions requests |
 | AlphaVantage | API key, tickers, and requested data functions |
 | SEC EDGAR | Filing or financial-data queries and the configured User-Agent |
 | FRED | Series queries and any configured API authentication |
@@ -283,7 +284,17 @@ applies. Never automatically rewrite or force-push the user's office history.
 Schwab refresh tokens expire after seven days. Doctor warns within 48 hours of
 expiry. Reauthentication uses the browser flow; expiry is never reset merely
 because a local file was copied. SimpleFIN access URLs are bearer credentials.
-Neither credential belongs in a cloud environment.
+Plaid access tokens do not expire but grant read access to a linked institution
+until the Item is removed in the Plaid Dashboard; with the user's own client ID and
+secret, which live in `keys.toml`, they are the user's to protect. None of these
+credentials belongs in a cloud environment.
+
+Plaid Link runs on a page that `fo auth plaid` serves at a random path on
+`127.0.0.1`. The page answers only its own host and origin, loads Link from
+`cdn.plaid.com` under a Content Security Policy that admits only nonce-tagged scripts
+(styles are inline, as Plaid's injected styles require), accepts one result, logs no
+requests, and stops when Link finishes, closes, or after 15 minutes. The public
+token it receives is exchanged with Plaid directly and never stored or printed.
 
 Read-only mode avoids providers, cache writes, and index writes. It can still
 read the tracked office facts. Source text is scrubbed for credential URLs and

@@ -15,7 +15,7 @@ final class ConnectorsTests: XCTestCase {
     func testCatalogListsEveryProviderOnce() {
         XCTAssertEqual(
             ConnectorCatalog.all.map(\.id),
-            ["schwab", "simplefin", "alphavantage", "fred", "exa", "firecrawl", "gemini", "edgar"])
+            ["plaid", "simplefin", "schwab", "alphavantage", "fred", "exa", "firecrawl", "gemini", "edgar"])
         XCTAssertEqual(ConnectCommand.keyProviders, ["alphavantage", "fred", "exa", "firecrawl", "gemini"])
         XCTAssertEqual(Set(ConnectorCatalog.all.filter { $0.kind == .account }.map(\.id)), Set(TerminalCommand.authProviders))
     }
@@ -73,6 +73,16 @@ final class ConnectorsTests: XCTestCase {
         states.onboarding = [Onboarding.Provider(provider: "simplefin", connected: false, accounts: 0)]
         XCTAssertEqual(states.state(connector("simplefin")), .notConnected)
         XCTAssertEqual(states.state(connector("schwab")), .notConnected)
+    }
+
+    func testPlaidConnectsFromItsMaskedKeys() throws {
+        let states = ConnectorStates(
+            config: try config(
+                #"{"settings": {}, "secrets": {"plaid": {"client_id": "***", "secret": "***", "environment": "***"}}}"#
+            ))
+        XCTAssertEqual(connector("plaid").kind, .account)
+        XCTAssertEqual(states.state(connector("plaid")), .connected)
+        XCTAssertNil(ConnectCommand.remove("plaid"))
     }
 
     func testKeyProvidersFromMaskedSecretsOrTheLastSave() throws {

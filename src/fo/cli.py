@@ -1,4 +1,5 @@
 import os
+import sys
 from collections.abc import Callable
 from pathlib import Path
 
@@ -129,11 +130,26 @@ def setup_command(
     provider: list[str] = typer.Option(None),
     offline: bool = typer.Option(False),
 ):
-    from fo.setup import setup
+    from fo.setup import choose, setup
 
     def execute():
         writable(ctx)
-        return setup(path, provider, offline)
+        chosen = provider
+        if not chosen and not offline and sys.stdin is not None and sys.stdin.isatty():
+            # Nothing is connected by default: the user picks, or answers none.
+            def parse(answer):
+                try:
+                    return choose(answer)
+                except OfficeError as exc:
+                    raise typer.BadParameter(exc.message) from exc
+
+            chosen = typer.prompt(
+                "Connect accounts with plaid (broad bank and brokerage coverage, your own Plaid "
+                "keys), simplefin, schwab, or none",
+                value_proc=parse,
+                err=True,
+            )
+        return setup(path, chosen, offline)
 
     result = run(ctx, execute)
     if result["status"] == "needs_attention":

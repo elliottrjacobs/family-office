@@ -25,13 +25,17 @@ public struct Connector: Sendable, Equatable, Identifiable {
 public enum ConnectorCatalog {
     public static let all: [Connector] = [
         Connector(
-            id: "schwab", label: "Schwab", kind: .account,
-            purpose: "Brokerage positions, lots and transactions.",
-            signUp: URL(string: "https://developer.schwab.com")),
+            id: "plaid", label: "Plaid", kind: .account,
+            purpose: "Broad coverage of banks, cards and brokerages, through your own Plaid keys.",
+            signUp: URL(string: "https://dashboard.plaid.com/signup")),
         Connector(
             id: "simplefin", label: "SimpleFIN", kind: .account,
             purpose: "Bank and card balances and transactions.",
             signUp: URL(string: "https://beta-bridge.simplefin.org")),
+        Connector(
+            id: "schwab", label: "Schwab", kind: .account,
+            purpose: "Brokerage positions, lots and transactions.",
+            signUp: URL(string: "https://developer.schwab.com")),
         Connector(
             id: "alphavantage", label: "Alpha Vantage", kind: .key,
             purpose: "Quotes and price history.",

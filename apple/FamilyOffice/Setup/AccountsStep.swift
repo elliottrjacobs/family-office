@@ -1,7 +1,7 @@
 import FOKit
 import SwiftUI
 
-/// Accounts: the Connectors pane's Schwab and SimpleFIN rows (`fo auth` in the terminal),
+/// Accounts: the Connectors pane's Plaid, SimpleFIN and Schwab rows (`fo auth` in the terminal),
 /// a note on CSV imports, and, once a provider is connected, the first `fo sync`.
 struct AccountsStep: View {
     @Environment(AppState.self) private var state
@@ -11,13 +11,14 @@ struct AccountsStep: View {
         VStack(alignment: .leading, spacing: 0) {
             StepHeader(
                 title: model.profile == .new ? "Connect your accounts" : "Check your accounts",
-                detail: "Family Office reads balances, positions and transactions; it never trades or "
-                    + "moves money. Connecting runs fo auth in a terminal here, and your credentials "
-                    + "stay in the office's secrets folder."
+                detail: "Choose any provider below, or none. Family Office reads balances, positions "
+                    + "and transactions; it never trades or moves money. Connecting runs fo auth in a "
+                    + "terminal here, and your credentials "
+                    + "stay in this Mac's credentials folder, outside the office."
             )
             ConnectorsSettings(model: model.accounts, parts: [.accounts])
                 .padding(.horizontal, -20)
-                .frame(maxHeight: 250)
+                .frame(maxHeight: 340)
             HStack(alignment: .firstTextBaseline) {
                 if model.anyAccountConnected {
                     Button(model.firstSyncFinished ? "Sync Again" : "Run First Sync") {

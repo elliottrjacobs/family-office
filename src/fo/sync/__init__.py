@@ -23,6 +23,10 @@ def decimal_text(value):
         ) from exc
 
 
+# Account providers sync can read; csv reads exports placed in imports/.
+PROVIDERS = ("schwab", "simplefin", "plaid", "csv")
+
+
 def canonical(value):
     return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
@@ -49,15 +53,13 @@ def synchronize(
                 }
             ]
         raise OfficeError("not_writer", "Only the configured writer host may sync account data.")
-    if provider and provider not in {"schwab", "simplefin", "csv"}:
-        raise OfficeError("unknown_provider", "Use schwab, simplefin, or csv.")
+    if provider and provider not in PROVIDERS:
+        raise OfficeError("unknown_provider", "Use schwab, simplefin, plaid, or csv.")
     registry = load(root, "accounts")["accounts"]
     providers = (
         [provider]
         if provider
-        else sorted(
-            {a["provider"] for a in registry if a["provider"] in {"schwab", "simplefin", "csv"}}
-        )
+        else sorted({a["provider"] for a in registry if a["provider"] in PROVIDERS})
     )
     if not providers:
         raise OfficeError(
@@ -82,6 +84,10 @@ def synchronize(
                 zone = ZoneInfo(config.get("office", {}).get("timezone", "UTC"))
                 if name == "schwab":
                     adapter = Schwab(root, timezone=zone)
+                elif name == "plaid":
+                    from fo.providers.plaid import Plaid
+
+                    adapter = Plaid(root, timezone=zone)
                 else:
                     access = read_secrets(root).get("simplefin", {}).get("access_url")
                     if not access:
@@ -99,6 +105,14 @@ def synchronize(
                         unmapped_accounts=getattr(adapter, "unmapped_accounts", 0),
                     )
                 )
+                if not dry_run and hasattr(adapter, "commit"):
+                    # Incremental cursors advance only once the run's rows are appended. A
+                    # cursor that fails to save is harmless: the next run re-reads the same
+                    # changes and ingest skips rows it already holds.
+                    try:
+                        adapter.commit()
+                    except (OfficeError, OSError):
+                        pass
             except (OfficeError, ValueError, TypeError, KeyError, OSError) as exc:
                 failure = {
                     "run_id": identifier(),
@@ -314,6 +328,11 @@ def ingest(
             row["pending"] = bool(incoming.get("pending"))
             row["untrusted_fields"] = ["description", "payee", "memo"]
             candidates = list(by_provider_id.get((account_id, row["provider_id"]), {}).values())
+            if not candidates and incoming.get("replaces"):
+                # A posted transaction naming the pending one it replaces continues it.
+                candidates = list(
+                    by_provider_id.get((account_id, str(incoming["replaces"])), {}).values()
+                )
             if not candidates:
                 candidates = [
                     t
@@ -358,6 +377,28 @@ def ingest(
             remember(row)
             seen_transactions.add(row["transaction_id"])
             log["transaction_rows"] += 1
+        removed = {str(r) for r in account.get("removed_provider_ids") or []}
+        if removed:
+            # A provider that reports deletions expires a transaction only when every id it
+            # carries was deleted, so a pending row continued by its posted one survives.
+            for prior in list(known.values()):
+                if (
+                    prior["account_id"] == account_id
+                    and prior.get("status") != "expired"
+                    and set(prior["provider_ids"]) <= removed
+                ):
+                    expired = {
+                        **prior,
+                        **base,
+                        "row_id": identifier(),
+                        "revision": prior["revision"] + 1,
+                        "pending": False,
+                        "status": "expired",
+                    }
+                    pending.append(("data/transactions.jsonl", expired))
+                    forget(prior)
+                    remember(expired)
+                    log["transaction_rows"] += 1
         window = account.get("transaction_window")
         if window:
             for prior in list(known.values()):

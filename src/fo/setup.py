@@ -12,14 +12,31 @@ from fo.lock import office_lock
 from fo.providers.simplefin import SimpleFIN
 from fo.sync import synchronize
 
+# Account providers the user may choose from; none is connected unless chosen.
+CHOICES = ("plaid", "simplefin", "schwab")
+NEXT = (
+    "No account provider was chosen. Connect one when ready with fo auth plaid, "
+    "fo auth simplefin or fo auth schwab, or import CSV exports."
+)
+
+
+def choose(answer):
+    """Providers from a typed answer such as "plaid" or "plaid, schwab"; none for "none"."""
+    words = [w for w in str(answer or "").replace(",", " ").lower().split() if w]
+    if words == ["none"]:
+        return []
+    if not words or set(words) - set(CHOICES):
+        raise OfficeError("unknown_provider", "Answer plaid, simplefin, schwab, or none.")
+    return list(dict.fromkeys(words))
+
 
 def setup(path: Path, providers=None, offline=False):
-    providers = list(dict.fromkeys(providers or ("schwab", "simplefin")))
-    if set(providers) - {"schwab", "simplefin"}:
-        raise OfficeError("unknown_provider", "Setup supports schwab and simplefin.")
+    providers = list(dict.fromkeys(providers or ()))
+    if set(providers) - set(CHOICES):
+        raise OfficeError("unknown_provider", "Setup supports plaid, simplefin, and schwab.")
     initialize(path)
     root = path.expanduser().resolve()
-    if offline:
+    if offline or not providers:
         checks = diagnose(root)
         return {
             "status": "needs_attention"
@@ -27,6 +44,7 @@ def setup(path: Path, providers=None, offline=False):
             else "offline_ready",
             "checks": checks,
             "live_validation": "pending",
+            **({} if offline else {"next": NEXT}),
         }
     connection_results = []
     for provider in providers:
@@ -35,6 +53,12 @@ def setup(path: Path, providers=None, offline=False):
                 keys = read_secrets(root)
                 if provider == "simplefin" and keys.get("simplefin", {}).get("access_url"):
                     register(root, provider, SimpleFIN(keys["simplefin"]["access_url"]).discover())
+                elif provider == "plaid" and keys.get("plaid"):
+                    from fo.providers.plaid import discover
+
+                    # Linked institutions are registered again; fo auth plaid adds more.
+                    if not discover(root):
+                        authenticate(root, provider)
                 elif provider == "schwab":
                     from fo.providers.schwab import Schwab
 
