@@ -253,7 +253,6 @@ their fixed provider hosts.
 | Anthropic (companion app chat) | The brief, reports, and command output a run reads, per run |
 | OpenAI (companion app chat, Codex engine) | The same, for a Codex run |
 | OpenAI cloud agents | The entire tracked office checkout when connected |
-| Schwab | Authentication information and account or market-data requests |
 | SimpleFIN | Access credentials and requested account time windows |
 | Plaid (only if you connect it) | Your own client ID and secret, Item access tokens, an opaque per-office user id, and account, holdings and transactions requests |
 | AlphaVantage | API key, tickers, and requested data functions |
@@ -281,9 +280,7 @@ applies. Never automatically rewrite or force-push the user's office history.
 
 ## Token lifecycle and offline work
 
-Schwab refresh tokens expire after seven days. Doctor warns within 48 hours of
-expiry. Reauthentication uses the browser flow; expiry is never reset merely
-because a local file was copied. SimpleFIN access URLs are bearer credentials.
+SimpleFIN access URLs are bearer credentials.
 Plaid access tokens do not expire but grant read access to a linked institution
 until the Item is removed in the Plaid Dashboard; with the user's own client ID and
 secret, which live in `keys.toml`, they are the user's to protect. None of these

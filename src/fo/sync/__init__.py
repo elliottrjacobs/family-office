@@ -24,7 +24,7 @@ def decimal_text(value):
 
 
 # Account providers sync can read; csv reads exports placed in imports/.
-PROVIDERS = ("schwab", "simplefin", "plaid", "csv")
+PROVIDERS = ("simplefin", "plaid", "csv")
 
 
 def canonical(value):
@@ -37,7 +37,6 @@ def synchronize(
     import platform
 
     from fo.config import read_config, read_secrets
-    from fo.providers.schwab import Schwab
     from fo.providers.simplefin import SimpleFIN
     from fo.store.authored import load
     from fo.store.index import reindex
@@ -53,19 +52,32 @@ def synchronize(
                 }
             ]
         raise OfficeError("not_writer", "Only the configured writer host may sync account data.")
+    from fo.accounts import RETIRED
+
+    if provider in RETIRED:
+        raise OfficeError("retired_provider", RETIRED[provider])
     if provider and provider not in PROVIDERS:
-        raise OfficeError("unknown_provider", "Use schwab, simplefin, plaid, or csv.")
+        raise OfficeError("unknown_provider", "Use simplefin, plaid, or csv.")
     registry = load(root, "accounts")["accounts"]
     providers = (
         [provider]
         if provider
         else sorted({a["provider"] for a in registry if a["provider"] in PROVIDERS})
     )
-    if not providers:
+    retired = [] if provider else sorted({a["provider"] for a in registry} & set(RETIRED))
+    if not providers and not retired:
         raise OfficeError(
             "no_accounts", "Configure provider accounts in profile/accounts.json before sync."
         )
-    results = []
+    results = [
+        {
+            "provider": name,
+            "status": "skipped",
+            "reason": "retired_provider",
+            "message": RETIRED[name],
+        }
+        for name in retired
+    ]
     with office_lock(root):
         for name in providers:
             adapter = None
@@ -82,9 +94,7 @@ def synchronize(
                     )
                     continue
                 zone = ZoneInfo(config.get("office", {}).get("timezone", "UTC"))
-                if name == "schwab":
-                    adapter = Schwab(root, timezone=zone)
-                elif name == "plaid":
+                if name == "plaid":
                     from fo.providers.plaid import Plaid
 
                     adapter = Plaid(root, timezone=zone)

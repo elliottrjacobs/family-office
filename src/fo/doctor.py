@@ -2,7 +2,7 @@ import os
 from datetime import UTC, datetime
 
 from fo.commits import changes_outside, git_status
-from fo.config import credentials_dir, credentials_read_denied, load_json, read_config
+from fo.config import credentials_dir, credentials_read_denied, read_config
 from fo.errors import OfficeError
 from fo.office import contained, git
 from fo.store.authored import PROFILE_FILES, load
@@ -151,23 +151,14 @@ def diagnose(root):
         checks.append(
             check("providers", "warn", "Offline mode: no provider credentials configured.")
         )
-    token = secret_dir / "schwab-token.json" if secret_dir else None
-    if token and token.exists():
-        try:
-            expiry = load_json(token)["refresh_token_expires_at"]
-            hours = (
-                datetime.fromisoformat(expiry.replace("Z", "+00:00")) - datetime.now(UTC)
-            ).total_seconds() / 3600
-            status = "fail" if hours <= 0 else "warn" if hours <= 48 else "pass"
-            checks.append(
-                check(
-                    "schwab.token",
-                    status,
-                    f"Browser re-authentication due in {max(0, hours):.1f} hours.",
-                )
-            )
-        except (OfficeError, KeyError, TypeError, ValueError):
-            checks.append(check("schwab.token", "fail", "Token expiry metadata invalid."))
+    from fo.accounts import RETIRED
+
+    try:
+        retired = sorted({a["provider"] for a in load(root, "accounts")["accounts"]} & set(RETIRED))
+    except (OfficeError, KeyError, TypeError):
+        retired = []
+    for name in retired:
+        checks.append(check(f"accounts.retired.{name}", "warn", RETIRED[name]))
     from fo.skills import freshness
     from fo.store.index import project
 

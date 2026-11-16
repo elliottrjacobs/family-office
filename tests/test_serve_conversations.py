@@ -368,7 +368,6 @@ def test_onboarding_steps_name_what_the_app_can_do(tmp_path):
     assert [step["action"] for step in data["steps"]] == [
         "connect:plaid",
         "connect:simplefin",
-        "connect:schwab",
     ]
     assert "Onboard advisor" in data["note"]
     data = derive(Locator(tmp_path / "empty"))

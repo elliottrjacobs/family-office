@@ -1,18 +1,14 @@
 import base64
-import contextlib
-import io
 import json
-from datetime import UTC, datetime, timedelta
 from urllib.parse import urlsplit
 
 import httpx
 import typer
 
-from fo.accounts import register
-from fo.config import credentials_dir, ensure_credentials, read_secrets
+from fo.accounts import RETIRED, register
+from fo.config import ensure_credentials, read_secrets
 from fo.errors import OfficeError
 from fo.office import atomic_write, write_json
-from fo.store.authored import load
 
 
 def save_keys(root, keys):
@@ -36,19 +32,6 @@ def save_keys(root, keys):
 def save_secret_json(root, name, value):
     """Write <name>.json at 0600 in the machine-local credentials directory."""
     write_json(ensure_credentials(root) / f"{name}.json", value, 0o600)
-
-
-def register_schwab(root, mappings, keys):
-    register(root, "schwab", [{"last4": str(entry["accountNumber"])[-4:]} for entry in mappings])
-    registry = [a for a in load(root, "accounts")["accounts"] if a["provider"] == "schwab"]
-    hashes = {}
-    for entry in mappings:
-        matches = [a for a in registry if a.get("last4") == str(entry["accountNumber"])[-4:]]
-        if len(matches) != 1:
-            raise OfficeError("ambiguous_account", "Provider account identities are ambiguous.")
-        hashes[matches[0]["id"]] = entry["hashValue"]
-    keys["schwab"]["account_hashes"] = hashes
-    save_keys(root, keys)
 
 
 def authenticate(root, provider):
@@ -78,57 +61,6 @@ def authenticate(root, provider):
             raise OfficeError(
                 "authentication_failed", "SimpleFIN setup failed; no token details are displayed."
             ) from exc
-    elif provider == "schwab":
-        settings = keys.get("schwab", {})
-        settings["app_key"] = settings.get("app_key") or typer.prompt(
-            "Schwab app key", hide_input=True
-        )
-        settings["app_secret"] = settings.get("app_secret") or typer.prompt(
-            "Schwab app secret", hide_input=True
-        )
-        callback = settings.get("callback_url") or typer.prompt(
-            "Registered HTTPS loopback callback URL", default="https://127.0.0.1:8182"
-        )
-        parts = urlsplit(callback)
-        if parts.scheme != "https" or parts.hostname not in ("127.0.0.1", "localhost", "::1"):
-            raise OfficeError("invalid_callback", "Use the registered HTTPS loopback callback URL.")
-        settings["callback_url"] = callback
-        expiry = (datetime.now(UTC) + timedelta(days=7)).isoformat().replace("+00:00", "Z")
-        path = credentials_dir(root) / "schwab-token.json"
-        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        path.parent.chmod(0o700)
-
-        def persist(token, *args, **kwargs):
-            write_json(path, {**token, "refresh_token_expires_at": expiry}, 0o600)
-
-        try:
-            import schwab.auth
-
-            # The library opens the browser. Suppress its URL and callback chatter.
-            with (
-                contextlib.redirect_stdout(io.StringIO()),
-                contextlib.redirect_stderr(io.StringIO()),
-            ):
-                client = schwab.auth.client_from_login_flow(
-                    settings["app_key"],
-                    settings["app_secret"],
-                    callback,
-                    str(path),
-                    token_write_func=persist,
-                    interactive=False,
-                )
-                response = client.get_account_numbers()
-                response.raise_for_status()
-                mappings = response.json()
-            keys["schwab"] = settings
-            register_schwab(root, mappings, keys)
-        except OfficeError:
-            raise
-        except Exception as exc:
-            raise OfficeError(
-                "authentication_failed",
-                "Schwab browser authentication failed; no credential details are displayed.",
-            ) from exc
     elif provider == "plaid":
         from fo.providers.plaid import connect
         from fo.providers.plaid_link import run_link
@@ -152,8 +84,8 @@ def authenticate(root, provider):
     elif provider in {"alphavantage", "fred"}:
         keys[provider] = {"api_key": typer.prompt(provider + " API key", hide_input=True)}
         save_keys(root, keys)
+    elif provider in RETIRED:
+        raise OfficeError("retired_provider", RETIRED[provider])
     else:
-        raise OfficeError(
-            "unknown_provider", "Use schwab, simplefin, plaid, alphavantage, or fred."
-        )
+        raise OfficeError("unknown_provider", "Use plaid, simplefin, alphavantage, or fred.")
     return {"provider": provider, "authenticated": True}

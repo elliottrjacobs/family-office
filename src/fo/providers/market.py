@@ -46,15 +46,7 @@ class Market:
         )
 
     def quote(self, symbol):
-        from fo.providers.schwab import Schwab
-
-        try:
-            client = Schwab(self.root) if self.keys.get("schwab") else None
-            return self.cache.get(
-                "schwab:quote:" + symbol, 900, (lambda: client.quote([symbol])) if client else None
-            )
-        except OfficeError:
-            return self.alpha("GLOBAL_QUOTE", symbol)
+        return self.alpha("GLOBAL_QUOTE", symbol)
 
     def edgar(self, path):
         if path.startswith("/") or ".." in path or "?" in path:

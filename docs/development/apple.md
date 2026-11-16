@@ -426,7 +426,7 @@ executable; `FO_CODEX_EXECUTABLE` is passed the same way for the Codex runner.
 
 | Provider | Kind | Connect | Remove | State from |
 | -------- | ---- | ------- | ------ | ---------- |
-| Schwab, SimpleFIN | account | Connect… opens the terminal with `fo auth schwab` or `fo auth simplefin` | (not in the app) | `/api/onboarding` `providers[].connected`, else a masked entry in `/api/config` `secrets` |
+| Plaid, SimpleFIN | account | Connect… opens the terminal with `fo auth plaid` or `fo auth simplefin` | (not in the app) | `/api/onboarding` `providers[].connected`, else a masked entry in `/api/config` `secrets` |
 | Alpha Vantage, FRED, Exa, Firecrawl, Gemini | API key | Save runs `fo --json --office PATH connect <provider>` with the key on stdin | Remove… runs `fo connect --remove <provider>` after confirmation | the last Save or Remove in this session, else a masked `/api/config` `secrets` entry |
 | SEC EDGAR | contact | Save runs `fo connect edgar --user-agent "Name email"` | Remove runs `fo connect --remove edgar` | `/api/config` `settings.providers.edgar.user_agent` |
 
@@ -458,7 +458,7 @@ wraps it with the step actions, and each step is its own view in `Setup/`.
 | welcome | what the app is in two sentences | Get Started | no |
 | office | Create (a parent folder from `NSOpenPanel` and a name, default `family-office`, then `fo setup PATH --offline` in the embedded terminal) or Open existing (a folder holding `office.toml`) | Continue, once the server reports the office | no |
 | engine | the Engines pane (detection, the server's verdict, default engine, model, effort) | Continue | Later |
-| accounts | the Connectors pane's Schwab and SimpleFIN rows (`fo auth` in the terminal), a CSV note, and Run First Sync (`fo sync` in the terminal) once one is connected | Continue | yes |
+| accounts | the Connectors pane's Plaid and SimpleFIN rows (`fo auth` in the terminal), a CSV note, and Run First Sync (`fo sync` in the terminal) once one is connected | Continue | yes |
 | research | the Connectors pane's five key rows | Continue | yes |
 | phone | the Devices pane: Tailscale status and pairing | Continue | yes |
 | done | what was set up and what was skipped, with where to finish each | Open Family Office | no |
@@ -473,7 +473,7 @@ wraps it with the step actions, and each step is its own view in `Setup/`.
   and `uninitialized_path`). A folder that already exists and is not empty is refused
   before `fo` runs; `fo setup` refuses anything else it would refuse in a terminal.
 - **Choices.** Continue records one line for the done step's summary (`Office created at
-  …`, `Default engine: Codex`, `Connected Schwab, first sync finished`, `2 research keys`,
+  …`, `Default engine: Codex`, `Connected Plaid, first sync finished`, `2 research keys`,
   `1 phone paired`); Continue with nothing done counts as skipped. Back keeps what a step
   finished.
 - **Return.** A local key monitor gives Return (and keypad Enter) to the primary button
@@ -547,8 +547,8 @@ one of these, as typed in `FOKit.TerminalCommand`:
 
 | Command | Arguments after `fo` |
 | ------- | -------------------- |
-| setup | `--office PATH setup PATH [--provider schwab\|simplefin]` or `--office PATH setup PATH --offline` (the setup dialog) |
-| auth | `--office PATH auth schwab` or `--office PATH auth simplefin` |
+| setup | `--office PATH setup PATH [--provider plaid\|simplefin]` or `--office PATH setup PATH --offline` (the setup dialog) |
+| auth | `--office PATH auth plaid` or `--office PATH auth simplefin` |
 | sync | `--office PATH sync` |
 | doctor | `--office PATH doctor` |
 
@@ -557,7 +557,7 @@ code before a process exists, and the sheet says so. The executable is the bundl
 configured `fo` (`ServerProcess.resolveExecutable`), started directly by `forkpty` and
 `execve` with the server's scrubbed environment plus `TERM=xterm-256color`, the home folder
 as working directory, and no shell. Keystrokes reach the process only while it runs, so the
-CLI's hidden prompts and the Schwab consent flow work unchanged; when it exits the view is
+CLI's hidden prompts and Plaid Link in the browser work unchanged; when it exits the view is
 read-only and shows the exit status. Closing the sheet stops the command. Output exists only
 in the terminal's scrollback in memory; it is never logged or written to disk (the unified
 log records only `started <subcommand>` and the exit status).
@@ -677,9 +677,9 @@ Use a synthetic office (`uv run fo setup /tmp/fo-dev-office --offline`),
       is empty, and the credentials folder's `fred.json` exists at 0600. Remove… asks, then deletes it.
 - [ ] EDGAR: a name and email save (`fo config get providers.edgar.user_agent`), a name
       without an email cannot be saved, and Remove clears it.
-- [ ] Connect… on Schwab opens the terminal running `fo auth schwab`: the app key and
-      secret prompts hide what is typed, then the default browser opens Schwab's consent
-      page; after approval the command ends, the status line shows the exit status, the
+- [ ] Connect… on Plaid opens the terminal running `fo auth plaid`: the client ID and
+      secret prompts hide what is typed, then the default browser opens Plaid Link; after
+      an institution links the command ends, the status line shows the exit status, the
       terminal no longer takes input, and the row reads Connected.
 - [ ] Connect… on SimpleFIN hides the setup token as it is typed.
 - [ ] The terminal refuses other commands: `-terminalCommand bash`,

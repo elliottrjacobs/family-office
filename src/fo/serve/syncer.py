@@ -35,7 +35,7 @@ FIRST_TICK = 5.0
 DEFAULT_HOURS = 6.0
 RETRY_HOURS = 0.5
 COMMIT_WAIT = 20.0
-PROVIDERS = {"schwab", "simplefin", "plaid", "csv"}
+PROVIDERS = {"simplefin", "plaid", "csv"}
 KEYS = ("provider", "status", "reason", "message", "as_of")
 # Refusals that mean "not now", not that a sync was tried and failed.
 BUSY = {"run_active", "sync_active"}

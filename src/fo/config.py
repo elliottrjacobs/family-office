@@ -391,7 +391,7 @@ def _assign(settings: dict, key: str, value) -> dict:
 
 
 TIMEZONE_NOTE = (
-    "Stored transaction dates were not rewritten. The next `fo sync` re-dates Schwab and "
+    "Stored transaction dates were not rewritten. The next `fo sync` re-dates Plaid and "
     "SimpleFIN transactions from the last 30 days in {new}; `fo sync --full` reaches 90 days. "
     "Older ones keep their {old} date, so a transaction near midnight can sit one day off "
     "and month totals next to the change can move."

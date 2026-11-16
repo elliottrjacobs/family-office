@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "family-office"
-version = "2.0.0b3"
+version = "2.0.0b4"
 description = "A private, local-first family office with deterministic financial tools."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -14,7 +14,6 @@ dependencies = [
     "jsonschema>=4.23,<5",
     "httpx>=0.28,<1",
     "PyYAML>=6,<7",
-    "schwab-py>=1.5,<2",
     "rich>=15,<16",
 ]
 

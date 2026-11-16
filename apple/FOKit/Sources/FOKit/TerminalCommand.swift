@@ -19,19 +19,19 @@ public enum TerminalCommand: Sendable, Equatable, Identifiable {
     /// `fo --office PATH setup PATH --offline`: creates the office with no accounts connected,
     /// for the setup dialog, which connects them in a later step.
     case setupOffline
-    /// `fo --office PATH auth PROVIDER`: the CLI's hidden prompts and, for Schwab and Plaid,
-    /// a page in the browser.
+    /// `fo --office PATH auth PROVIDER`: the CLI's hidden prompts and, for Plaid,
+    /// Plaid Link in the browser.
     case auth(String)
     case sync
     case doctor
 
     /// Providers `fo auth` connects in the terminal. Key-based providers use native fields
     /// and `fo connect` instead.
-    public static let authProviders = ["plaid", "simplefin", "schwab"]
+    public static let authProviders = ["plaid", "simplefin"]
 
     public var id: String { words.joined(separator: " ") }
 
-    /// Parses `["auth", "schwab"]` and the like; nil for anything outside the allowed set.
+    /// Parses `["auth", "plaid"]` and the like; nil for anything outside the allowed set.
     public init?(_ words: [String]) {
         switch words {
         case ["setup"]:
@@ -95,11 +95,6 @@ public enum TerminalCommand: Sendable, Equatable, Identifiable {
     /// One sentence on what will happen, shown above the terminal.
     public var explanation: String {
         switch self {
-        case .auth("schwab"):
-            return
-                "fo auth schwab asks for your Schwab app key and secret (typing stays hidden) and "
-                + "the registered callback URL, then opens Schwab's consent page in your browser; "
-                + "after you approve there, it finishes here on its own."
         case .auth("simplefin"):
             return
                 "fo auth simplefin asks for a SimpleFIN setup token (typing stays hidden) and "

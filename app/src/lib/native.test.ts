@@ -21,7 +21,7 @@ describe("native", () => {
   })
 
   it("maps setup steps to the window that does them", () => {
-    expect(stepButton("connect:schwab")).toEqual({ action: "settings:connectors", label: "Open Connectors" })
+    expect(stepButton("connect:plaid")).toEqual({ action: "settings:connectors", label: "Open Connectors" })
     expect(stepButton("connect")?.action).toBe("settings:connectors")
     expect(stepButton("setup")).toEqual({ action: "setup", label: "Open setup" })
     // The interview and other steps are done on the page, not in a native window.

@@ -33,10 +33,6 @@ public enum ConnectorCatalog {
             purpose: "Bank and card balances and transactions.",
             signUp: URL(string: "https://beta-bridge.simplefin.org")),
         Connector(
-            id: "schwab", label: "Schwab", kind: .account,
-            purpose: "Brokerage positions, lots and transactions.",
-            signUp: URL(string: "https://developer.schwab.com")),
-        Connector(
             id: "alphavantage", label: "Alpha Vantage", kind: .key,
             purpose: "Quotes and price history.",
             signUp: URL(string: "https://www.alphavantage.co/support/#api-key")),

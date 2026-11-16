@@ -596,9 +596,16 @@ def test_cli_auth_plaid_prints_no_secrets(office, fake, monkeypatch):
 def browser(script):
     """An opener that runs script(url) on a thread, as a browser tab would."""
 
-    def opener(url):
-        threading.Thread(target=script, args=(url,), daemon=True).start()
+    tabs = []
 
+    def opener(url):
+        tab = threading.Thread(target=script, args=(url,), daemon=True)
+        tabs.append(tab)
+        tab.start()
+
+    # run_link returns once the page posts its result, which can be before the tab has
+    # read the response; join() waits for the tab to finish.
+    opener.join = lambda: [tab.join(10) for tab in tabs]
     return opener
 
 
@@ -631,7 +638,9 @@ def test_link_page_returns_public_token_once():
             },
         )
 
-    result = run_link("link-sandbox-TOKEN", "sandbox", opener=browser(tab), timeout=10)
+    opener = browser(tab)
+    result = run_link("link-sandbox-TOKEN", "sandbox", opener=opener, timeout=10)
+    opener.join()
     assert result == {"public_token": PUBLIC, "institution": "Bank", "institution_id": "ins_9"}
     page = seen["page"]
     assert page.status_code == 200 and "link-sandbox-TOKEN" in page.text

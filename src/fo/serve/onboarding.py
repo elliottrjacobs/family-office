@@ -15,6 +15,7 @@ import platform
 import shlex
 from pathlib import Path
 
+from fo.accounts import RETIRED
 from fo.config import credentials_dir, public_config, read_config
 from fo.doctor import diagnose
 from fo.errors import OfficeError
@@ -23,7 +24,7 @@ from fo.office import contained
 from fo.store.authored import load
 from fo.store.jsonl import read_rows
 
-LIVE = ("plaid", "simplefin", "schwab")
+LIVE = ("plaid", "simplefin")
 REASONS = {
     "no_office": "No office is open yet. Choose a folder for a new office.",
     "uninitialized_path": "This folder has no office yet. Create one in a terminal.",
@@ -58,8 +59,8 @@ def step(command, purpose, action=None):
 
 def action(name):
     """What the Mac app can do about a doctor check without a terminal, if anything."""
-    if name == "schwab.token":
-        return "connect:schwab"
+    if name.startswith("accounts.retired."):
+        return "connect:plaid"
     if name.startswith("sync.unmapped."):
         return "connect:" + name.removeprefix("sync.unmapped.")
     if name.startswith("sync.age") or name == "sync.coverage":
@@ -77,8 +78,10 @@ def fix(root, name):
     """The command that resolves a doctor check, or None with a hint."""
     if name in {"skills.fresh", "agents.fresh"}:
         return fo("skills", "sync", root=root), None
-    if name == "schwab.token":
-        return fo("auth", "schwab", root=root), None
+    if name.startswith("accounts.retired."):
+        return fo("auth", "plaid", root=root), (
+            "Then remove the old accounts from profile/accounts.json, or ask the Onboard advisor to."
+        )
     if name.startswith("sync.unmapped."):
         return fo("auth", name.removeprefix("sync.unmapped."), root=root), None
     if name.startswith("sync.age") or name == "sync.coverage":
@@ -87,7 +90,7 @@ def fix(root, name):
         # No provider is preferred; the user picks one.
         return None, (
             "Connect an account provider of your choice: fo auth plaid (your own Plaid keys, "
-            "broad bank and brokerage coverage), fo auth simplefin, or fo auth schwab."
+            "broad bank and brokerage coverage) or fo auth simplefin."
         )
     if name == "sync.errors.plaid":
         return fo("auth", "plaid", root=root), "It offers to reconnect each institution in error."
@@ -197,9 +200,6 @@ def derive(locator):
                     fo("setup", candidate, "--provider", "simplefin"),
                     "Create it and connect SimpleFIN.",
                 ),
-                step(
-                    fo("setup", candidate, "--provider", "schwab"), "Create it and connect Schwab."
-                ),
             ],
         }
     result["office"] = str(root)
@@ -209,7 +209,8 @@ def derive(locator):
     except (OfficeError, OSError):
         connected = []
     registry = load(root, "accounts")["accounts"]
-    registered = {a["provider"] for a in registry}
+    # Accounts of a retired provider no longer sync; doctor says how to move them.
+    registered = {a["provider"] for a in registry} - set(RETIRED)
     result["providers"] = [
         {
             "provider": name,
@@ -245,11 +246,6 @@ def derive(locator):
                     fo("auth", "simplefin", root=root),
                     "Paste a SimpleFIN setup token when asked.",
                     "connect:simplefin",
-                ),
-                step(
-                    fo("auth", "schwab", root=root),
-                    "Connect Schwab in the browser it opens.",
-                    "connect:schwab",
                 ),
             ],
         )

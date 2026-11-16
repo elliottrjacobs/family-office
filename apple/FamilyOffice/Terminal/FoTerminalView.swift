@@ -9,7 +9,7 @@ let terminalLog = Logger(subsystem: "com.familyoffice.app", category: "terminal"
 
 /// One run of one allowed `fo` command in a pseudo-terminal.
 ///
-/// - Only `TerminalCommand` values run (`setup`, `auth plaid|simplefin|schwab`, `sync`, `doctor`);
+/// - Only `TerminalCommand` values run (`setup`, `auth plaid|simplefin`, `sync`, `doctor`);
 ///   raw words outside that set are refused before any process exists.
 /// - The executable is the same `fo` the server runs, with `--office PATH` first and the
 ///   server's scrubbed environment plus `TERM`. It is started directly with `forkpty` and
@@ -51,8 +51,7 @@ final class FoTerminalSession: Identifiable {
     }
 
     static let notAllowed =
-        "The terminal runs only fo setup, fo auth plaid, fo auth simplefin, fo auth schwab, fo sync "
-        + "and fo doctor."
+        "The terminal runs only fo setup, fo auth plaid, fo auth simplefin, fo sync and fo doctor."
 
     var title: String { command?.title ?? "Terminal" }
     var explanation: String { command?.explanation ?? "" }
