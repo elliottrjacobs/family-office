@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.0.0b4 — 2026-11-15
 
 - Plaid is an optional account connector you use with your own Plaid developer
   account: `fo auth plaid` (or Settings > Connectors > Plaid in the Mac app) asks for
