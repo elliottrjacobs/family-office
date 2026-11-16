@@ -7,9 +7,7 @@ final class TerminalCommandTests: XCTestCase {
 
     func testAcceptsOnlyTheFourCommands() {
         XCTAssertEqual(TerminalCommand(["setup"]), .setup(provider: nil))
-        XCTAssertEqual(TerminalCommand(["setup", "--provider", "schwab"]), .setup(provider: "schwab"))
         XCTAssertEqual(TerminalCommand(["setup", "--offline"]), .setupOffline)
-        XCTAssertEqual(TerminalCommand(["auth", "schwab"]), .auth("schwab"))
         XCTAssertEqual(TerminalCommand(["auth", "simplefin"]), .auth("simplefin"))
         XCTAssertEqual(TerminalCommand(["auth", "plaid"]), .auth("plaid"))
         XCTAssertEqual(TerminalCommand(["setup", "--provider", "plaid"]), .setup(provider: "plaid"))
@@ -20,10 +18,10 @@ final class TerminalCommandTests: XCTestCase {
     func testRefusesEverythingElse() {
         let refused: [[String]] = [
             [], ["bash"], ["/bin/zsh"], ["serve"], ["connect", "exa"], ["config", "set", "x", "y"],
-            ["auth"], ["auth", "alphavantage"], ["auth", "schwab", "--extra"], ["auth", "../schwab"], ["auth", "plaid", "--extra"],
+            ["auth"], ["auth", "alphavantage"], ["auth", "schwab"], ["auth", "simplefin", "--extra"], ["auth", "../plaid"], ["auth", "plaid", "--extra"],
             ["sync", "--office", "/elsewhere"], ["doctor", "--notify"], ["setup", "/other/path"],
             ["setup", "--provider", "csv"], ["--office", "/x", "sync"], ["sh", "-c", "fo sync"],
-            ["setup", "--offline", "--provider", "schwab"], ["setup", "--offline", "/other/path"],
+            ["setup", "--provider", "schwab"], ["setup", "--offline", "--provider", "plaid"], ["setup", "--offline", "/other/path"],
         ]
         for words in refused {
             XCTAssertNil(TerminalCommand(words), "\(words) should be refused")
@@ -31,7 +29,7 @@ final class TerminalCommandTests: XCTestCase {
     }
 
     func testOfficeComesFirst() {
-        XCTAssertEqual(TerminalCommand.auth("schwab").arguments(office: office), ["--office", office, "auth", "schwab"])
+        XCTAssertEqual(TerminalCommand.auth("plaid").arguments(office: office), ["--office", office, "auth", "plaid"])
         XCTAssertEqual(TerminalCommand.sync.arguments(office: office), ["--office", office, "sync"])
         XCTAssertEqual(TerminalCommand.doctor.arguments(office: office), ["--office", office, "doctor"])
         XCTAssertEqual(
@@ -48,8 +46,7 @@ final class TerminalCommandTests: XCTestCase {
         XCTAssertNil(TerminalCommand.sync.arguments(office: ""))
     }
 
-    func testSchwabExplainsTheBrowserConsent() {
-        XCTAssertTrue(TerminalCommand.auth("schwab").explanation.contains("browser"))
+    func testSimpleFINExplainsTheHiddenToken() {
         XCTAssertTrue(TerminalCommand.auth("simplefin").explanation.contains("hidden"))
     }
 

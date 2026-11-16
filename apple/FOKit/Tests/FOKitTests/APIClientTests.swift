@@ -97,7 +97,7 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(onboarding.state, "never_synced")
         XCTAssertEqual(onboarding.steps.count, 1)
         XCTAssertEqual(onboarding.steps[0].command, "fo sync --office /tmp/example-office")
-        XCTAssertEqual(onboarding.providers, [.init(provider: "schwab", connected: true, accounts: 1)])
+        XCTAssertEqual(onboarding.providers, [.init(provider: "plaid", connected: true, accounts: 1)])
         XCTAssertEqual(onboarding.doctor.first?["status"], .string("warn"))
         XCTAssertNil(onboarding.lastSync)
     }

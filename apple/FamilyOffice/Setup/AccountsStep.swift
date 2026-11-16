@@ -1,7 +1,7 @@
 import FOKit
 import SwiftUI
 
-/// Accounts: the Connectors pane's Plaid, SimpleFIN and Schwab rows (`fo auth` in the terminal),
+/// Accounts: the Connectors pane's Plaid and SimpleFIN rows (`fo auth` in the terminal),
 /// a note on CSV imports, and, once a provider is connected, the first `fo sync`.
 struct AccountsStep: View {
     @Environment(AppState.self) private var state

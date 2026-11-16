@@ -30,7 +30,7 @@ struct SettingsView: View {
         }
         .frame(width: 560, height: 560)
         #if DEBUG
-        // Development walkthroughs: `-terminalCommand "auth schwab"` opens the embedded
+        // Development walkthroughs: `-terminalCommand "auth plaid"` opens the embedded
         // terminal with those words, so the refusal of anything outside the allowed set can
         // be checked (`-terminalCommand "bash"` is refused without starting a process).
         .task {
