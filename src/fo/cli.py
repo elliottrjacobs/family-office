@@ -145,7 +145,7 @@ def setup_command(
 
             chosen = typer.prompt(
                 "Connect accounts with plaid (broad bank and brokerage coverage, your own Plaid "
-                "keys), simplefin, schwab, or none",
+                "keys), simplefin, or none",
                 value_proc=parse,
                 err=True,
             )

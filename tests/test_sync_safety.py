@@ -32,14 +32,14 @@ def test_read_only_index_never_creates_sidecars(office):
 
 def test_unexpected_provider_shape_does_not_block_other_provider(office, monkeypatch):
     from fo.auth import save_keys
-    from fo.providers.schwab import Schwab
+    from fo.providers.plaid import Plaid
     from fo.providers.simplefin import SimpleFIN
 
     (office / "profile/accounts.json").write_text(
         json.dumps(
             {
                 "accounts": [
-                    {"id": "a", "provider": "schwab", "last4": "1234"},
+                    {"id": "a", "provider": "plaid", "last4": "1234"},
                     {"id": "b", "provider": "simplefin", "last4": "5678"},
                 ]
             }
@@ -47,7 +47,7 @@ def test_unexpected_provider_shape_does_not_block_other_provider(office, monkeyp
     )
     save_keys(office, {"simplefin": {"access_url": "https://u:p@bridge.example/base"}})
     monkeypatch.setattr(
-        Schwab, "__init__", lambda *args: (_ for _ in ()).throw(ValueError("SENTINEL"))
+        Plaid, "__init__", lambda *args, **kwargs: (_ for _ in ()).throw(ValueError("SENTINEL"))
     )
     monkeypatch.setattr(SimpleFIN, "accounts", lambda *args, **kwargs: [])
     results = synchronize(office)
@@ -227,7 +227,7 @@ def test_timezone_change_redates_in_window_transactions_once(office, monkeypatch
     assert synchronize(office, provider="simplefin")[0]["transaction_rows"] == 0
 
 
-@pytest.mark.parametrize("provider", ["simplefin", "schwab"])
+@pytest.mark.parametrize("provider", ["simplefin", "plaid"])
 @pytest.mark.parametrize("returned_accounts", [False, True])
 @pytest.mark.parametrize("dry_run", [False, True])
 def test_no_mapped_accounts_fail_without_completing(
@@ -237,7 +237,7 @@ def test_no_mapped_accounts_fail_without_completing(
 
     from fo.auth import save_keys
     from fo.doctor import diagnose
-    from fo.providers.schwab import Schwab
+    from fo.providers.plaid import Plaid
     from fo.providers.simplefin import SimpleFIN
     from fo.serve.onboarding import derive
     from fo.serve.server import Locator
@@ -268,20 +268,19 @@ def test_no_mapped_accounts_fail_without_completing(
 
         monkeypatch.setattr(SimpleFIN, "__init__", initialize_adapter)
     else:
-        body = [{"securitiesAccount": {"accountNumber": "99990000"}}] if returned_accounts else []
-
-        class Client:
-            def get_accounts(self, fields=None):
-                return httpx.Response(
-                    200, json=body, request=httpx.Request("GET", "https://api.example/accounts")
-                )
-
-        original = Schwab.__init__
 
         def initialize_adapter(self, root, timezone):
-            original(self, root, client=Client(), timezone=timezone)
+            self.error_count = 0
+            self.unmapped_accounts = 0
 
-        monkeypatch.setattr(Schwab, "__init__", initialize_adapter)
+        def accounts(self, registry, full=False):
+            # Plaid returned an account the registry does not map; its id is never kept.
+            self.unmapped_accounts = 1 if returned_accounts else 0
+            return []
+
+        monkeypatch.setattr(Plaid, "__init__", initialize_adapter)
+        monkeypatch.setattr(Plaid, "accounts", accounts)
+        monkeypatch.setattr(Plaid, "commit", lambda self: None)
 
     commits = []
     monkeypatch.setattr("fo.commits.commit_office", lambda *args, **kwargs: commits.append(True))

@@ -51,13 +51,15 @@ def test_discovery_and_registration_preserve_user_metadata(tmp_path):
     assert git(root, "status", "--porcelain").stdout == ""
 
 
-def test_ambiguous_schwab_registration_is_atomic(tmp_path):
+def test_ambiguous_registration_is_atomic(tmp_path):
     root = tmp_path / "office"
     initialize(root)
     registry = root / "profile/accounts.json"
+    twice = {"id": "csv-1", "provider": "csv", "last4": "1234"}
+    registry.write_text(json.dumps({"accounts": [twice, {**twice, "id": "csv-2"}]}))
     before = registry.read_bytes()
     with office_lock(root), pytest.raises(OfficeError, match="ambiguous"):
-        register(root, "schwab", [{"last4": "1234"}, {"last4": "1234"}])
+        register(root, "csv", [{"last4": "1234"}])
     assert registry.read_bytes() == before
 
 
@@ -107,7 +109,8 @@ def test_setup_connects_no_provider_unless_chosen(tmp_path, monkeypatch):
     )
     result = setup(tmp_path / "office")
     assert result["status"] == "offline_ready"
-    assert "fo auth plaid" in result["next"] and "fo auth schwab" in result["next"]
+    assert "fo auth plaid" in result["next"] and "fo auth simplefin" in result["next"]
+    assert "schwab" not in result["next"]
     assert "connections" not in result
 
 
@@ -115,7 +118,7 @@ def test_setup_connects_no_provider_unless_chosen(tmp_path, monkeypatch):
     ("answer", "providers"),
     [
         ("plaid", ["plaid"]),
-        ("Plaid, schwab", ["plaid", "schwab"]),
+        ("Plaid, simplefin", ["plaid", "simplefin"]),
         ("simplefin simplefin", ["simplefin"]),
         ("none", []),
     ],

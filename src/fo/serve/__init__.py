@@ -20,7 +20,7 @@ from fo.errors import OfficeError
 from fo.office import discover
 
 DEFAULT_PORT = 4790
-# The Schwab OAuth callback listens on 8182.
+# Offices connected to Schwab directly registered 8182 as its OAuth callback.
 RESERVED_PORTS = {8182}
 
 

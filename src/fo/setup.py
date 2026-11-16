@@ -13,27 +13,27 @@ from fo.providers.simplefin import SimpleFIN
 from fo.sync import synchronize
 
 # Account providers the user may choose from; none is connected unless chosen.
-CHOICES = ("plaid", "simplefin", "schwab")
+CHOICES = ("plaid", "simplefin")
 NEXT = (
-    "No account provider was chosen. Connect one when ready with fo auth plaid, "
-    "fo auth simplefin or fo auth schwab, or import CSV exports."
+    "No account provider was chosen. Connect one when ready with fo auth plaid or "
+    "fo auth simplefin, or import CSV exports."
 )
 
 
 def choose(answer):
-    """Providers from a typed answer such as "plaid" or "plaid, schwab"; none for "none"."""
+    """Providers from a typed answer such as "plaid" or "plaid, simplefin"; none for "none"."""
     words = [w for w in str(answer or "").replace(",", " ").lower().split() if w]
     if words == ["none"]:
         return []
     if not words or set(words) - set(CHOICES):
-        raise OfficeError("unknown_provider", "Answer plaid, simplefin, schwab, or none.")
+        raise OfficeError("unknown_provider", "Answer plaid, simplefin, or none.")
     return list(dict.fromkeys(words))
 
 
 def setup(path: Path, providers=None, offline=False):
     providers = list(dict.fromkeys(providers or ()))
     if set(providers) - set(CHOICES):
-        raise OfficeError("unknown_provider", "Setup supports plaid, simplefin, and schwab.")
+        raise OfficeError("unknown_provider", "Setup supports plaid and simplefin.")
     initialize(path)
     root = path.expanduser().resolve()
     if offline or not providers:
@@ -58,15 +58,6 @@ def setup(path: Path, providers=None, offline=False):
 
                     # Linked institutions are registered again; fo auth plaid adds more.
                     if not discover(root):
-                        authenticate(root, provider)
-                elif provider == "schwab":
-                    from fo.providers.schwab import Schwab
-
-                    try:
-                        Schwab(root).discover()
-                    except OfficeError as exc:
-                        if exc.reason not in {"missing_credentials", "token_expired"}:
-                            raise
                         authenticate(root, provider)
                 else:
                     authenticate(root, provider)

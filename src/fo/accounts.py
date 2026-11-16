@@ -7,6 +7,13 @@ from fo.store.authored import load
 
 # Providers whose accounts are matched by an opaque provider id rather than the last four.
 REFERENCED = {"simplefin", "plaid"}
+# Providers fo no longer connects to directly; their registered accounts stop syncing.
+RETIRED = {
+    "schwab": (
+        "Schwab now connects through Plaid. Run fo auth plaid and link Schwab, then remove "
+        "the old schwab accounts from profile/accounts.json so they are not counted twice."
+    )
+}
 
 
 def register(root, provider, discovered):
@@ -19,9 +26,7 @@ def register(root, provider, discovered):
     for item in discovered:
         key = "provider_ref" if provider in REFERENCED else "last4"
         matches = [r for r in rows if r["provider"] == provider and r.get(key) == item[key]]
-        if len(matches) > 1 or (
-            provider == "schwab" and sum(d["last4"] == item["last4"] for d in discovered) > 1
-        ):
+        if len(matches) > 1:
             raise OfficeError(
                 "ambiguous_account",
                 "Provider account identities are ambiguous; existing mappings were preserved.",

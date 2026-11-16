@@ -39,6 +39,7 @@ def account_role(account):
     for role, words in ROLE_WORDS.items():
         if any(word in label for word in words):
             return role
+    # Accounts registered by the retired direct Schwab connector were all brokerage accounts.
     return "investment" if account.get("provider") == "schwab" else None
 
 

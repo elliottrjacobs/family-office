@@ -14,7 +14,6 @@ dependencies = [
     "jsonschema>=4.23,<5",
     "httpx>=0.28,<1",
     "PyYAML>=6,<7",
-    "schwab-py>=1.5,<2",
     "rich>=15,<16",
 ]
 

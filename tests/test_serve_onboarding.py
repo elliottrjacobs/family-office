@@ -1,7 +1,6 @@
 import json
 import os
 import shlex
-from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -56,7 +55,6 @@ def test_uninitialized_path_shows_setup_then_unconnected(tmp_path):
         f"fo setup {quoted} --offline",
         f"fo setup {quoted} --provider plaid",
         f"fo setup {quoted} --provider simplefin",
-        f"fo setup {quoted} --provider schwab",
     ]
     initialize(folder)
     result = derive(Locator(folder))
@@ -65,7 +63,6 @@ def test_uninitialized_path_shows_setup_then_unconnected(tmp_path):
     assert commands(result) == [
         f"fo auth plaid --office {quoted}",
         f"fo auth simplefin --office {quoted}",
-        f"fo auth schwab --office {quoted}",
     ]
 
 
@@ -123,7 +120,7 @@ def test_writer_suggestion_quotes_the_command_and_office(tmp_path, monkeypatch, 
         assert "fo config set" not in note
 
 
-@pytest.mark.parametrize("provider", ["simplefin", "schwab"])
+@pytest.mark.parametrize("provider", ["simplefin", "plaid"])
 def test_unmapped_accounts_suggest_auth_to_register_them(tmp_path, provider):
     root = tmp_path / "My Office"
     initialize(root)
@@ -147,16 +144,18 @@ def test_unmapped_accounts_suggest_auth_to_register_them(tmp_path, provider):
 def test_doctor_warning_after_sync_is_stale_with_its_fix(tmp_path):
     root = synthetic(tmp_path / "office")
     secrets(root)
-    expiry = (datetime.now(UTC) + timedelta(hours=10)).isoformat().replace("+00:00", "Z")
-    token = credentials_dir(root) / "schwab-token.json"
-    token.write_text(json.dumps({"refresh_token_expires_at": expiry}))
-    token.chmod(0o600)
+    registry = root / "profile/accounts.json"
+    rows = json.loads(registry.read_text())["accounts"]
+    rows.append({"id": "schwab-1", "provider": "schwab", "last4": "6789"})
+    registry.write_text(json.dumps({"accounts": rows}))
     result = derive(Locator(root))
     assert result["state"] == "stale"
+    assert "schwab" not in {p["provider"] for p in result["providers"]}
     items = {item["name"]: item for item in result["doctor"]}
-    assert items["schwab.token"]["status"] == "warn"
-    assert items["schwab.token"]["command"] == f"fo auth schwab --office {shlex.quote(str(root))}"
-    assert commands(result) == [items["schwab.token"]["command"]]
+    retired = items["accounts.retired.schwab"]
+    assert retired["status"] == "warn" and retired["action"] == "connect:plaid"
+    assert retired["command"] == f"fo auth plaid --office {shlex.quote(str(root))}"
+    assert commands(result) == [retired["command"]]
     assert result["last_sync"]
 
 
