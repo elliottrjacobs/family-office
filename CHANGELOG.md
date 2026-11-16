@@ -9,10 +9,17 @@
   holdings and transactions into the same records as the other providers. Run it
   again to add an institution or reconnect one that needs attention.
 - No account provider is a default any more. `fo setup` asks which to connect
-  (Plaid, SimpleFIN, Schwab, several, or none) instead of trying Schwab and
-  SimpleFIN; `--provider` still chooses up front, and without a terminal setup
-  connects nothing. Plaid is listed first in the app and onboarding for its breadth
-  of coverage; SimpleFIN and Schwab work as before.
+  (Plaid, SimpleFIN, both, or none) instead of trying Schwab and SimpleFIN;
+  `--provider` still chooses up front, and without a terminal setup connects
+  nothing. Plaid is listed first in the app and onboarding for its breadth of
+  coverage; SimpleFIN works as before.
+- The direct Schwab connector is gone: link Schwab through Plaid instead. Schwab's
+  developer API issues keys that can also place trades, and Plaid reads the same
+  accounts, holdings and transactions. Accounts registered through the old connector
+  keep their history but no longer sync; `fo auth schwab` and `fo sync --provider
+  schwab` say how to switch, and `fo doctor` warns until the old accounts are removed
+  from `profile/accounts.json`. Quotes now come from AlphaVantage alone, and the
+  schwab-py dependency, with the 21 packages only it needed, is gone.
 - Claude's model list offers Fable 5.2 in place of Fable 5.1 and recommends Opus 5.5,
   which is also the default when `office.toml` names no Claude model. An office that
   set a model keeps it; one set to Fable 5.1 shows it under Other.

@@ -14,14 +14,14 @@ uv run fo setup ~/family-office-smoke
 The command initializes the office, reuses configured connections, authenticates
 missing or expired connections, discovers accounts, saves safe registry entries,
 syncs each connected provider, and runs diagnostics. Existing account names and
-household metadata are preserved. Schwab account hashes remain only in the per-machine credentials folder outside the office.
+household metadata are preserved.
 SimpleFIN and Plaid account IDs are discovered directly; no manual mapping is required.
 Plaid Item access tokens and transactions cursors remain only in `plaid-items.json` in
 the per-machine credentials folder.
 
 No provider is connected by default. In a terminal, setup asks which to connect
-(`plaid`, `simplefin`, `schwab`, several, or `none`); ask the user, never pick for
-them. Pass `--provider plaid`, `--provider simplefin` or `--provider schwab` to skip
+(`plaid`, `simplefin`, both, or `none`); ask the user, never pick for
+them. Pass `--provider plaid` or `--provider simplefin` to skip
 the question; without a terminal and without `--provider`, setup connects nothing. If a
 connection fails, inspect the safe reason code and rerun after resolving it;
 successful connections are retained. Never request credentials in chat. Arrange

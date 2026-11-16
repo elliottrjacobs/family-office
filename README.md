@@ -41,29 +41,29 @@ below, or none and import CSV exports instead. `fo setup` asks which; `fo auth
 - **SimpleFIN:** connect your institutions through SimpleFIN, then enter its setup
   token at the hidden local prompt. The CLI exchanges it for an access credential.
   Institution coverage and available data depend on the connection.
-- **Schwab (direct):** requires your own Schwab developer application's app key,
-  app secret, and registered callback URL. `fo auth schwab` prompts for the key and
-  secret with hidden terminal input and opens the browser so you can sign in
-  directly to Schwab and authorize account access. The local callback receives the
-  authorization result and saves tokens; you do not give your brokerage password to
-  the agent. An approved developer application is a prerequisite that setup cannot
-  create for you.
-- **Fidelity and other institutions:** use Plaid or SimpleFIN if they cover the
-  institution. Coverage differs by institution and changes over time, so check
-  Plaid's coverage or simply try linking it. Schwab is the only direct brokerage
-  adapter; another direct one needs a new read-only adapter for an institution that
-  offers a developer API. CSV imports are another path; formats other than the
-  supported exports need mapping.
+- **Schwab, Fidelity and other brokerages:** link them through Plaid, or through
+  SimpleFIN where it covers the institution. Schwab signs you in on its own page
+  inside Plaid Link. Plaid's Schwab access can take up to five business days after
+  Plaid approves your production access, and Schwab allows one active link per login
+  for each Plaid application, so linking the same login again replaces the earlier
+  link. Family Office has no direct brokerage connectors: the developer APIs that
+  brokerages offer individuals either issue keys that can also place trades (Schwab
+  among them) or do not exist (Fidelity, Vanguard and others). CSV imports are
+  another path; Monarch transaction and Schwab position exports are supported.
 
-Pass `--provider plaid`, `--provider simplefin` or `--provider schwab` (repeatable)
+An office that connected Schwab directly before 2.0.0b4 keeps its past records, but
+those accounts no longer sync. Link Schwab through Plaid, then remove the old
+`schwab` accounts from `profile/accounts.json` so they are not counted twice;
+`fo doctor` warns until you do.
+
+Pass `--provider plaid` or `--provider simplefin` (repeatable)
 to `fo setup` to connect without being asked, or `--offline` to create the office
 with no connection. Without a terminal to ask in, setup connects nothing and says
 how to connect later. Optional market-data API keys are separate from
 brokerage credentials.
 
 After authorization, supported providers return account identifiers automatically.
-The CLI creates the local registry and keeps Schwab account hashes in local
-credentials, so you normally do not need to look up IDs. Ambiguous matches stop for resolution;
+The CLI creates the local registry, so you normally do not need to look up IDs. Ambiguous matches stop for resolution;
 you may still need to identify account owners or clarify account labels.
 If a sync returns no registered account, `fo doctor` and onboarding show the repair
 before retrying. Institution errors require repairing the connection at the provider.
@@ -99,7 +99,7 @@ uv run fo setup ~/office
 ```
 
 `setup` creates a separate private repository, asks which account provider to
-connect (Plaid, SimpleFIN, Schwab, or none), reuses valid credentials, discovers
+connect (Plaid, SimpleFIN, or none), reuses valid credentials, discovers
 accounts, syncs them, and runs diagnostics. To
 prepare an unconnected office, the agent uses `fo setup ~/office --offline`.
 Provider availability and consent determine connection time; no live timing claim
@@ -421,7 +421,7 @@ After changing `hosts.writer`, run `fo schedule install` on the new writer if it
 has not been scheduled there. Scheduled syncs on the old host skip once their
 job uses `--if-writer`; manual `fo sync` still requires the writer host.
 
-Changing `office.timezone` does not rewrite stored dates. Schwab and SimpleFIN
+Changing `office.timezone` does not rewrite stored dates. Plaid and SimpleFIN
 transaction dates are fixed in the office timezone when they sync. The next
 `fo sync` re-dates the last 30 days in the new zone, and `fo sync --full` the last
 90. Older transactions keep the old zone and can sit one day off near midnight.

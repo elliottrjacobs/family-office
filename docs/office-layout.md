@@ -18,7 +18,7 @@ Credentials live outside the office in
 or `${XDG_DATA_HOME:-~/.local/share}/family-office/credentials/<office-id>/` on
 other systems. `FO_CREDENTIALS_HOME` overrides the base directory. The base and
 office credential directories are 0700; `keys.toml`, `<provider>.json`,
-`schwab-token.json`, and `devices.json` are 0600. Connect each machine separately.
+`plaid-items.json`, and `devices.json` are 0600. Connect each machine separately.
 This change uses files; macOS Keychain is possible future hardening.
 
 Legacy `secrets/` files migrate on `fo doctor --fix`, `fo serve`, or a credential
@@ -33,7 +33,7 @@ locally. Only files changed by the repair are included.
 
 Each entry in `profile/accounts.json` may carry a `role`: `investment`, `cash`,
 `credit`, `loan`, `property`, or `other`. Without one, the role is inferred from
-the free-text `type` (Schwab accounts default to `investment`). Allocation weights
+the free-text `type` (accounts from the retired direct Schwab connector default to `investment`). Allocation weights
 divide by investable assets (investment and cash accounts), the cash band counts
 bank balances plus brokerage cash, and `fo doctor` warns about accounts whose role
 is unknown. `fo spend` ignores trades, dividends, and funding transfers, and a
