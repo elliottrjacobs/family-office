@@ -6,9 +6,8 @@ import httpx
 import typer
 
 from fo.accounts import RETIRED, register
-from fo.config import ensure_credentials, read_secrets
+from fo.config import ensure_credentials, read_secrets, write_credential
 from fo.errors import OfficeError
-from fo.office import atomic_write, write_json
 
 
 def save_keys(root, keys):
@@ -26,12 +25,12 @@ def save_keys(root, keys):
                 )
         return lines
 
-    atomic_write(ensure_credentials(root) / "keys.toml", "\n".join(table(keys)) + "\n", 0o600)
+    write_credential(root, "keys.toml", "\n".join(table(keys)) + "\n")
 
 
 def save_secret_json(root, name, value):
-    """Write <name>.json at 0600 in the machine-local credentials directory."""
-    write_json(ensure_credentials(root) / f"{name}.json", value, 0o600)
+    """Store <name>.json in this machine's credential store (Keychain, or a 0600 file)."""
+    write_credential(root, f"{name}.json", json.dumps(value, indent=2, ensure_ascii=False) + "\n")
 
 
 def authenticate(root, provider):
