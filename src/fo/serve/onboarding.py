@@ -94,7 +94,12 @@ def fix(root, name):
         )
     if name == "sync.errors.plaid":
         return fo("auth", "plaid", root=root), "It offers to reconnect each institution in error."
-    if name in {"credentials.perms", "credentials.agent_reads", "secrets.in_office"}:
+    if name in {
+        "credentials.perms",
+        "credentials.agent_reads",
+        "credentials.store",
+        "secrets.in_office",
+    }:
         return fo("doctor", "--fix", root=root), "Download any .icloud placeholders first."
     if name == "office.ignore":
         return fo("doctor", "--fix", root=root), None

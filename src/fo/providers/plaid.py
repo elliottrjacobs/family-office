@@ -20,7 +20,7 @@ from decimal import Decimal
 
 import httpx
 
-from fo.config import credentials_dir, read_config, read_secrets
+from fo.config import read_config, read_credential, read_secrets
 from fo.errors import OfficeError
 from fo.providers.text import local_date, untrusted_text
 
@@ -142,11 +142,11 @@ def api_for(root):
 
 
 def load_items(root):
-    path = credentials_dir(root) / ITEMS
-    if not path.exists():
-        return []
     try:
-        items = json.loads(path.read_text()).get("items")
+        data = read_credential(root, ITEMS)
+        if data is None:
+            return []
+        items = json.loads(data).get("items")
         if not isinstance(items, list) or not all(
             isinstance(i, dict)
             and isinstance(i.get("item_id"), str)

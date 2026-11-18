@@ -24,12 +24,13 @@ argument, trimmed, and checked with one request:
 | firecrawl | `GET https://api.firecrawl.dev/v2/team/credit-usage` (spends no credits) |
 | gemini | `GET https://generativelanguage.googleapis.com/v1beta/models?pageSize=1` |
 
-On success the key is written to `<provider>.json` as `{"api_key": ...}`,
-atomically, at 0600 inside the 0700 per-machine credentials directory outside
-the office, under the office lock.
-On failure nothing is written. `--remove` deletes the file and any key `fo auth`
-stored for that provider in the credentials folder's `keys.toml`. Market commands
-read either place, the JSON file first.
+On success the key is stored as `<provider>.json`, `{"api_key": ...}`, in this
+machine's credential store outside the office, under the office lock: a Keychain
+item on macOS, otherwise a file written atomically at 0600 inside the 0700
+credentials directory.
+On failure nothing is written. `--remove` deletes it and any key `fo auth`
+stored for that provider in `keys.toml`. Market commands
+read either, `<provider>.json` first.
 
 EDGAR needs no key. `--user-agent` must look like `Name email@example.com`; it is
 written to `[providers.edgar] user_agent` in `office.toml` by a one-line rewrite

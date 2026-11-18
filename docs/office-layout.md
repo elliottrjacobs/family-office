@@ -17,9 +17,11 @@ Credentials live outside the office in
 `~/Library/Application Support/FamilyOffice/credentials/<office-id>/` on macOS,
 or `${XDG_DATA_HOME:-~/.local/share}/family-office/credentials/<office-id>/` on
 other systems. `FO_CREDENTIALS_HOME` overrides the base directory. The base and
-office credential directories are 0700; `keys.toml`, `<provider>.json`,
-`plaid-items.json`, and `devices.json` are 0600. Connect each machine separately.
-This change uses files; macOS Keychain is possible future hardening.
+office credential directories are 0700 and files in them are 0600. On macOS,
+`keys.toml`, `<provider>.json`, and `plaid-items.json` are not files there but items
+in the login Keychain, service `com.familyoffice.credentials.<office-id>`, one item
+per name; `devices.json` stays a file. `[credentials] store = "file"` in
+`office.toml` keeps them all as files. Connect each machine separately.
 
 Legacy `secrets/` files migrate on `fo doctor --fix`, `fo serve`, or a credential
 command; read-only commands never migrate or write `office.toml`. Identical destination copies

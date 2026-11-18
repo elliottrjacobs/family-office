@@ -26,6 +26,15 @@ MANAGED_CREDENTIAL_FILES = {
     "schwab-token.json",
     "devices.json",
 }
+# Secrets the macOS Keychain holds. devices.json stays a file: it holds token hashes, not
+# tokens, and the server rewrites it as phones connect.
+KEYCHAIN_NAMES = (MANAGED_CREDENTIAL_FILES - {"devices.json"}) | {"plaid-items.json"}
+STORES = ("keychain", "file")
+KEYCHAIN_REFUSED = (
+    "The macOS Keychain did not release the credentials. Unlock the login keychain or allow "
+    "family-office when macOS asks, then retry. `fo config set credentials.store file` keeps "
+    "credentials in local files instead."
+)
 
 
 def credentials_read_denied(root: Path, *, fix: bool = False) -> bool:
@@ -139,6 +148,7 @@ def ensure_credentials(root: Path) -> Path:
                 legacy.rmdir()
             except OSError:
                 pass
+        _converge(root, directory)
         return directory
     except OSError as exc:
         raise OfficeError(
@@ -146,12 +156,155 @@ def ensure_credentials(root: Path) -> Path:
         ) from exc
 
 
-def read_secrets(root: Path) -> dict:
-    path = credentials_dir(root) / "keys.toml"
-    if not path.exists():
-        return {}
+def credential_store(root: Path) -> str:
+    """Where this machine keeps secrets: "keychain" (macOS) or "file" (0600 files).
+
+    `[credentials] store` in office.toml chooses; without it a Mac uses the Keychain. Other
+    systems always use files, so an office shared with a Mac keeps working there.
+    FO_CREDENTIALS_HOME (tests, relocated credentials) defaults to files.
+    """
+    setting = read_config(root).get("credentials", {}).get("store")
+    if setting is not None and setting not in STORES:
+        raise OfficeError("invalid_config", "credentials.store must be keychain or file.")
+    if sys.platform != "darwin":
+        return "file"
+    if setting:
+        return setting
+    return "file" if os.environ.get("FO_CREDENTIALS_HOME") else "keychain"
+
+
+def _keychain_in_play(root: Path) -> bool:
+    """Whether this machine may hold Keychain copies, as the store or as leftovers.
+
+    Only a Mac, and not one that relocated credentials with FO_CREDENTIALS_HOME without
+    ever choosing a store: that is how tests run, and they must not reach a real keychain.
+    """
+    if sys.platform != "darwin":
+        return False
+    chosen = read_config(root).get("credentials", {}).get("store") is not None
+    return chosen or not os.environ.get("FO_CREDENTIALS_HOME")
+
+
+def _keychain(root: Path, operation: str, name: str, *args):
+    """One Keychain call for this office's item; failures become a safe OfficeError."""
+    from fo import keychain
+
+    service = "com.familyoffice.credentials." + credentials_dir(root).name
     try:
-        return tomllib.loads(path.read_text())
+        return getattr(keychain, operation)(service, name, *args)
+    except keychain.KeychainError as exc:
+        raise OfficeError("credentials_unavailable", KEYCHAIN_REFUSED) from exc
+
+
+def read_credential(root: Path, name: str) -> bytes | None:
+    """A credential's bytes from the active store, else from the other store's leftover.
+
+    Reads never migrate: a copy the active store lacks is used where it lies until a
+    writing command moves it.
+    """
+    path = credentials_dir(root) / name
+    if name in KEYCHAIN_NAMES and credential_store(root) == "keychain":
+        data = _keychain(root, "read", name)
+        if data is not None:
+            return data
+        return path.read_bytes() if path.exists() else None
+    if path.exists():
+        return path.read_bytes()
+    if name in KEYCHAIN_NAMES and _keychain_in_play(root):
+        return _keychain(root, "read", name)
+    return None
+
+
+def credential_exists(root: Path, name: str) -> bool:
+    """Whether a credential exists in either store, without reading its value."""
+    if (credentials_dir(root) / name).exists():
+        return True
+    return name in KEYCHAIN_NAMES and _keychain_in_play(root) and _keychain(root, "exists", name)
+
+
+def write_credential(root: Path, name: str, data: bytes | str) -> None:
+    """Store a credential in the active store and drop the other store's copy.
+
+    A Keychain write is read back before the file copy is removed, so a write that did
+    not take never costs the only copy.
+    """
+    from fo.office import atomic_write
+
+    data = data.encode() if isinstance(data, str) else data
+    path = ensure_credentials(root) / name
+    if name in KEYCHAIN_NAMES and credential_store(root) == "keychain":
+        _keychain(root, "write", name, data, "Family Office: " + name)
+        if _keychain(root, "read", name) != data:
+            raise OfficeError("credentials_unavailable", KEYCHAIN_REFUSED)
+        path.unlink(missing_ok=True)
+        return
+    atomic_write(path, data, 0o600)
+    if name in KEYCHAIN_NAMES and _keychain_in_play(root):
+        try:
+            _keychain(root, "delete", name)
+        except OfficeError:
+            pass  # Doctor reports a Keychain copy that could not be removed.
+
+
+def delete_credential(root: Path, name: str) -> None:
+    """Remove a credential from both stores."""
+    (credentials_dir(root) / name).unlink(missing_ok=True)
+    if name in KEYCHAIN_NAMES and _keychain_in_play(root):
+        _keychain(root, "delete", name)
+
+
+def _converge(root: Path, directory: Path) -> None:
+    """Move secrets the other store still holds into the active one.
+
+    A secret is copied, read back, and only then removed from where it was. When both
+    stores hold different copies, both stay and the active one is used; doctor reports
+    it. A step that fails leaves that secret untouched.
+    """
+    from fo.office import atomic_write
+
+    if not _keychain_in_play(root):
+        return
+    to_keychain = credential_store(root) == "keychain"
+    for name in sorted(KEYCHAIN_NAMES):
+        path = directory / name
+        try:
+            if path.is_symlink():
+                continue
+            filed = path.read_bytes() if path.is_file() else None
+            if to_keychain:
+                if not filed:
+                    continue
+                if _keychain(root, "read", name) is None:
+                    _keychain(root, "write", name, filed, "Family Office: " + name)
+                if _keychain(root, "read", name) == filed:
+                    path.unlink()
+            else:
+                kept = _keychain(root, "read", name)
+                if kept is None:
+                    continue
+                if filed is None:
+                    atomic_write(path, kept, 0o600)
+                if path.read_bytes() == kept:
+                    path.chmod(0o600)
+                    _keychain(root, "delete", name)
+        except (OSError, OfficeError):
+            continue
+
+
+def leftover_credentials(root: Path) -> list[str]:
+    """Secrets that sit outside the active store, for doctor."""
+    directory = credentials_dir(root)
+    if credential_store(root) == "keychain":
+        return sorted(name for name in KEYCHAIN_NAMES if (directory / name).exists())
+    if not _keychain_in_play(root):
+        return []
+    return sorted(name for name in KEYCHAIN_NAMES if _keychain(root, "exists", name))
+
+
+def read_secrets(root: Path) -> dict:
+    try:
+        data = read_credential(root, "keys.toml")
+        return {} if data is None else tomllib.loads(data.decode())
     except (OSError, ValueError) as exc:
         raise OfficeError(
             "invalid_secrets", "The secrets file is unreadable or invalid TOML."
@@ -160,14 +313,14 @@ def read_secrets(root: Path) -> dict:
 
 def provider_key(root: Path, provider: str) -> str | None:
     """The local <provider>.json API key, falling back to the key fo auth stored."""
-    path = credentials_dir(root) / f"{provider}.json"
-    if path.exists():
-        try:
-            key = json.loads(path.read_text()).get("api_key")
-        except (OSError, ValueError, AttributeError) as exc:
-            raise OfficeError(
-                "invalid_secrets", "A provider key file is unreadable or malformed."
-            ) from exc
+    try:
+        data = read_credential(root, f"{provider}.json")
+        key = None if data is None else json.loads(data).get("api_key")
+    except (OSError, ValueError, AttributeError) as exc:
+        raise OfficeError(
+            "invalid_secrets", "A provider key file is unreadable or malformed."
+        ) from exc
+    if data is not None:
         return key if isinstance(key, str) and key else None
     key = read_secrets(root).get(provider, {}).get("api_key")
     return key if isinstance(key, str) and key else None
@@ -189,7 +342,7 @@ def public_config(root: Path) -> dict:
     """
     secrets = masked(read_secrets(root))
     for provider in PROVIDERS:
-        if (credentials_dir(root) / f"{provider}.json").exists():
+        if credential_exists(root, f"{provider}.json"):
             secrets[provider] = {"api_key": "***"}
     return {"settings": read_config(root), "secrets": secrets}
 
@@ -268,6 +421,7 @@ def _schema():
 
     port = " other than " + ", ".join(map(str, sorted(RESERVED_PORTS)))
     schema = {
+        "credentials.store": (_choice(*STORES), "keychain or file"),
         "hosts.writer": (_text, "non-empty single-line text"),
         "office.timezone": (_timezone, "a valid IANA timezone"),
         "serve.port": (
@@ -431,6 +585,13 @@ def set_config(root: Path, key: str, text: str) -> dict:
         )
     if zone_changed:
         result["note"] = TIMEZONE_NOTE.format(old=old_zone, new=value)
+    if key == "credentials.store":
+        ensure_credentials(root)
+        result["note"] = (
+            "This machine's credentials moved now where they could; fo doctor lists any "
+            "that did not. Other Macs sharing this office move theirs the next time a "
+            "writing fo command runs there. Systems without a Keychain always use files."
+        )
     return result
 
 

@@ -2,7 +2,14 @@ import os
 from datetime import UTC, datetime
 
 from fo.commits import changes_outside, git_status
-from fo.config import credentials_dir, credentials_read_denied, read_config
+from fo.config import (
+    credential_exists,
+    credential_store,
+    credentials_dir,
+    credentials_read_denied,
+    leftover_credentials,
+    read_config,
+)
 from fo.errors import OfficeError
 from fo.office import contained, git
 from fo.store.authored import PROFILE_FILES, load
@@ -147,7 +154,25 @@ def diagnose(root):
             else "No credentials in the office folder.",
         )
     )
-    if secret_dir is None or not (secret_dir / "keys.toml").exists():
+    try:
+        store = credential_store(root)
+        stray = leftover_credentials(root)
+        place = "the macOS Keychain" if store == "keychain" else "local files"
+        checks.append(
+            check(
+                "credentials.store",
+                "fail" if stray else "pass",
+                f"Credentials remain outside {place}. Run fo doctor --fix to move them; "
+                "resolve differing copies manually. Remaining: " + ", ".join(stray)
+                if stray
+                else f"Credentials are kept in {place}.",
+            )
+        )
+        configured = credential_exists(root, "keys.toml")
+    except OfficeError as exc:
+        checks.append(check("credentials.store", "fail", exc.message))
+        configured = False
+    if not configured:
         checks.append(
             check("providers", "warn", "Offline mode: no provider credentials configured.")
         )

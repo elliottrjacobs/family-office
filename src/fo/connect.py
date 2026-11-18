@@ -12,7 +12,7 @@ import tomllib
 
 from fo.auth import save_keys, save_secret_json
 from fo.commits import record
-from fo.config import credentials_dir, ensure_credentials, read_config, read_secrets
+from fo.config import delete_credential, ensure_credentials, read_config, read_secrets
 from fo.errors import OfficeError
 from fo.lock import office_lock
 from fo.office import atomic_write, contained
@@ -120,8 +120,7 @@ def remove(root, provider):
             record(root, ["office.toml"], "Remove EDGAR contact")
         return {"provider": provider, "connected": False}
     with office_lock(root):
-        path = credentials_dir(root) / f"{provider}.json"
-        path.unlink(missing_ok=True)
+        delete_credential(root, f"{provider}.json")
         keys = read_secrets(root)
         if provider in keys:
             # A key fo auth stored earlier would otherwise keep the provider connected.

@@ -98,7 +98,7 @@ public enum TerminalCommand: Sendable, Equatable, Identifiable {
         case .auth("simplefin"):
             return
                 "fo auth simplefin asks for a SimpleFIN setup token (typing stays hidden) and "
-                + "exchanges it for an access link stored in the per-machine credentials folder outside the office."
+                + "exchanges it for an access link stored in this Mac's Keychain, outside the office."
         case .auth("plaid"):
             return
                 "fo auth plaid asks once for your own Plaid client ID and secret (typing stays "
