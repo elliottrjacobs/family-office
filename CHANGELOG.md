@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.0.0b5 — 2026-11-17
 
 - On macOS, provider credentials now live in the login Keychain instead of 0600
   files: `keys.toml` (Plaid client ID and secret, SimpleFIN access link, market keys),
