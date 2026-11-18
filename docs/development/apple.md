@@ -674,7 +674,7 @@ Use a synthetic office (`uv run fo setup /tmp/fo-dev-office --offline`),
       and changes nothing. Turning an engine off makes its Server line say it is turned off.
 - [ ] Connectors: saving a made-up FRED key shows `The provider rejected the API key.` and
       writes nothing; saving a real key shows `Saved.`, the row turns Connected, the field
-      is empty, and the credentials folder's `fred.json` exists at 0600. Remove… asks, then deletes it.
+      is empty, and the login Keychain holds a `fred.json` item under `com.familyoffice.credentials.<office-id>` (a 0600 file in the credentials folder when `credentials.store` is `file`). Remove… asks, then deletes it.
 - [ ] EDGAR: a name and email save (`fo config get providers.edgar.user_agent`), a name
       without an email cannot be saved, and Remove clears it.
 - [ ] Connect… on Plaid opens the terminal running `fo auth plaid`: the client ID and

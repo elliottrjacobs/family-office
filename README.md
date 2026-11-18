@@ -70,16 +70,20 @@ before retrying. Institution errors require repairing the connection at the prov
 Without institution errors, register the returned accounts with `fo auth <provider>`.
 For SimpleFIN, get a new setup token first, then run `fo auth simplefin`. For Plaid,
 run `fo auth plaid`; it offers to reconnect each institution in error.
-The office may live in iCloud Drive or another synced folder. Credentials stay in
-an outside, per-machine folder keyed by `[office].id` in `office.toml`: on macOS,
-`~/Library/Application Support/FamilyOffice/credentials/<office-id>/`; elsewhere,
-`${XDG_DATA_HOME:-~/.local/share}/family-office/credentials/<office-id>/`.
-`FO_CREDENTIALS_HOME` overrides the base directory. Directories are 0700 and files
-0600. Each machine connects separately. Legacy `secrets/` files migrate once when
-`fo doctor --fix`, `fo serve`, or a credential command runs; reads never migrate.
-Differing local copies are retained and flagged by `fo doctor`; iCloud `.icloud`
-placeholders are skipped until downloaded.
-macOS Keychain storage is possible future hardening; it is not used here.
+The office may live in iCloud Drive or another synced folder. Credentials stay
+outside it, per machine, keyed by `[office].id` in `office.toml`. On macOS they are
+items in the login Keychain (service `com.familyoffice.credentials.<office-id>`, this
+Mac only, never iCloud Keychain). Elsewhere, and on a Mac after
+`fo config set credentials.store file`, they are 0600 files in a 0700 folder:
+`~/Library/Application Support/FamilyOffice/credentials/<office-id>/` on macOS,
+`${XDG_DATA_HOME:-~/.local/share}/family-office/credentials/<office-id>/` elsewhere.
+`FO_CREDENTIALS_HOME` overrides the base directory and defaults to files. Each
+machine connects separately. Files left from an earlier version, and legacy
+`secrets/` files, move once when `fo doctor --fix`, `fo serve`, or a credential
+command runs: each is copied, read back, and only then removed. Reads never migrate.
+Differing copies are retained and flagged by `fo doctor`; iCloud `.icloud`
+placeholders are skipped until downloaded. See [SECURITY.md](SECURITY.md) for what
+the Keychain does and does not protect against.
 
 ### No trade execution
 
@@ -402,7 +406,7 @@ pipe: the file must resolve under `reports/` or a run's scratch workspace,
 `fo config set KEY VALUE` changes one setting in `office.toml` under the office
 lock, keeps every other line and comment as it was, and refuses anything outside
 this list with `invalid_key`, or a value of the wrong type with `invalid_value`:
-`hosts.writer` (the writer hostname), `office.timezone` (an IANA timezone key),
+`credentials.store` (`keychain` or `file`), `hosts.writer` (the writer hostname), `office.timezone` (an IANA timezone key),
 `serve.port` (1 to 65535, not 8182), `serve.tailnet_name`, `serve.allowed_logins`
 (a JSON array or comma-separated), `serve.web_fetch_cap`, `serve.web` (`on`,
 `isolated`, or `off`), `serve.max_budget_usd`,

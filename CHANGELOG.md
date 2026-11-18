@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- On macOS, provider credentials now live in the login Keychain instead of 0600
+  files: `keys.toml` (Plaid client ID and secret, SimpleFIN access link, market keys),
+  each `<provider>.json` research key, and `plaid-items.json` (Plaid access tokens).
+  Items stay on this Mac and never enter iCloud Keychain. Existing files move the
+  first time `fo serve`, `fo doctor --fix`, or a credential command runs: each is
+  copied, read back, and only then removed, so nothing has to be entered or linked
+  again. `fo doctor` reports where credentials are kept and lists any that did not
+  move. `fo config set credentials.store file` goes back to files and moves them
+  back; other systems keep using files. Paired-device records (`devices.json`, token
+  hashes only) stay a file. If macOS asks whether family-office may use the item,
+  that is a different copy of `fo` than the one that stored it; allow it once.
+
 ## 2.0.0b4 — 2026-11-15
 
 - Plaid is an optional account connector you use with your own Plaid developer

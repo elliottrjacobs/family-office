@@ -149,7 +149,7 @@ struct ConnectorsSettings: View {
         Form {
             if state.officePath == nil {
                 Section {
-                    Text("Choose an office folder in General first; credentials live in its secrets folder.")
+                    Text("Choose an office folder in General first. Credentials stay in this Mac's Keychain, outside the office.")
                         .foregroundStyle(.secondary)
                 }
             } else if let error = model.serverError {

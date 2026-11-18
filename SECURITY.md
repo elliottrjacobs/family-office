@@ -15,8 +15,9 @@ templates are accident-prevention measures, not protection against arbitrary cod
 running as the same OS user. Codex workspace-write permits reads in the office;
 the office instructions forbid reading secrets, but do not enforce a read barrier.
 
-Secrets are ignored by Git and stored at mode 0600 inside a 0700 directory.
-Atomic replacement avoids partially written credentials. Provider errors must be
+Secrets are ignored by Git and stored outside the office: in the macOS Keychain, or
+at mode 0600 inside a 0700 directory on other systems. A Keychain write is read back
+and a file is replaced atomically, so a credential is never left half written. Provider errors must be
 converted to safe errors before display. Raw payloads must not be logged.
 
 ## Companion app
@@ -264,8 +265,8 @@ their fixed provider hosts.
 | Fetched websites | A GET request with a family-office User-Agent for each direct fetch |
 | GitHub | Public code; tracked private office files only when its remote is configured |
 
-Research provider keys live in `<provider>.json` in the per-machine credentials
-folder at 0600, written by `fo connect` only after one validating call; advisor runs cannot run `fo connect`.
+Research provider keys live as `<provider>.json` in the per-machine credential store
+(a Keychain item on macOS, otherwise a 0600 file), written by `fo connect` only after one validating call; advisor runs cannot run `fo connect`.
 `fo research fetch` refuses URLs with credentials, non-HTTP schemes, localhost,
 `.ts.net`, and hosts resolving to loopback, link-local, private, CGNAT, or ULA
 addresses, rechecking every redirect, so a run cannot reach `fo serve` or the
@@ -301,21 +302,54 @@ any report before sharing it outside the private office.
 ## Credential storage and synced offices
 
 The office may live in iCloud Drive or another synced folder. Credentials live
-outside it, per machine, under `~/Library/Application Support/FamilyOffice/credentials`
-on macOS or `${XDG_DATA_HOME:-~/.local/share}/family-office/credentials` elsewhere.
-`FO_CREDENTIALS_HOME` overrides that base. A random `[office].id` in `office.toml`
-selects a 0700 subdirectory; credential files are 0600. The id is safe to sync;
-each machine must connect separately. This uses files, not macOS Keychain;
-Keychain integration remains possible future hardening.
+outside it, per machine. A random `[office].id` in `office.toml` names them; the id
+is safe to sync, and each machine must connect separately.
 
-On `fo init`, `fo setup`, `fo doctor --fix`, writable `fo serve`, or a
-credential-writing command, fo-managed legacy office `secrets/` files move to
-that folder; reads never migrate. An existing destination wins: identical office
-copies are removed; differing copies
-stay in both locations for manual resolution. `fo doctor` flags office leftovers
-and local credential permissions. Keep `secrets/` ignored and blocked by the
-pre-commit hook as defense for older offices.
+On macOS the secrets are generic-password items in the login Keychain: service
+`com.familyoffice.credentials.<office-id>`, one item each for `keys.toml`, every
+`<provider>.json`, and `plaid-items.json`. They are added without the synchronizable
+attribute, so they stay on that Mac and never enter iCloud Keychain. `devices.json`
+stays a file: it holds hashes of device tokens, not tokens.
 
-Claude's guard denies direct reads outside the office. Codex's command-based
-read confinement does not protect the external credentials directory any more
-than it protected `secrets/`. Its engine remains disabled by default.
+On other systems, and on a Mac after `fo config set credentials.store file`, the
+same names are 0600 files in a 0700 subdirectory of
+`~/Library/Application Support/FamilyOffice/credentials` (macOS) or
+`${XDG_DATA_HOME:-~/.local/share}/family-office/credentials`. `FO_CREDENTIALS_HOME`
+overrides that base and, unless `credentials.store` says otherwise, uses files.
+
+What the Keychain changes, and what it does not:
+
+- A secret is no longer a file. Reading a folder, searching the disk, a backup of
+  the home directory, or an agent's file tools do not reach it.
+- macOS trusts the program that stored an item. For the Mac app that is its bundled,
+  Developer ID signed Python, and the trust survives app updates. A different
+  program asking for the item's data makes macOS ask the user first. A separately
+  installed `fo` is such a program; allow it once when asked.
+- It is not a barrier against code that runs as the user and sets out to get the
+  credentials. Such code can run the same bundled interpreter, which macOS already
+  trusts, and ask for the items. The Keychain stops accidental and bulk exposure,
+  not a targeted attack from inside the account.
+- The login Keychain is locked when no one is logged in at the screen. Over SSH
+  with no login session, credential reads fail with `credentials_unavailable`; use
+  `credentials.store file` on a machine run that way.
+
+A Keychain failure never returns a credential, a provider message, or an item's
+contents: commands fail with `credentials_unavailable` and say how to switch to
+files.
+
+On `fo init`, `fo setup`, `fo doctor --fix`, writable `fo serve`, a
+credential-writing command, or `fo config set credentials.store`, credentials
+converge on the active store. fo-managed legacy office `secrets/` files move to the
+credentials folder first; then each secret the other store still holds is copied,
+read back, and only then removed from where it was. Reads never migrate: a secret
+not yet moved is read where it lies. An existing destination wins: identical copies
+are removed; differing copies stay in both places for manual resolution, and the
+active store's copy is used. `fo doctor` reports the store in `credentials.store`,
+and flags secrets outside it, office leftovers, and local credential permissions.
+Keep `secrets/` ignored and blocked by the pre-commit hook as defense for older
+offices.
+
+Claude's guard denies direct reads outside the office, and advisor runs cannot run
+credential commands. Codex's command-based read confinement does not protect the
+external credentials directory any more than it protected `secrets/`. Its engine
+remains disabled by default.

@@ -14,7 +14,7 @@ struct AccountsStep: View {
                 detail: "Choose any provider below, or none. Family Office reads balances, positions "
                     + "and transactions; it never trades or moves money. Connecting runs fo auth in a "
                     + "terminal here, and your credentials "
-                    + "stay in this Mac's credentials folder, outside the office."
+                    + "stay in this Mac's Keychain, outside the office."
             )
             ConnectorsSettings(model: model.accounts, parts: [.accounts])
                 .padding(.horizontal, -20)
