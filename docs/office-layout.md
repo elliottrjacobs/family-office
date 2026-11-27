@@ -21,7 +21,9 @@ office credential directories are 0700 and files in them are 0600. On macOS,
 `keys.toml`, `<provider>.json`, and `plaid-items.json` are not files there but items
 in the login Keychain, service `com.familyoffice.credentials.<office-id>`, one item
 per name; `devices.json` stays a file. `[credentials] store = "file"` in
-`office.toml` keeps them all as files. Connect each machine separately.
+`office.toml` keeps them all as files. Connect each machine separately, except
+Plaid: move its Items with `fo auth plaid --export` and `--import` instead of linking
+them again ([Moving the writer to another Mac](#moving-the-writer-to-another-mac)).
 
 Legacy `secrets/` files migrate on `fo doctor --fix`, `fo serve`, or a credential
 command; read-only commands never migrate or write `office.toml`. Identical destination copies
@@ -100,6 +102,8 @@ financial values. Logs remain in ignored `cache/logs/`.
 When moving the writer with `fo config set hosts.writer example-mac.local`, run
 `fo schedule install` on that machine if it has not been scheduled there, then
 load the returned jobs as described below. The old host's sync job now skips.
+[Moving the writer to another Mac](#moving-the-writer-to-another-mac) gives the whole
+sequence, credentials included.
 `fo config set` commits its `office.toml` change locally without committing other
 dirty or staged files. These managed writes keep `fo commit` and nightly syncs
 from being blocked by their own settings changes.
@@ -113,6 +117,35 @@ runtime, loads the jobs only after cutover approval, and checks `launchctl list`
 and the next scheduled sync log. These live checks have not been performed in
 the development test suite. Two offices should not load identically named jobs
 at once; archive the prior definitions during the approved cutover.
+
+## Moving the writer to another Mac
+
+Credentials are per machine, so the new writer needs its own. For Plaid, move the
+existing Items rather than linking the institutions again. Linking again uses another
+Plaid Item for each institution, for good (removing an Item does not return its Trial
+slot), and gives its accounts new registry ids. A moved Item keeps its Plaid account
+ids, so the registry's `provider_ref`s still match and each account keeps syncing
+under its existing id.
+
+1. On the current writer: `fo auth plaid --export ~/Downloads/plaid-items.transfer`.
+   Type a one-time passphrase of 12 characters or more twice. `--item <institution
+   name or item id>` (repeatable) exports only those Items.
+2. Carry the file to the new Mac by AirDrop or a USB drive, not through a cloud folder.
+3. On the new Mac: `fo auth plaid --import ~/Downloads/plaid-items.transfer`. Type the
+   passphrase. A Mac without Plaid keys asks for the client ID and secret, and saves
+   them once Plaid accepts them. The import merges into the Items this Mac already
+   has and skips any it already holds. It asks before taking an institution this Mac
+   linked again under another Item, and skips it when there is no terminal to ask.
+   It reads the result back and deletes the file.
+   It refuses, changing nothing, if the passphrase is wrong, the file was changed, or
+   the file comes from another office, Plaid client ID, or environment.
+4. Delete the file on the old writer. That Mac keeps its own Items.
+5. Connect SimpleFIN (with a new setup token) and any market keys on the new Mac with
+   `fo auth` or `fo connect`, as before.
+6. `fo config set hosts.writer <new-mac>.local`, then `fo schedule install` on the new
+   Mac and load the jobs, as in [Scheduled operations](#scheduled-operations).
+7. Run `fo sync` on the new Mac and check that the moved accounts are current. No
+   re-registration is needed.
 
 ## A second machine or cloud task
 

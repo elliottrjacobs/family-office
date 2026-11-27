@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Plaid connections can move to another Mac without linking the institutions again,
+  so no further Plaid Items are used and every account keeps its id. On the Mac that
+  has them, run `fo auth plaid --export PATH` (optionally with `--item <institution>`,
+  repeatable). It writes a new 0600 file, sealed with a one-time passphrase entered at
+  hidden prompts and holding no Plaid secret. On the other Mac, run `fo auth plaid
+  --import PATH`. That checks the file's office, Plaid client ID and environment, and
+  merges the Items into that Mac's own: Items it already holds are skipped, and it asks
+  before taking an institution linked again there. It reads the merge back, then
+  deletes the file. Nothing prints a token. This is now the documented way to move the
+  writer.
+
 ## 2.0.0b6 — 2026-11-27
 
 - The Mac app sees a running Tailscale again. Opened from Finder or the Dock, it asked
