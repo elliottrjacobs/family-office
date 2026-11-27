@@ -323,7 +323,11 @@ struct DevicesSettings: View {
                                 pairedCount: state.monitor.devices?.count ?? 0)
                         }
                     }
-                    .disabled(model.tailnetName == nil || state.api == nil || model.pairingBusy)
+                    // Without phone access the server listens on a random loopback port and
+                    // refuses the tailnet name, so a code would only get the phone an HTTP 502.
+                    .disabled(
+                        model.tailnetName == nil || !state.phoneAccess || state.api == nil
+                            || model.pairingBusy)
                     if model.tailnetName == nil {
                         Text("Set the office tailnet name first.")
                             .font(.caption)
