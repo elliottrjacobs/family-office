@@ -123,12 +123,26 @@ public enum Tailscale {
         "tailscale serve --bg \(port)"
     }
 
+    /// The environment every `tailscale` command runs with: `base` plus `TAILSCALE_BE_CLI=1`.
+    ///
+    /// The standalone and App Store installs use one binary for the app and the CLI. Started
+    /// from an app launched in Finder, it takes itself for the GUI, prints "The Tailscale GUI
+    /// failed to start" instead of the command's output, and exits 0. The variable makes it
+    /// act as the CLI. The open-source `tailscale` does not need it.
+    public static func cliEnvironment(
+        _ base: [String: String] = ProcessInfo.processInfo.environment
+    ) -> [String: String] {
+        var environment = base
+        environment["TAILSCALE_BE_CLI"] = "1"
+        return environment
+    }
+
     #if os(macOS)
     /// Runs `tailscale ARGS` with a 10 second timeout.
     public static func run(_ cli: URL, _ arguments: [String], timeout: TimeInterval = 10) async
         -> SubprocessResult
     {
-        await Subprocess.run(cli, arguments, timeout: timeout)
+        await Subprocess.run(cli, arguments, environment: cliEnvironment(), timeout: timeout)
     }
 
     /// Locates the CLI and reads `status --json`.

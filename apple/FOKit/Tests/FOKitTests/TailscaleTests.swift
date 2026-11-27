@@ -59,6 +59,20 @@ final class TailscaleTests: XCTestCase {
             "/Applications/Tailscale.app/Contents/MacOS/Tailscale")
     }
 
+    func testCLIEnvironmentForcesCLIModeAndKeepsTheRest() {
+        let environment = Tailscale.cliEnvironment(["HOME": "/Users/example", "TAILSCALE_BE_CLI": "0"])
+        XCTAssertEqual(environment, ["HOME": "/Users/example", "TAILSCALE_BE_CLI": "1"])
+    }
+
+    #if os(macOS)
+    /// `run` hands the CLI environment to the command it starts; `env` prints what it got.
+    func testRunPassesTheCLIEnvironment() async {
+        let result = await Tailscale.run(URL(fileURLWithPath: "/usr/bin/env"), [])
+        XCTAssertTrue(result.succeeded)
+        XCTAssertTrue(result.stdoutText.split(separator: "\n").contains("TAILSCALE_BE_CLI=1"))
+    }
+    #endif
+
     func testServeCommands() {
         XCTAssertEqual(Tailscale.serveArguments(port: 4790), ["serve", "--bg", "4790"])
         XCTAssertEqual(Tailscale.stopArguments, ["serve", "--https=443", "off"])

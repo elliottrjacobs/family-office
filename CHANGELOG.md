@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.0.0b6 — 2026-11-27
+
+- The Mac app sees a running Tailscale again. Opened from Finder or the Dock, it asked
+  the standalone or App Store Tailscale for its status and got "The Tailscale GUI
+  failed to start" instead, so Setup > Pair a phone and Settings > Devices said
+  "Tailscale did not report its status" while Tailscale was connected. Every
+  `tailscale` command the app runs (status, and starting or stopping tailnet access)
+  now sets `TAILSCALE_BE_CLI=1`, which makes that binary act as the command-line tool.
+- Pair a Phone stays disabled until Allow phone access over Tailscale is on in
+  Settings > General. Before, it made a code anyway, and the phone got HTTP 502:
+  without phone access the server listens on a port chosen at launch, not the one
+  `tailscale serve` forwards to.
+
 ## 2.0.0b5 — 2026-11-17
 
 - On macOS, provider credentials now live in the login Keychain instead of 0600
