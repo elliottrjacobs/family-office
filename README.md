@@ -85,6 +85,34 @@ Differing copies are retained and flagged by `fo doctor`; iCloud `.icloud`
 placeholders are skipped until downloaded. See [SECURITY.md](SECURITY.md) for what
 the Keychain does and does not protect against.
 
+**Moving the writer to another Mac.** Because credentials stay on the Mac that stored
+them, do not link your Plaid institutions again on the new Mac: that uses another
+Plaid Item for each one, for good, and gives their accounts new ids. Move the Items
+instead. This is the preferred way to move the writer, or to give a second Mac
+working Plaid connections:
+
+```sh
+fo auth plaid --export ~/Downloads/plaid-items.transfer   # on the Mac that has them
+fo auth plaid --import ~/Downloads/plaid-items.transfer   # on the other Mac
+```
+
+Export asks twice, at hidden prompts, for a one-time passphrase of 12 characters or
+more, then writes a new 0600 file sealed with it, outside the office. Add `--item
+<institution name or item id>` (repeatable) to export only some Items; the result
+lists what it wrote. Carry the file across by AirDrop or on a USB drive, not through a
+cloud folder. Import asks for the passphrase and checks that the file belongs to this
+office and to this Mac's Plaid client ID and environment. It then adds the Items to the
+ones this Mac already has, without dropping any. An Item this Mac already holds is
+skipped and keeps this Mac's copy. An institution this Mac linked again under a
+different Item is imported only if you say yes, because both Items would count its
+accounts twice. The merged list is read back, the file is deleted, and the next sync
+updates the accounts under their existing ids, with nothing to register again. A Mac
+with no Plaid keys yet asks for the client ID and secret first. Afterward delete the
+file on the sending Mac too; that Mac keeps its own Items. Connect SimpleFIN and the
+market keys on the new Mac as before, then follow
+[Moving the writer](docs/office-layout.md#moving-the-writer-to-another-mac). See
+[SECURITY.md](SECURITY.md#moving-plaid-items-to-another-mac) for what the file exposes.
+
 ### No trade execution
 
 The CLI and provider adapters expose account and market-data reads only: no

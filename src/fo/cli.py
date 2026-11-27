@@ -291,8 +291,26 @@ def print_skill(
 
 
 @app.command("auth")
-def auth_command(ctx: typer.Context, provider: str):
-    from fo.auth import authenticate
+def auth_command(
+    ctx: typer.Context,
+    provider: str,
+    export: Path | None = typer.Option(
+        None,
+        "--export",
+        help="Plaid: seal this Mac's linked Items into a new passphrase-protected file.",
+    ),
+    import_path: Path | None = typer.Option(
+        None,
+        "--import",
+        help="Plaid: merge the Items in a file from --export, then delete the file.",
+    ),
+    item: list[str] = typer.Option(
+        None,
+        "--item",
+        help="With --export: an institution name or Plaid item id (repeatable); default all.",
+    ),
+):
+    from fo.auth import authenticate, transfer
     from fo.config import ensure_credentials
 
     def execute():
@@ -300,6 +318,8 @@ def auth_command(ctx: typer.Context, provider: str):
         office = root(ctx)
         ensure_credentials(office)
         with office_lock(office):
+            if export or import_path or item:
+                return transfer(office, provider, export, import_path, item)
             return authenticate(office, provider)
 
     run(ctx, execute)

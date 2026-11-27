@@ -303,7 +303,9 @@ any report before sharing it outside the private office.
 
 The office may live in iCloud Drive or another synced folder. Credentials live
 outside it, per machine. A random `[office].id` in `office.toml` names them; the id
-is safe to sync, and each machine must connect separately.
+is safe to sync, and each machine must connect separately. Plaid Items are the
+exception: they can be moved instead of linked again, as described in
+[Moving Plaid Items to another Mac](#moving-plaid-items-to-another-mac).
 
 On macOS the secrets are generic-password items in the login Keychain: service
 `com.familyoffice.credentials.<office-id>`, one item each for `keys.toml`, every
@@ -353,3 +355,54 @@ Claude's guard denies direct reads outside the office, and advisor runs cannot r
 credential commands. Codex's command-based read confinement does not protect the
 external credentials directory any more than it protected `secrets/`. Its engine
 remains disabled by default.
+
+## Moving Plaid Items to another Mac
+
+Linking an institution again on a second Mac creates a new Plaid Item: it uses up
+another of the Trial's Items for good and gives the accounts new ids. `fo auth plaid
+--export PATH` on the Mac that holds the Items and `fo auth plaid --import PATH` on
+the other move the access tokens instead. What the transfer exposes, and what limits
+it:
+
+- The file holds the chosen Items' access tokens, institution names and ids, and
+  transactions cursors, with the office id, the Plaid environment, and a SHA-256
+  fingerprint of the client ID. It never holds the client ID or the secret. Plaid
+  accepts an access token only with the client ID and secret of the application it
+  was issued to, so someone who gets the file and its passphrase still needs your
+  Plaid keys to read the accounts.
+- The file is sealed with a one-time passphrase of at least 12 characters, typed
+  twice at hidden prompts. scrypt (N=2^17, r=8, p=1, with a random 16-byte salt for
+  each file) derives an encryption key and a MAC key from it. The contents are
+  encrypted with HMAC-SHA256 in counter mode and authenticated with HMAC-SHA256 over
+  the header and ciphertext (encrypt-then-MAC). These are Python standard-library
+  primitives, chosen so the command adds no dependency. A wrong passphrase, or any
+  changed byte, fails before anything is decrypted.
+- At rest, the file is only as strong as its passphrase against offline guessing.
+  scrypt makes each guess cost about 0.2 seconds and 128 MiB on an Apple Silicon Mac.
+  That slows guessing, but does not save a short or reused passphrase. Use four or
+  more random words you use nowhere else, and never keep the passphrase with the file.
+- The file is created at 0600 and refused inside the office folder, which may sync
+  to iCloud Drive and is tracked by Git. Copies made on the way are outside fo's
+  control: AirDrop leaves the original on the sending Mac, a USB drive keeps deleted
+  data until it is overwritten, and iCloud Drive, another cloud folder, Time Machine,
+  or another backup may keep earlier copies. Export into a folder that does not sync,
+  such as `~/Downloads` (Desktop and Documents sync too when iCloud's "Desktop &
+  Documents Folders" is on). Carry the file by AirDrop or on a drive you erase
+  afterward. An export into iCloud Drive or a `~/Library/CloudStorage` folder says so
+  in its result.
+- Import deletes the file only after the merged Items read back from this Mac's
+  store exactly as written. A wrong passphrase, a changed file, another office, or
+  another Plaid client ID or environment refuses the import, changes nothing, and
+  leaves the file for you to retry or delete. Export never deletes anything: delete
+  the sending Mac's copy yourself.
+- Afterward, both Macs hold working tokens. That is the same exposure as linking on
+  both, without using more Items. Only the writer syncs. To revoke an Item
+  everywhere, remove it in the Plaid Dashboard; that does not return its Trial slot.
+- Nothing prints a token, cursor, passphrase, or client ID. Results name only
+  institutions, item ids, and counts. Advisor runs cannot run `fo auth`. An agent can
+  read the tokens only if it can read the file and also knows the passphrase. Type
+  the passphrase at the prompt yourself and never give it to an agent.
+- A Mac with no Plaid keys yet asks for the client ID and secret at hidden prompts
+  and checks the client ID against the file's fingerprint. It saves the keys only
+  after Plaid accepts them for one of the transferred Items, through `/item/get`.
+  That is the only Plaid call an import makes.

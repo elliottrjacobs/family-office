@@ -33,6 +33,35 @@ def save_secret_json(root, name, value):
     write_credential(root, f"{name}.json", json.dumps(value, indent=2, ensure_ascii=False) + "\n")
 
 
+def transfer(root, provider, export=None, source=None, items=None):
+    """fo auth plaid --export PATH [--item ...] or --import PATH; see plaid_transfer."""
+    import functools
+    import sys
+
+    from fo.providers import plaid_transfer
+
+    if provider != "plaid":
+        raise OfficeError("invalid_request", "Only Plaid Items can be exported or imported.")
+    if bool(export) == bool(source):
+        raise OfficeError("invalid_request", "Pass either --export PATH or --import PATH.")
+    if items and not export:
+        raise OfficeError("invalid_request", "--item chooses what --export writes.")
+    ensure_credentials(root)
+    prompt = functools.partial(typer.prompt, err=True)
+    interactive = sys.stdin is not None and sys.stdin.isatty()
+    confirm = functools.partial(typer.confirm, err=True) if interactive else lambda *_, **__: False
+    try:
+        if export:
+            return plaid_transfer.export_items(root, export, prompt, items)
+        return plaid_transfer.import_items(root, source, prompt, confirm)
+    except OfficeError:
+        raise
+    except Exception as exc:
+        raise OfficeError(
+            "transfer_failed", "The Plaid transfer failed; no credential details are displayed."
+        ) from exc
+
+
 def authenticate(root, provider):
     ensure_credentials(root)
     keys = read_secrets(root)
